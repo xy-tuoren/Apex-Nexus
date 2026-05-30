@@ -106,13 +106,6 @@ export default async function Home() {
 
   return (
     <main className="relative min-h-screen bg-[var(--canvas)] text-[var(--ink)]">
-      <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="gradient-orb orb-mint -left-24 top-[-6rem] h-[28rem] w-[28rem]" />
-        <div className="gradient-orb orb-peach right-[-5rem] top-[20%] h-[22rem] w-[22rem]" />
-        <div className="gradient-orb orb-lavender bottom-[10%] left-[30%] h-[20rem] w-[20rem]" />
-        <div className="gradient-orb orb-sky right-[15%] bottom-[-4rem] h-[18rem] w-[18rem]" />
-      </div>
-
       <header className="sticky top-0 z-20 border-b border-[var(--hairline)] bg-[var(--canvas)]/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-[1200px] items-center gap-6 px-6">
           <div className="flex shrink-0 items-center gap-3">
@@ -120,7 +113,7 @@ export default async function Home() {
               <Rocket className="h-4 w-4 text-[var(--ink)]" />
             </div>
             <div className="hidden sm:block">
-              <p className="font-display text-base leading-none text-[var(--ink)]">Apex Nexus</p>
+              <p className="text-sm font-semibold leading-none text-[var(--ink)]">Apex Nexus</p>
               <p className="mt-1 text-caption-uppercase text-[var(--muted)]">Admin</p>
             </div>
           </div>
@@ -155,14 +148,10 @@ export default async function Home() {
       </header>
 
       <section className="relative mx-auto max-w-[1200px] px-6">
-        <div className="animate-fade-up relative overflow-hidden py-16 lg:py-24">
-          <div
-            aria-hidden
-            className="gradient-orb orb-rose absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 opacity-40"
-          />
-          <div className="relative max-w-2xl">
+        <div className="animate-fade-up py-16 lg:py-24">
+          <div className="max-w-2xl">
             <p className="text-caption-uppercase text-[var(--muted)]">Platform Console</p>
-            <h1 className="text-display-lg mt-3 text-[var(--ink)]">业务后台工作台</h1>
+            <h1 className="text-heading-xl mt-3 text-[var(--ink)]">业务后台工作台</h1>
             <p className="mt-5 max-w-xl text-body-sm text-[var(--body)]">
               多站点 Google Ads 投放管理 — 账号链路、素材校验、草稿预览与暂停态任务，统一在此调度。
             </p>
@@ -185,7 +174,7 @@ export default async function Home() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-caption-uppercase text-[var(--muted)]">{item.label}</p>
-                    <p className="font-display mt-3 text-4xl tabular-nums text-[var(--ink)]">
+                    <p className="mt-3 text-4xl font-semibold tabular-nums text-[var(--ink)]">
                       {item.value}
                     </p>
                   </div>
@@ -199,15 +188,11 @@ export default async function Home() {
 
           <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
             <div className="animate-fade-up stagger-5 overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--surface-card)]">
-              <div className="relative border-b border-[var(--hairline)] px-6 py-8 lg:px-8">
-                <div
-                  aria-hidden
-                  className="gradient-orb orb-sky absolute -right-16 -top-16 h-48 w-48 opacity-30"
-                />
-                <div className="relative flex items-start justify-between gap-4">
+              <div className="border-b border-[var(--hairline)] px-6 py-8 lg:px-8">
+                <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-caption-uppercase text-[var(--muted)]">System Modules</p>
-                    <h2 className="text-display-sm mt-2 text-[var(--ink)]">后台能力总览</h2>
+                    <h2 className="text-heading-lg mt-2 text-[var(--ink)]">后台能力总览</h2>
                     <p className="mt-3 max-w-2xl text-body-sm text-[var(--body)]">
                       Google Ads 投放只是广告运营模块的一部分；平台还需要承载站点资产、
                       账号权限、素材、报表、AI 自动化和风控。

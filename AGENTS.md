@@ -31,12 +31,12 @@ Skills 统一维护在 `.agents/skills/`（跨 Cursor、Claude Code 等工具的
 
 ### DESIGN.md 管什么（不可违反）
 
-- **颜色**：只用 `app/globals.css` 中的 CSS 变量（`--canvas`、`--ink`、`--hairline` 等）；禁止新增强调色、紫色渐变、霓虹 CTA
-- **字体**：Display 用 Cormorant Garamond（300），正文/导航用 Inter（400/500）— skill 中「避免 Inter」**对本项目不适用**
+- **颜色**：只用 `app/globals.css` 中的 CSS 变量（`--canvas`、`--ink`、`--hairline` 等）；中性黑白灰为主，禁止 pastel 渐变 orb、紫色渐变、霓虹 CTA
+- **字体**：全站 Inter — 标题 600，正文/导航 400/500；禁止 serif 艺术字 — skill 中「避免 Inter」**对本项目不适用**
 - **组件**：CTA 为墨黑/浅色 pill；卡片用 `feature-card`；徽章用 `badge-pill` 风格
-- **氛围**：pastel 渐变 orb 仅作背景装饰，不作按钮/文字色
+- **氛围**：无装饰性色块；层次靠字重、留白与 hairline
 - **明暗模式**：通过 `data-theme="dark"` 切换；新增样式须兼容 `[data-theme="dark"]` 中已有 token
-- **风格基调**：编辑杂志风（off-white 画布 + 暖墨文字 + 克制 CTA），禁止 dev-tools 深色默认风
+- **风格基调**：黑白产品控制台（近白画布 + 近黑文字 + 克制 CTA），禁止 dev-tools 默认风与编辑杂志风
 
 ### frontend-design 管什么（DESIGN 框内可用）
 

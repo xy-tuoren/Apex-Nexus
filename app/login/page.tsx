@@ -22,17 +22,13 @@ export default async function LoginPage({
       <div className="absolute right-6 top-6">
         <ThemeToggle />
       </div>
-      <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="gradient-orb orb-lavender left-1/4 top-1/4 h-64 w-64" />
-        <div className="gradient-orb orb-mint right-1/4 bottom-1/4 h-56 w-56" />
-      </div>
 
       <Card className="animate-fade-up relative w-full max-w-md">
         <CardHeader>
           <div className="voice-icon-plate mb-4 h-12 w-12">
             <LockKeyhole className="h-5 w-5 text-[var(--ink)]" strokeWidth={1.75} />
           </div>
-          <CardTitle className="font-display text-2xl font-light">后台登录占位页</CardTitle>
+          <CardTitle className="text-xl font-semibold">后台登录占位页</CardTitle>
           <CardDescription>
             当前 MVP 还未接入真实身份系统。这个页面用于避免开发阶段外部路径跳转产生 404。
           </CardDescription>
