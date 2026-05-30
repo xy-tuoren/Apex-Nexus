@@ -15,6 +15,10 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Apex Nexus",
   description: "Multi-site ad operations platform for Google Ads PMax and Demand Gen.",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/apple-icon.svg", type: "image/svg+xml" }],
+  },
 };
 
 export default function RootLayout({

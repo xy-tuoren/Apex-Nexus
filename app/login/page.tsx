@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { LockKeyhole, ShieldCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { AlertCircle, CheckCircle2, LockKeyhole } from "lucide-react";
+import { FeishuLoginButton } from "@/components/auth/feishu-login-button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,48 +10,109 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { isAuthEnabled } from "@/lib/auth/config";
+import { getSessionUser } from "@/lib/auth/server";
+
+const errorMessages: Record<string, string> = {
+  auth_not_configured: "飞书登录尚未配置，请联系管理员补齐环境变量。",
+  missing_code: "授权未完成，请重新发起飞书登录。",
+  invalid_state: "登录状态校验失败，请重新发起飞书登录。",
+  oauth_failed: "飞书授权失败，请稍后重试。",
+};
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string }>;
+  searchParams: Promise<{ from?: string; error?: string }>;
 }) {
-  const { from } = await searchParams;
+  const { from, error } = await searchParams;
+  const authEnabled = isAuthEnabled();
+  const user = await getSessionUser();
+
+  if (user) {
+    return (
+      <main className="login-stage flex min-h-screen items-center justify-center bg-[var(--canvas)] p-4 sm:p-6">
+        <Card className="login-card w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-heading-lg font-semibold">你已登录</CardTitle>
+            <CardDescription>
+              当前账号：{user.name}
+              {user.email ? `（${user.email}）` : ""}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild className="w-full">
+              <Link href={from && from.startsWith("/") ? from : "/"}>进入工作台</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
+
+  const errorMessage = error ? (errorMessages[error] ?? "登录失败，请重试。") : null;
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center bg-[var(--canvas)] p-6">
-      <div className="absolute right-6 top-6">
+    <main className="login-stage flex min-h-screen items-center justify-center bg-[var(--canvas)] p-4 sm:p-6">
+      <div className="absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
         <ThemeToggle />
       </div>
 
-      <Card className="animate-fade-up relative w-full max-w-md">
+      <Card className="login-card animate-fade-up w-full max-w-md">
         <CardHeader>
-          <div className="voice-icon-plate mb-4 h-12 w-12">
+          <div aria-hidden className="brand-mark mb-5 h-11 w-11 rounded-xl">
             <LockKeyhole className="h-5 w-5 text-[var(--ink)]" strokeWidth={1.75} />
           </div>
-          <CardTitle className="text-xl font-semibold">后台登录占位页</CardTitle>
+          <div className="section-eyebrow">
+            <p className="text-caption-uppercase text-[var(--muted)]">Authentication</p>
+          </div>
+          <CardTitle className="mt-3 text-heading-lg font-semibold">登录 Apex Nexus</CardTitle>
           <CardDescription>
-            当前 MVP 还未接入真实身份系统。这个页面用于避免开发阶段外部路径跳转产生 404。
+            使用企业飞书账号登录后台。登录后可访问工作台与全部 API。
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {from ? (
-            <div className="mb-4 rounded-lg border border-[var(--hairline-strong)] bg-[var(--canvas-soft)] p-3 text-sm text-[var(--body)]">
-              requested: <span className="text-[var(--ink)]">{from}</span>
+          {errorMessage ? (
+            <div
+              className="mb-4 flex items-start gap-2 rounded-lg border border-[var(--semantic-error)]/30 bg-[var(--semantic-error)]/5 p-3 text-sm text-[var(--body)]"
+              role="alert"
+            >
+              <AlertCircle
+                aria-hidden
+                className="mt-0.5 h-4 w-4 shrink-0 text-[var(--semantic-error)]"
+              />
+              <span>{errorMessage}</span>
             </div>
           ) : null}
-          <div className="rounded-xl border border-[var(--hairline)] bg-[var(--canvas-soft)] p-4 text-body-sm text-[var(--body)]">
-            <div className="flex items-center gap-2 font-medium text-[var(--ink)]">
-              <ShieldCheck className="h-4 w-4 text-[var(--semantic-success)]" />
-              建议后续接入
+
+          {authEnabled ? (
+            <>
+              <FeishuLoginButton className="w-full" from={from} />
+              <div className="mt-4 rounded-xl border border-[var(--hairline)] bg-[var(--canvas-soft)] p-4 text-body-sm text-[var(--body)]">
+                <div className="flex items-center gap-2 font-medium text-[var(--ink)]">
+                  <CheckCircle2
+                    aria-hidden
+                    className="h-4 w-4 text-[var(--semantic-success)]"
+                  />
+                  飞书 OAuth 已启用
+                </div>
+                <p className="mt-2 leading-relaxed">
+                  首次登录会跳转至飞书授权页，同意后即可进入控制台。
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="rounded-xl border border-[var(--hairline)] bg-[var(--canvas-soft)] p-4 text-body-sm text-[var(--body)]">
+              <p className="font-medium text-[var(--ink)]">开发模式：认证未启用</p>
+              <p className="mt-2 leading-relaxed">
+                在 `.env.local` 中配置 `FEISHU_APP_ID`、`FEISHU_APP_SECRET`、`AUTH_SECRET`
+                后重启服务，即可启用飞书登录与路由保护。
+              </p>
+              <Button asChild className="mt-4 w-full" variant="outline">
+                <Link href="/">暂不登录，进入工作台</Link>
+              </Button>
             </div>
-            <p className="mt-2 leading-relaxed">
-              NextAuth、企业 SSO 或内部账号系统，并把站点、账号和预算权限绑定到用户角色。
-            </p>
-          </div>
-          <Button asChild className="mt-6 w-full">
-            <Link href="/">返回工作台</Link>
-          </Button>
+          )}
         </CardContent>
       </Card>
     </main>

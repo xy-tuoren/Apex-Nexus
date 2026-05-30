@@ -3,8 +3,8 @@ import {
   BarChart3,
   Bot,
   Building2,
-  ChevronRight,
   CheckCircle2,
+  ChevronRight,
   CreditCard,
   Database,
   FileText,
@@ -17,6 +17,8 @@ import {
   Users,
   WalletCards,
 } from "lucide-react";
+import { Fragment } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,7 +31,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { UserMenu } from "@/components/auth/user-menu";
 import { listAccountsForSite, listSites } from "@/server/services/account-service";
+import { getSessionUser } from "@/lib/auth/server";
+import { isAuthEnabled } from "@/lib/auth/config";
 import { listAssets } from "@/server/services/asset-service";
 import { listCampaignDrafts } from "@/server/services/campaign-draft-service";
 import { listLaunchJobs } from "@/server/services/launch-service";
@@ -43,6 +48,12 @@ const navigation = [
   { label: "数据报表", icon: BarChart3 },
   { label: "AI 自动化", icon: Bot },
   { label: "系统风控", icon: ShieldCheck },
+];
+
+const heroHighlights = [
+  "账号链路与素材规格统一校验",
+  "草稿预览后按暂停态安全创建",
+  "UI 与 AI 共用同一套原子 API",
 ];
 
 const businessModules = [
@@ -86,6 +97,15 @@ const businessModules = [
 
 const launchSteps = ["草稿", "校验", "预览", "任务", "暂停态", "启用"];
 
+function launchStepState(index: number, draftsCount: number, jobsCount: number) {
+  if (index === 0 && draftsCount > 0) return "complete";
+  if (index <= 2 && draftsCount > 0) return "complete";
+  if (index <= 4 && jobsCount > 0) return "complete";
+  if (index === 3 && jobsCount > 0) return "active";
+  if (index === 0) return "active";
+  return "upcoming";
+}
+
 export default async function Home() {
   const [sites, assets, drafts, jobs] = await Promise.all([
     listSites(),
@@ -96,6 +116,8 @@ export default async function Home() {
   const selectedSite = sites[0];
   const accounts = selectedSite ? await listAccountsForSite(selectedSite.id) : [];
   const dryRunEnabled = process.env.GOOGLE_ADS_DRY_RUN !== "false";
+  const user = await getSessionUser();
+  const authEnabled = isAuthEnabled();
 
   const statCards = [
     { label: "站点", value: sites.length, icon: Building2, stagger: "stagger-1" },
@@ -105,12 +127,12 @@ export default async function Home() {
   ];
 
   return (
-    <main className="relative min-h-screen bg-[var(--canvas)] text-[var(--ink)]">
-      <header className="sticky top-0 z-20 border-b border-[var(--hairline)] bg-[var(--canvas)]/90 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-[1200px] items-center gap-6 px-6">
+    <main className="canvas-surface min-h-screen bg-[var(--canvas)] text-[var(--ink)]">
+      <header className="sticky top-0 z-20 border-b border-[var(--hairline)] bg-[var(--canvas)]/90 backdrop-blur-xl">
+        <div className="mx-auto flex h-14 max-w-[1200px] items-center gap-4 px-4 sm:px-6">
           <div className="flex shrink-0 items-center gap-3">
-            <div className="voice-icon-plate h-9 w-9">
-              <Rocket className="h-4 w-4 text-[var(--ink)]" />
+            <div aria-hidden className="brand-mark">
+              <Rocket className="h-4 w-4 text-[var(--ink)]" strokeWidth={1.75} />
             </div>
             <div className="hidden sm:block">
               <p className="text-sm font-semibold leading-none text-[var(--ink)]">Apex Nexus</p>
@@ -118,18 +140,22 @@ export default async function Home() {
             </div>
           </div>
 
-          <nav className="nav-scroll flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+          <nav
+            aria-label="主导航"
+            className="nav-scroll flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto"
+          >
             {navigation.map((item) => (
               <button
                 key={item.label}
-                className={`flex shrink-0 items-center gap-2 rounded-full px-3.5 py-2 text-[15px] font-medium transition ${
+                aria-current={item.active ? "page" : undefined}
+                className={`flex shrink-0 cursor-pointer items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]/25 ${
                   item.active
                     ? "bg-[var(--surface-strong)] text-[var(--ink)]"
                     : "text-[var(--body)] hover:bg-[var(--hairline-soft)] hover:text-[var(--ink)]"
                 }`}
                 type="button"
               >
-                <item.icon className="h-4 w-4" strokeWidth={1.75} />
+                <item.icon aria-hidden className="h-4 w-4" strokeWidth={1.75} />
                 <span className="whitespace-nowrap">{item.label}</span>
               </button>
             ))}
@@ -140,6 +166,12 @@ export default async function Home() {
             <Badge className="hidden md:inline-flex">
               {dryRunEnabled ? "Dry Run" : "Live API"}
             </Badge>
+            {user ? <UserMenu user={user} /> : null}
+            {!authEnabled ? (
+              <Button asChild size="sm">
+                <Link href="/login">登录</Link>
+              </Button>
+            ) : null}
             <Button size="sm" type="button">
               新建投放任务
             </Button>
@@ -147,285 +179,435 @@ export default async function Home() {
         </div>
       </header>
 
-      <section className="relative mx-auto max-w-[1200px] px-6">
-        <div className="animate-fade-up py-16 lg:py-24">
-          <div className="max-w-2xl">
-            <p className="text-caption-uppercase text-[var(--muted)]">Platform Console</p>
-            <h1 className="text-heading-xl mt-3 text-[var(--ink)]">业务后台工作台</h1>
-            <p className="mt-5 max-w-xl text-body-sm text-[var(--body)]">
-              多站点 Google Ads 投放管理 — 账号链路、素材校验、草稿预览与暂停态任务，统一在此调度。
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Button type="button">创建广告草稿</Button>
-              <Button type="button" variant="outline">
-                同步账号
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-12 pb-24">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {statCards.map((item) => (
-              <Card
-                key={item.label}
-                className={`animate-fade-up p-6 ${item.stagger}`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-caption-uppercase text-[var(--muted)]">{item.label}</p>
-                    <p className="mt-3 text-4xl font-semibold tabular-nums text-[var(--ink)]">
-                      {item.value}
-                    </p>
-                  </div>
-                  <div className="voice-icon-plate">
-                    <item.icon className="h-4 w-4 text-[var(--body-strong)]" strokeWidth={1.75} />
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-            <div className="animate-fade-up stagger-5 overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--surface-card)]">
-              <div className="border-b border-[var(--hairline)] px-6 py-8 lg:px-8">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-caption-uppercase text-[var(--muted)]">System Modules</p>
-                    <h2 className="text-heading-lg mt-2 text-[var(--ink)]">后台能力总览</h2>
-                    <p className="mt-3 max-w-2xl text-body-sm text-[var(--body)]">
-                      Google Ads 投放只是广告运营模块的一部分；平台还需要承载站点资产、
-                      账号权限、素材、报表、AI 自动化和风控。
-                    </p>
-                  </div>
-                  <Badge>Admin IA v2</Badge>
-                </div>
+      <div className="mx-auto max-w-[1200px] px-4 sm:px-6">
+        <section
+          aria-labelledby="dashboard-heading"
+          className="animate-fade-up border-b border-[var(--hairline)] py-12 lg:py-16"
+        >
+          <div className="grid gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(260px,0.85fr)] lg:items-end">
+            <div className="max-w-2xl">
+              <div className="section-eyebrow">
+                <p className="text-caption-uppercase text-[var(--muted)]">Platform Console</p>
               </div>
-              <div className="grid gap-4 p-6 md:grid-cols-2">
-                {businessModules.map((module) => (
-                  <div
-                    key={module.title}
-                    className="feature-card group cursor-default p-6"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="voice-icon-plate">
-                        <module.icon className="h-4 w-4 text-[var(--body-strong)]" strokeWidth={1.75} />
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-[var(--muted-soft)] transition group-hover:translate-x-0.5 group-hover:text-[var(--ink)]" />
-                    </div>
-                    <h3 className="mt-5 text-lg font-medium text-[var(--ink)]">{module.title}</h3>
-                    <p className="mt-2 text-body-sm text-[var(--body)]">{module.description}</p>
-                    <Badge className="mt-4">{module.stats}</Badge>
-                  </div>
+              <h1 className="text-heading-xl mt-4 text-[var(--ink)]" id="dashboard-heading">
+                业务后台
+                <span className="block text-[var(--body-strong)]">工作台</span>
+              </h1>
+              <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-[var(--body)]">
+                多站点 Google Ads 投放管理 — 账号链路、素材校验、草稿预览与暂停态任务，统一在此调度。
+              </p>
+              <ul className="mt-6 space-y-2.5">
+                {heroHighlights.map((item) => (
+                  <li key={item} className="flex items-start gap-2.5 text-body-sm text-[var(--body)]">
+                    <span
+                      aria-hidden
+                      className="mt-2 h-1 w-1 shrink-0 rounded-full bg-[var(--ink)]"
+                    />
+                    <span>{item}</span>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
 
-            <div className="space-y-6">
-              <Card className="animate-fade-up stagger-6">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Megaphone className="h-5 w-5" strokeWidth={1.75} />
-                    广告运营快捷入口
+            <div className="space-y-4">
+              <div className="hero-panel animate-fade-up stagger-2">
+                <p className="meta-kicker">Live Snapshot</p>
+                <div className="mt-3">
+                  <div className="hero-panel-row">
+                    <span className="text-body-sm text-[var(--muted)]">运行模式</span>
+                    <Badge className="normal-case tracking-normal">
+                      {dryRunEnabled ? "Dry Run" : "Live API"}
+                    </Badge>
+                  </div>
+                  <div className="hero-panel-row">
+                    <span className="text-body-sm text-[var(--muted)]">当前站点</span>
+                    <span className="truncate text-sm font-medium text-[var(--ink)]">
+                      {selectedSite?.name ?? "暂无站点"}
+                    </span>
+                  </div>
+                  <div className="hero-panel-row">
+                    <span className="text-body-sm text-[var(--muted)]">草稿 / 任务</span>
+                    <span className="font-mono text-sm tabular-nums text-[var(--ink)]">
+                      {drafts.length} / {jobs.length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button className="flex-1 sm:flex-none" type="button">
+                  创建广告草稿
+                </Button>
+                <Button className="flex-1 sm:flex-none" type="button" variant="outline">
+                  同步账号
+                </Button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="stats-heading" className="section-band animate-fade-up stagger-3">
+          <div className="mx-auto max-w-[1200px] px-4 sm:px-6">
+            <div className="mb-5 flex items-end justify-between gap-4">
+              <div>
+                <div className="section-eyebrow">
+                  <p className="text-caption-uppercase text-[var(--muted)]">Overview</p>
+                </div>
+                <h2 className="text-heading-lg mt-2 text-[var(--ink)]" id="stats-heading">
+                  关键指标
+                </h2>
+              </div>
+              <p className="hidden max-w-[16rem] text-right text-body-sm leading-relaxed text-[var(--muted)] sm:block">
+                站点、账号、素材与任务在同一视图汇总。
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {statCards.map((item) => (
+                <Card key={item.label} className={`stat-card animate-fade-up p-5 ${item.stagger}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-caption-uppercase text-[var(--muted)]">{item.label}</p>
+                      <p className="text-metric mt-3 text-[var(--ink)]">{item.value}</p>
+                    </div>
+                    <div aria-hidden className="voice-icon-plate">
+                      <item.icon className="h-4 w-4 text-[var(--body-strong)]" strokeWidth={1.75} />
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <div className="space-y-14 py-12 pb-8 sm:px-0">
+          <section aria-labelledby="modules-heading" className="section-block">
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+              <div className="panel-shell animate-fade-up stagger-5">
+                <div className="panel-header">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="section-eyebrow">
+                        <p className="text-caption-uppercase text-[var(--muted)]">System Modules</p>
+                      </div>
+                      <h2 className="text-heading-lg mt-2 text-[var(--ink)]" id="modules-heading">
+                        后台能力总览
+                      </h2>
+                      <p className="mt-2 max-w-2xl text-body-sm text-[var(--body)]">
+                        Google Ads 投放只是广告运营模块的一部分；平台还需要承载站点资产、
+                        账号权限、素材、报表、AI 自动化和风控。
+                      </p>
+                    </div>
+                    <Badge>Admin IA v2</Badge>
+                  </div>
+                </div>
+                <div className="grid gap-3 p-4 md:grid-cols-2 lg:p-5">
+                  {businessModules.map((module, index) => (
+                    <div
+                      key={module.title}
+                      className="feature-card group cursor-pointer p-5 focus-within:ring-2 focus-within:ring-[var(--ink)]/15"
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="module-index">{String(index + 1).padStart(2, "0")}</span>
+                        <ChevronRight
+                          aria-hidden
+                          className="h-4 w-4 text-[var(--muted-soft)] transition duration-200 group-hover:translate-x-0.5 group-hover:text-[var(--ink)]"
+                        />
+                      </div>
+                      <div aria-hidden className="voice-icon-plate mt-4">
+                        <module.icon
+                          className="h-4 w-4 text-[var(--body-strong)]"
+                          strokeWidth={1.75}
+                        />
+                      </div>
+                      <h3 className="mt-4 text-base font-semibold tracking-[-0.01em] text-[var(--ink)]">
+                        {module.title}
+                      </h3>
+                      <p className="mt-1.5 text-body-sm text-[var(--body)]">{module.description}</p>
+                      <Badge className="mt-3">{module.stats}</Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <Card className="animate-fade-up stagger-6">
+                  <CardHeader className="mb-4">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Megaphone aria-hidden className="h-5 w-5" strokeWidth={1.75} />
+                      广告运营快捷入口
+                    </CardTitle>
+                    <CardDescription>
+                      当前只实现 Google Ads PMax / Demand Gen，后续可继续加 Meta、TikTok 等渠道。
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="divide-y divide-[var(--hairline)]">
+                      {["Performance Max", "Demand Gen"].map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          className="interactive-row group flex w-full items-center justify-between py-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]/20"
+                        >
+                          <div>
+                            <p className="font-medium text-[var(--ink)]">{type}</p>
+                            <p className="mt-0.5 text-sm text-[var(--muted)]">
+                              草稿、校验、预览、暂停态创建
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge className="normal-case tracking-normal">Google Ads</Badge>
+                            <ChevronRight
+                              aria-hidden
+                              className="h-4 w-4 text-[var(--muted-soft)] group-hover:text-[var(--ink)]"
+                            />
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    <Button className="mt-5 w-full" type="button">
+                      创建广告草稿
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Card className="animate-fade-up stagger-7">
+                  <CardHeader className="mb-4">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <WalletCards aria-hidden className="h-5 w-5" strokeWidth={1.75} />
+                      当前站点
+                    </CardTitle>
+                    <CardDescription>
+                      站点决定操作 MCC、真实投放账号、域名白名单和预算上限。
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="site-name">站点</Label>
+                        <Input id="site-name" readOnly value={selectedSite?.name ?? "暂无站点"} />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="site-url">默认落地页</Label>
+                        <Input
+                          id="site-url"
+                          readOnly
+                          value={selectedSite?.defaultFinalUrl ?? ""}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </section>
+
+          <section aria-labelledby="operations-heading" className="section-block">
+            <div className="mb-5">
+              <div className="section-eyebrow">
+                <p className="text-caption-uppercase text-[var(--muted)]">Operations</p>
+              </div>
+              <h2 className="text-heading-lg mt-2 text-[var(--ink)]" id="operations-heading">
+                运行态与契约
+              </h2>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-3">
+              <Card className="animate-fade-up stagger-5">
+                <CardHeader className="mb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Database aria-hidden className="h-5 w-5" strokeWidth={1.75} />
+                    Google Ads 账号链路
                   </CardTitle>
                   <CardDescription>
-                    当前只实现 Google Ads PMax / Demand Gen，后续可继续加 Meta、TikTok 等渠道。
+                    Header 使用操作 MCC，URL customerId 使用真实投放账号。
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="divide-y divide-[var(--hairline)]">
-                    {["Performance Max", "Demand Gen"].map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        className="group flex w-full items-center justify-between py-4 text-left transition first:pt-0 last:pb-0"
-                      >
-                        <div>
-                          <p className="font-medium text-[var(--ink)]">{type}</p>
-                          <p className="mt-0.5 text-sm text-[var(--muted)]">
-                            草稿、校验、预览、暂停态创建
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className="normal-case tracking-normal">Google Ads</Badge>
-                          <ChevronRight className="h-4 w-4 text-[var(--muted-soft)] group-hover:text-[var(--ink)]" />
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                  <Button className="mt-6 w-full" type="button">
-                    创建广告草稿
-                  </Button>
+                <CardContent className="space-y-0">
+                  {accounts.map((account) => (
+                    <div
+                      key={account.id}
+                      className="hairline-row flex items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-[var(--ink)]">{account.name}</p>
+                        <p className="mt-0.5 truncate font-mono text-xs text-[var(--muted)]">
+                          {account.customerId}
+                        </p>
+                      </div>
+                      <Badge className="shrink-0 normal-case tracking-normal">
+                        <CheckCircle2
+                          aria-hidden
+                          className="mr-1 h-3 w-3 text-[var(--semantic-success)]"
+                        />
+                        {account.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <Card className="animate-fade-up stagger-6">
+                <CardHeader className="mb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Layers3 aria-hidden className="h-5 w-5" strokeWidth={1.75} />
+                    原子 API 契约
+                  </CardTitle>
+                  <CardDescription>
+                    UI 与 AI 共用同一批服务端接口，避免 AI 直接拼 Google Ads JSON。
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-0">
+                  {[
+                    "accounts.sync",
+                    "assets.validate",
+                    "campaign-drafts.create",
+                    "campaign-drafts.preview",
+                    "launch-jobs.create",
+                    "campaigns.enable/pause/budget",
+                  ].map((endpoint) => (
+                    <div key={endpoint} className="hairline-row text-body-sm text-[var(--body)]">
+                      <span className="font-mono text-xs text-[var(--muted)]">POST</span>
+                      <span className="ml-2 font-mono text-[var(--ink)]">/api/{endpoint}</span>
+                    </div>
+                  ))}
                 </CardContent>
               </Card>
 
               <Card className="animate-fade-up stagger-7">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <WalletCards className="h-5 w-5" strokeWidth={1.75} />
-                    当前站点
+                <CardHeader className="mb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <ShieldCheck aria-hidden className="h-5 w-5" strokeWidth={1.75} />
+                    风控检查
+                  </CardTitle>
+                  <CardDescription>高风险动作拆成预览和执行两步。</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-0">
+                  {["域名白名单", "预算上限", "素材规格", "幂等键", "审计日志"].map((item) => (
+                    <div key={item} className="hairline-row flex items-center gap-3">
+                      <CheckCircle2
+                        aria-hidden
+                        className="h-4 w-4 shrink-0 text-[var(--semantic-success)]"
+                      />
+                      <span className="text-body-sm font-medium text-[var(--ink)]">{item}</span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+
+          <section aria-labelledby="workflow-heading" className="section-block">
+            <div className="mb-5">
+              <div className="section-eyebrow">
+                <p className="text-caption-uppercase text-[var(--muted)]">Workflow</p>
+              </div>
+              <h2 className="text-heading-lg mt-2 text-[var(--ink)]" id="workflow-heading">
+                投放流程与环境
+              </h2>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+              <Card className="animate-fade-up stagger-6">
+                <CardHeader className="mb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <FileText aria-hidden className="h-5 w-5" strokeWidth={1.75} />
+                    投放流程状态
                   </CardTitle>
                   <CardDescription>
-                    站点决定操作 MCC、真实投放账号、域名白名单和预算上限。
+                    真正创建 Google Ads 资源时仍使用一次{" "}
+                    <code className="rounded-md bg-[var(--surface-strong)] px-1.5 py-0.5 font-mono text-xs text-[var(--ink)]">
+                      googleAds:mutate
+                    </code>
+                    。
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid gap-5">
-                    <div className="grid gap-2">
-                      <Label>站点</Label>
-                      <Input readOnly value={selectedSite?.name ?? "暂无站点"} />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>默认落地页</Label>
-                      <Input readOnly value={selectedSite?.defaultFinalUrl ?? ""} />
-                    </div>
+                  <div aria-label="投放流程步骤" className="step-pipeline" role="list">
+                    {launchSteps.map((step, index) => {
+                      const state = launchStepState(index, drafts.length, jobs.length);
+
+                      return (
+                        <Fragment key={step}>
+                          <div
+                            className={`step-pipeline-item ${state === "active" ? "is-active" : ""} ${state === "complete" ? "is-complete" : ""}`}
+                            role="listitem"
+                          >
+                            <div aria-hidden className="step-pipeline-node">
+                              {String(index + 1).padStart(2, "0")}
+                            </div>
+                            <div>
+                              <p className="text-caption-uppercase text-[var(--muted-soft)]">
+                                Step {index + 1}
+                              </p>
+                              <p className="mt-1 text-sm font-medium text-[var(--ink)]">{step}</p>
+                            </div>
+                          </div>
+                          {index < launchSteps.length - 1 ? (
+                            <div aria-hidden className="step-pipeline-connector" />
+                          ) : null}
+                        </Fragment>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="animate-fade-up stagger-7">
+                <CardHeader className="mb-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <CreditCard aria-hidden className="h-5 w-5" strokeWidth={1.75} />
+                      环境状态
+                    </CardTitle>
+                    {!dryRunEnabled ? (
+                      <Badge className="normal-case tracking-normal">
+                        <CheckCircle2
+                          aria-hidden
+                          className="mr-1 h-3 w-3 text-[var(--semantic-success)]"
+                        />
+                        Live
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <CardDescription>开发环境默认 dry-run，不会误投真实广告。</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-0">
+                    {[
+                      ["MongoDB", process.env.MONGODB_URI ? "已配置" : "内存种子数据"],
+                      ["Google Ads", dryRunEnabled ? "Dry Run" : "Live"],
+                      ["草稿", `${drafts.length}`],
+                      ["任务", `${jobs.length}`],
+                    ].map(([label, value]) => (
+                      <div
+                        key={label}
+                        className="hairline-row flex items-center justify-between gap-3"
+                      >
+                        <span className="text-body-sm text-[var(--muted)]">{label}</span>
+                        <span className="text-sm font-medium tabular-nums text-[var(--ink)]">
+                          {value}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
             </div>
-          </div>
+          </section>
 
-          <div className="grid gap-6 lg:grid-cols-3">
-            <Card className="animate-fade-up stagger-5">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Database className="h-5 w-5" strokeWidth={1.75} />
-                  Google Ads 账号链路
-                </CardTitle>
-                <CardDescription>
-                  Header 使用操作 MCC，URL customerId 使用真实投放账号。
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-0">
-                {accounts.map((account) => (
-                  <div key={account.id} className="hairline-row flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-[var(--ink)]">{account.name}</p>
-                      <p className="mt-0.5 text-sm text-[var(--muted)]">{account.customerId}</p>
-                    </div>
-                    <Badge className="normal-case tracking-normal text-[var(--semantic-success)]">
-                      {account.status}
-                    </Badge>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card className="animate-fade-up stagger-6">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Layers3 className="h-5 w-5" strokeWidth={1.75} />
-                  原子 API 契约
-                </CardTitle>
-                <CardDescription>
-                  UI 与 AI 共用同一批服务端接口，避免 AI 直接拼 Google Ads JSON。
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-0">
-                {[
-                  "accounts.sync",
-                  "assets.validate",
-                  "campaign-drafts.create",
-                  "campaign-drafts.preview",
-                  "launch-jobs.create",
-                  "campaigns.enable/pause/budget",
-                ].map((endpoint) => (
-                  <div key={endpoint} className="hairline-row text-body-sm text-[var(--body)]">
-                    <span className="text-[var(--muted)]">POST</span>
-                    <span className="ml-2 text-[var(--ink)]">/api/{endpoint}</span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card className="animate-fade-up stagger-7">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ShieldCheck className="h-5 w-5" strokeWidth={1.75} />
-                  风控检查
-                </CardTitle>
-                <CardDescription>高风险动作拆成预览和执行两步。</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-0">
-                {["域名白名单", "预算上限", "素材规格", "幂等键", "审计日志"].map((item) => (
-                  <div key={item} className="hairline-row flex items-center gap-3">
-                    <CheckCircle2 className="h-4 w-4 shrink-0 text-[var(--semantic-success)]" />
-                    <span className="text-body-sm font-medium text-[var(--ink)]">{item}</span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-            <Card className="animate-fade-up stagger-6">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" strokeWidth={1.75} />
-                  投放流程状态
-                </CardTitle>
-                <CardDescription>
-                  真正创建 Google Ads 资源时仍使用一次{" "}
-                  <code className="rounded-md bg-[var(--surface-strong)] px-1.5 py-0.5 text-sm text-[var(--ink)]">
-                    googleAds:mutate
-                  </code>
-                  。
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                  {launchSteps.map((step, index) => (
-                    <div
-                      key={step}
-                      className="rounded-xl border border-[var(--hairline)] bg-[var(--canvas-soft)] px-3 py-4 text-center"
-                    >
-                      <p className="text-caption-uppercase text-[var(--muted-soft)]">
-                        {String(index + 1).padStart(2, "0")}
-                      </p>
-                      <p className="mt-2 text-sm font-medium text-[var(--ink)]">{step}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="animate-fade-up stagger-7">
-              <CardHeader>
-                <div className="flex items-start justify-between gap-3">
-                  <CardTitle className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5" strokeWidth={1.75} />
-                    环境状态
-                  </CardTitle>
-                  {!dryRunEnabled ? (
-                    <Badge className="border-[var(--semantic-success)]/30 bg-[var(--semantic-success)]/10 normal-case tracking-normal text-[var(--semantic-success)]">
-                      Live
-                    </Badge>
-                  ) : null}
-                </div>
-                <CardDescription>开发环境默认 dry-run，不会误投真实广告。</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-0">
-                  {[
-                    ["MongoDB", process.env.MONGODB_URI ? "已配置" : "内存种子数据"],
-                    ["Google Ads", dryRunEnabled ? "Dry Run" : "Live"],
-                    ["草稿", `${drafts.length}`],
-                    ["任务", `${jobs.length}`],
-                  ].map(([label, value]) => (
-                    <div
-                      key={label}
-                      className="hairline-row flex items-center justify-between"
-                    >
-                      <span className="text-body-sm text-[var(--muted)]">{label}</span>
-                      <span className="text-sm font-medium text-[var(--ink)]">{value}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <footer className="page-footer">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p>Apex Nexus · Google Ads Operations Console</p>
+              <p className="font-mono text-xs text-[var(--muted-soft)]">
+                {dryRunEnabled ? "DRY_RUN" : "LIVE"} · v0.1
+              </p>
+            </div>
+          </footer>
         </div>
-      </section>
+      </div>
     </main>
   );
 }
