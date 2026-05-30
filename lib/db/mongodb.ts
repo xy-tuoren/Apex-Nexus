@@ -1,7 +1,7 @@
 import { MongoClient, type Db } from "mongodb";
 
 const uri = process.env.MONGODB_URI;
-const dbName = process.env.MONGODB_DB ?? "google_ads_launchpad";
+const dbName = process.env.MONGODB_DB ?? "apex_nexus";
 
 let cachedClient: MongoClient | null = null;
 let cachedDb: Db | null = null;

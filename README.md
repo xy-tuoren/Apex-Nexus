@@ -1,6 +1,6 @@
-# Google Ads Launchpad
+# Apex Nexus
 
-Next.js + MongoDB Google Ads 快速投放平台 MVP，首期支持 Performance Max 和 Demand Gen。
+Next.js + MongoDB 多站点广告运营平台 MVP，首期支持 Google Ads Performance Max 和 Demand Gen。
 
 ## 能力
 

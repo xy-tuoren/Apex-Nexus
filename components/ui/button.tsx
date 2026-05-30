@@ -4,18 +4,21 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-full text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center gap-2 rounded-full text-[15px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]/20 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "bg-zinc-950 text-amber-50 shadow-lg shadow-zinc-950/20 hover:bg-zinc-800",
-        secondary: "bg-amber-200 text-zinc-950 hover:bg-amber-300",
-        outline: "border border-zinc-300 bg-white/70 text-zinc-950 hover:bg-white",
-        ghost: "text-zinc-700 hover:bg-zinc-100",
+        default:
+          "h-10 bg-[var(--primary)] px-5 text-[var(--on-primary)] hover:bg-[var(--primary-active)]",
+        secondary:
+          "h-10 border border-[var(--hairline-strong)] bg-transparent px-5 text-[var(--ink)] hover:border-[var(--ink)]/30 hover:bg-[var(--surface-strong)]",
+        outline:
+          "h-10 border border-[var(--hairline-strong)] bg-transparent px-5 text-[var(--ink)] hover:border-[var(--ink)]/30",
+        ghost: "h-10 px-3 text-[var(--body)] hover:bg-[var(--surface-strong)] hover:text-[var(--ink)]",
       },
       size: {
         default: "h-10 px-5",
-        sm: "h-8 px-3 text-xs",
+        sm: "h-8 px-4 text-sm",
         lg: "h-12 px-7",
       },
     },
