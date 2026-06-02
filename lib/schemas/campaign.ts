@@ -22,7 +22,7 @@ export const assetPayloadSchema = z.object({
 export const assetValidationSchema = z.object({
   advertisingType: advertisingTypeSchema,
   assets: z.object({
-    headlines: z.array(z.string().min(1).max(30)).default([]),
+    headlines: z.array(z.string().min(1).max(40)).default([]),
     longHeadlines: z.array(z.string().min(1).max(90)).default([]),
     descriptions: z.array(z.string().min(1).max(90)).default([]),
     businessName: z.string().min(1).max(25),
@@ -33,25 +33,88 @@ export const assetValidationSchema = z.object({
   }),
 });
 
+export const adCreativeDraftSchema = z.object({
+  id: z.string().min(1).optional(),
+  name: z.string().min(1).max(120),
+  finalUrl: z.string().url(),
+  youtubeVideos: z.array(z.string().min(1)).default([]),
+  logos: z.array(z.string().min(1)).default([]),
+  headlines: z.array(z.string().min(1).max(40)).default([]),
+  longHeadlines: z.array(z.string().min(1).max(90)).default([]),
+  descriptions: z.array(z.string().min(1).max(90)).default([]),
+  callToAction: z.string().min(1).max(40),
+  businessName: z.string().min(1).max(25),
+});
+
+export const adGroupDraftSchema = z.object({
+  id: z.string().min(1).optional(),
+  name: z.string().min(1).max(120),
+  locations: z.array(z.string().min(1)).min(1),
+  audienceSignals: z.array(z.string().min(1)).default([]),
+  language: z.string().min(2),
+  demographics: z
+    .object({
+      genders: z.array(z.string().min(1)).default([]),
+      ageRange: z.object({
+        min: z.string().min(1),
+        max: z.string().min(1),
+        includeUnknown: z.boolean(),
+      }),
+    })
+    .optional(),
+  selectedChannels: z
+    .object({
+      youtubeInFeed: z.boolean(),
+      youtubeInStream: z.boolean(),
+      youtubeShorts: z.boolean(),
+      discover: z.boolean(),
+      gmail: z.boolean(),
+      display: z.boolean(),
+    })
+    .optional(),
+  ads: z.array(adCreativeDraftSchema).min(1),
+});
+
 export const campaignDraftSchema = z.object({
-  siteId: z.string().min(1),
+  siteId: z.string().min(1).optional(),
   adAccountId: z.string().min(1),
   advertisingType: advertisingTypeSchema,
   name: z.string().min(3).max(120),
+  campaignObjective: z.string().min(1).max(80).optional(),
+  conversionGoal: z.string().min(1).max(160).optional(),
   finalUrl: z.string().url(),
   budgetMicros: z.number().int().min(1_000_000),
-  bidding: z.object({
-    strategy: z.enum([
-      "MAXIMIZE_CONVERSIONS",
-      "MAXIMIZE_CONVERSION_VALUE",
-      "TARGET_CPA",
-      "TARGET_ROAS",
-    ]),
-    targetCpaMicros: z.number().int().positive().optional(),
-    targetRoas: z.number().positive().optional(),
-  }),
+  bidding: z
+    .object({
+      strategy: z.enum([
+        "MAXIMIZE_CONVERSIONS",
+        "MAXIMIZE_CLICKS",
+        "MAXIMIZE_CONVERSION_VALUE",
+        "TARGET_CPA",
+        "TARGET_ROAS",
+      ]),
+      targetCpaMicros: z.number().int().positive().optional(),
+      targetRoas: z.number().positive().optional(),
+    })
+    .superRefine((bidding, context) => {
+      if (bidding.strategy === "TARGET_CPA" && !bidding.targetCpaMicros) {
+        context.addIssue({
+          code: "custom",
+          path: ["targetCpaMicros"],
+          message: "TARGET_CPA bidding requires targetCpaMicros.",
+        });
+      }
+    }),
   locations: z.array(z.string().min(1)).min(1),
   language: z.string().min(2),
+  os: z.string().min(1).default("all"),
+  device: z.string().min(1).default("all"),
+  devices: z.array(z.string().min(1)).default([]),
+  adSchedule: z.string().max(240).optional(),
+  urlPrefix: z.string().max(500).optional(),
+  trackingTemplate: z.string().max(500).optional(),
+  finalUrlSuffix: z.string().max(500).optional(),
+  ipExclusions: z.array(z.string().min(1)).default([]),
   assets: assetValidationSchema.shape.assets,
   demandGen: z
     .object({
@@ -66,6 +129,7 @@ export const campaignDraftSchema = z.object({
       }),
     })
     .optional(),
+  adGroups: z.array(adGroupDraftSchema).min(1).optional(),
 });
 
 export const launchJobSchema = z.object({

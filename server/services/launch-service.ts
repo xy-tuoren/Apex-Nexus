@@ -10,6 +10,7 @@ import {
   timestamp,
   updateById,
 } from "@/server/repositories/data-store";
+import { getLoginCustomerIdForAdAccount } from "@/server/services/account-service";
 import { buildDraftPreview } from "@/server/services/campaign-draft-service";
 import { validateLaunchEligibility } from "@/server/services/validation-service";
 
@@ -61,18 +62,16 @@ export async function runLaunchJob(jobId: string) {
       throw new Error("Draft not found");
     }
 
-    const [site, adAccount] = await Promise.all([
-      findById("sites", draft.siteId),
-      findById("google_ad_accounts", draft.adAccountId),
-    ]);
+    const adAccount = await findById("google_ad_accounts", draft.adAccountId);
 
-    if (!site || !adAccount) {
-      throw new Error("Site or ad account not found");
+    if (!adAccount) {
+      throw new Error("Ad account not found");
     }
 
+    const loginCustomerId = await getLoginCustomerIdForAdAccount(adAccount.id);
     const googleAdsResponse = await mutateGoogleAds({
       customerId: adAccount.customerId,
-      loginCustomerId: site.operationMccId,
+      loginCustomerId: loginCustomerId ?? adAccount.customerId,
       mutateOperations: preview.mutateOperations,
     });
 

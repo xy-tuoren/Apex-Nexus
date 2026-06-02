@@ -8,6 +8,8 @@ import {
 } from "@/server/google-ads/resource-names";
 
 type MutateOperation = Record<string, unknown>;
+type DraftAdGroup = NonNullable<CampaignDraft["adGroups"]>[number];
+type DraftAd = DraftAdGroup["ads"][number];
 
 function textAssetOperation(customerId: string, id: number, text: string) {
   return {
@@ -21,13 +23,15 @@ function textAssetOperation(customerId: string, id: number, text: string) {
 }
 
 function imageAssetOperation(customerId: string, id: number, url: string, name: string) {
+  const dataUrlMatch = url.match(/^data:[^;]+;base64,(.+)$/);
+
   return {
     assetOperation: {
       create: {
         resourceName: asset(customerId, id),
         name,
         imageAsset: {
-          data: `{download-and-base64:${url}}`,
+          data: dataUrlMatch?.[1] ?? `{download-and-base64:${url}}`,
         },
       },
     },
@@ -50,13 +54,84 @@ function campaignBidding(draft: CampaignDraft) {
     case "MAXIMIZE_CONVERSION_VALUE":
       return { maximizeConversionValue: { targetRoas: draft.bidding.targetRoas } };
     case "TARGET_CPA":
-      return { targetCpa: { targetCpaMicros: draft.bidding.targetCpaMicros } };
+      return { maximizeConversions: { targetCpaMicros: draft.bidding.targetCpaMicros } };
     case "TARGET_ROAS":
       return { targetRoas: { targetRoas: draft.bidding.targetRoas } };
+    case "MAXIMIZE_CLICKS":
+      return { maximizeClicks: {} };
     case "MAXIMIZE_CONVERSIONS":
     default:
       return { maximizeConversions: {} };
   }
+}
+
+function legacyAdGroup(draft: CampaignDraft): DraftAdGroup {
+  return {
+    name: draft.demandGen?.adGroupName ?? `${draft.name} Ad Group`,
+    locations: draft.locations,
+    audienceSignals: [],
+    language: draft.language,
+    selectedChannels: draft.demandGen?.selectedChannels,
+    ads: [
+      {
+        name: `${draft.name} Ad`,
+        finalUrl: draft.finalUrl,
+        youtubeVideos: draft.assets.youtubeVideos,
+        logos: draft.assets.logos,
+        headlines: draft.assets.headlines,
+        longHeadlines: draft.assets.longHeadlines,
+        descriptions: draft.assets.descriptions,
+        callToAction: "SHOP_NOW",
+        businessName: draft.assets.businessName,
+      },
+    ],
+  };
+}
+
+function draftAdGroups(draft: CampaignDraft) {
+  return draft.adGroups?.length ? draft.adGroups : [legacyAdGroup(draft)];
+}
+
+function campaignLocationOperations(campaignResource: string, groups: DraftAdGroup[]) {
+  const locations = Array.from(
+    new Set(
+      groups
+        .flatMap((group) => group.locations)
+        .filter((location) => location.startsWith("geoTargetConstants/")),
+    ),
+  );
+
+  return locations.map((location) => ({
+    campaignCriterionOperation: {
+      create: {
+        campaign: campaignResource,
+        location: {
+          geoTargetConstant: location,
+        },
+      },
+    },
+  }));
+}
+
+function campaignLanguageOperations(campaignResource: string, groups: DraftAdGroup[]) {
+  const languages = Array.from(
+    new Set(
+      groups
+        .map((group) => group.language)
+        .filter((language) => language.startsWith("languageConstants/")),
+    ),
+  );
+
+  return languages.map((language) => ({
+    campaignCriterionOperation: {
+      create: {
+        campaign: campaignResource,
+        language: {
+          languageConstant: language,
+        },
+      },
+    },
+  }));
 }
 
 export function buildPMaxMutateOperations(
@@ -67,9 +142,7 @@ export function buildPMaxMutateOperations(
   const operations: MutateOperation[] = [];
   const budgetResource = campaignBudget(customerId, -1);
   const campaignResource = campaign(customerId, -2);
-  const assetGroupResource = assetGroup(customerId, -3);
   let tempId = -10;
-  const assetRefs: { resourceName: string; fieldType: string }[] = [];
 
   operations.push({
     campaignBudgetOperation: {
@@ -92,12 +165,18 @@ export function buildPMaxMutateOperations(
         status: "PAUSED",
         campaignBudget: budgetResource,
         ...campaignBidding(draft),
+        ...(draft.trackingTemplate ? { trackingUrlTemplate: draft.trackingTemplate } : {}),
+        ...(draft.finalUrlSuffix ? { finalUrlSuffix: draft.finalUrlSuffix } : {}),
         containsEuPoliticalAdvertising: "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
       },
     },
   });
 
-  const addTextAssets = (texts: string[], fieldType: string) => {
+  const addTextAssets = (
+    texts: string[],
+    fieldType: string,
+    assetRefs: { resourceName: string; fieldType: string }[],
+  ) => {
     texts.forEach((text) => {
       const id = tempId--;
       operations.push(textAssetOperation(customerId, id, text));
@@ -105,50 +184,50 @@ export function buildPMaxMutateOperations(
     });
   };
 
-  addTextAssets(draft.assets.headlines, "HEADLINE");
-  addTextAssets(draft.assets.longHeadlines, "LONG_HEADLINE");
-  addTextAssets(draft.assets.descriptions, "DESCRIPTION");
-  addTextAssets([draft.assets.businessName], "BUSINESS_NAME");
+  const groups = draftAdGroups(draft);
+  operations.push(...campaignLocationOperations(campaignResource, groups));
+  operations.push(...campaignLanguageOperations(campaignResource, groups));
 
-  draft.assets.marketingImages.forEach((url, index) => {
-    const id = tempId--;
-    operations.push(imageAssetOperation(customerId, id, url, `Marketing image ${index + 1}`));
-    assetRefs.push({ resourceName: asset(customerId, id), fieldType: "MARKETING_IMAGE" });
-  });
+  groups.forEach((group, groupIndex) => {
+    const assetGroupResource = assetGroup(customerId, -3 - groupIndex);
+    const assetRefs: { resourceName: string; fieldType: string }[] = [];
+    const finalUrls = Array.from(new Set(group.ads.map((ad) => ad.finalUrl)));
 
-  draft.assets.squareMarketingImages.forEach((url, index) => {
-    const id = tempId--;
-    operations.push(imageAssetOperation(customerId, id, url, `Square image ${index + 1}`));
-    assetRefs.push({ resourceName: asset(customerId, id), fieldType: "SQUARE_MARKETING_IMAGE" });
-  });
+    group.ads.forEach((ad) => {
+      addTextAssets(ad.headlines, "HEADLINE", assetRefs);
+      addTextAssets(ad.longHeadlines, "LONG_HEADLINE", assetRefs);
+      addTextAssets(ad.descriptions, "DESCRIPTION", assetRefs);
+      addTextAssets([ad.businessName], "BUSINESS_NAME", assetRefs);
 
-  draft.assets.logos.forEach((url, index) => {
-    const id = tempId--;
-    operations.push(imageAssetOperation(customerId, id, url, `Logo ${index + 1}`));
-    assetRefs.push({ resourceName: asset(customerId, id), fieldType: "LOGO" });
-  });
+      ad.logos.forEach((url, index) => {
+        const id = tempId--;
+        operations.push(imageAssetOperation(customerId, id, url, `${ad.name} logo ${index + 1}`));
+        assetRefs.push({ resourceName: asset(customerId, id), fieldType: "LOGO" });
+      });
+    });
 
-  operations.push({
-    assetGroupOperation: {
-      create: {
-        resourceName: assetGroupResource,
-        campaign: campaignResource,
-        name: `${draft.name} Asset Group`,
-        finalUrls: [draft.finalUrl],
-        status: "PAUSED",
-      },
-    },
-  });
-
-  assetRefs.forEach((ref) => {
     operations.push({
-      assetGroupAssetOperation: {
+      assetGroupOperation: {
         create: {
-          assetGroup: assetGroupResource,
-          asset: ref.resourceName,
-          fieldType: ref.fieldType,
+          resourceName: assetGroupResource,
+          campaign: campaignResource,
+          name: group.name,
+          finalUrls: finalUrls.length ? finalUrls : [draft.finalUrl],
+          status: "PAUSED",
         },
       },
+    });
+
+    assetRefs.forEach((ref) => {
+      operations.push({
+        assetGroupAssetOperation: {
+          create: {
+            assetGroup: assetGroupResource,
+            asset: ref.resourceName,
+            fieldType: ref.fieldType,
+          },
+        },
+      });
     });
   });
 
@@ -163,11 +242,7 @@ export function buildDemandGenMutateOperations(
   const operations: MutateOperation[] = [];
   const budgetResource = campaignBudget(customerId, -1);
   const campaignResource = campaign(customerId, -2);
-  const adGroupResource = adGroup(customerId, -3);
   let tempId = -10;
-  const imageAssetRefs: string[] = [];
-  const logoAssetRefs: string[] = [];
-  const videoAssetRefs: string[] = [];
 
   operations.push({
     campaignBudgetOperation: {
@@ -190,64 +265,80 @@ export function buildDemandGenMutateOperations(
         status: "PAUSED",
         campaignBudget: budgetResource,
         ...campaignBidding(draft),
+        ...(draft.trackingTemplate ? { trackingUrlTemplate: draft.trackingTemplate } : {}),
+        ...(draft.finalUrlSuffix ? { finalUrlSuffix: draft.finalUrlSuffix } : {}),
         containsEuPoliticalAdvertising: "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
       },
     },
   });
 
-  operations.push({
-    adGroupOperation: {
-      create: {
-        resourceName: adGroupResource,
-        name: draft.demandGen?.adGroupName ?? `${draft.name} Ad Group`,
-        campaign: campaignResource,
-        status: "ENABLED",
-        demandGenAdGroupSettings: {
-          channelControls: {
-            selectedChannels: draft.demandGen?.selectedChannels,
+  const addAssetsForAd = (ad: DraftAd) => {
+    const logoAssetRefs: string[] = [];
+    const videoAssetRefs: string[] = [];
+
+    ad.logos.forEach((url, index) => {
+      const id = tempId--;
+      operations.push(imageAssetOperation(customerId, id, url, `${ad.name} logo ${index + 1}`));
+      logoAssetRefs.push(asset(customerId, id));
+    });
+
+    ad.youtubeVideos.forEach((videoId) => {
+      const id = tempId--;
+      operations.push(youtubeAssetOperation(customerId, id, videoId));
+      videoAssetRefs.push(asset(customerId, id));
+    });
+
+    return { logoAssetRefs, videoAssetRefs };
+  };
+
+  const groups = draftAdGroups(draft);
+  operations.push(...campaignLocationOperations(campaignResource, groups));
+  operations.push(...campaignLanguageOperations(campaignResource, groups));
+
+  groups.forEach((group, groupIndex) => {
+    const adGroupResource = adGroup(customerId, -3 - groupIndex);
+
+    operations.push({
+      adGroupOperation: {
+        create: {
+          resourceName: adGroupResource,
+          name: group.name,
+          campaign: campaignResource,
+          status: "ENABLED",
+          demandGenAdGroupSettings: {
+            channelControls: {
+              selectedChannels: group.selectedChannels ?? draft.demandGen?.selectedChannels,
+            },
           },
         },
       },
-    },
-  });
+    });
 
-  draft.assets.marketingImages.forEach((url, index) => {
-    const id = tempId--;
-    operations.push(imageAssetOperation(customerId, id, url, `Demand image ${index + 1}`));
-    imageAssetRefs.push(asset(customerId, id));
-  });
+    group.ads.forEach((ad) => {
+      const { logoAssetRefs, videoAssetRefs } = addAssetsForAd(ad);
 
-  draft.assets.logos.forEach((url, index) => {
-    const id = tempId--;
-    operations.push(imageAssetOperation(customerId, id, url, `Demand logo ${index + 1}`));
-    logoAssetRefs.push(asset(customerId, id));
-  });
-
-  draft.assets.youtubeVideos.forEach((videoId) => {
-    const id = tempId--;
-    operations.push(youtubeAssetOperation(customerId, id, videoId));
-    videoAssetRefs.push(asset(customerId, id));
-  });
-
-  operations.push({
-    adGroupAdOperation: {
-      create: {
-        adGroup: adGroupResource,
-        status: "PAUSED",
-        ad: {
-          finalUrls: [draft.finalUrl],
-          demandGenVideoResponsiveAd: {
-            businessName: { text: draft.assets.businessName },
-            headlines: draft.assets.headlines.map((text) => ({ text })),
-            longHeadlines: draft.assets.longHeadlines.map((text) => ({ text })),
-            descriptions: draft.assets.descriptions.map((text) => ({ text })),
-            marketingImages: imageAssetRefs.map((assetRef) => ({ asset: assetRef })),
-            logoImages: logoAssetRefs.map((assetRef) => ({ asset: assetRef })),
-            videos: videoAssetRefs.map((assetRef) => ({ asset: assetRef })),
+      operations.push({
+        adGroupAdOperation: {
+          create: {
+            adGroup: adGroupResource,
+            status: "PAUSED",
+            ad: {
+              name: ad.name,
+              finalUrls: [ad.finalUrl],
+              demandGenVideoResponsiveAd: {
+                businessName: { text: ad.businessName },
+                headlines: ad.headlines.map((text) => ({ text })),
+                longHeadlines: ad.longHeadlines.map((text) => ({ text })),
+                descriptions: ad.descriptions.map((text) => ({ text })),
+                logoImages: logoAssetRefs.map((assetRef) => ({ asset: assetRef })),
+                videos: videoAssetRefs.map((assetRef) => ({ asset: assetRef })),
+                ...(ad.callToAction === "AUTO" ? {} : { callToActionText: ad.callToAction }),
+              },
+            },
           },
         },
-      },
-    },
+      });
+    });
   });
 
   return operations;

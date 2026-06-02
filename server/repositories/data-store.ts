@@ -43,45 +43,8 @@ type Collections = {
 const now = () => new Date().toISOString();
 
 const seed: Collections = {
-  google_mcc_accounts: [
-    {
-      id: "mcc-data-1",
-      customerId: "1000000000",
-      name: "Global Data MCC",
-      kind: "DATA_MCC",
-      canManageClients: true,
-      lastSyncedAt: now(),
-    },
-    {
-      id: "mcc-op-demo",
-      customerId: "2000000000",
-      name: "Site A Operation MCC",
-      kind: "OPERATION_MCC",
-      parentCustomerId: "1000000000",
-      canManageClients: true,
-      lastSyncedAt: now(),
-    },
-  ],
-  google_ad_accounts: [
-    {
-      id: "ad-demo-1",
-      customerId: "3000000001",
-      name: "Site A Launch Account 1",
-      operationMccId: "mcc-op-demo",
-      currencyCode: "USD",
-      timeZone: "Asia/Shanghai",
-      status: "ENABLED",
-    },
-    {
-      id: "ad-demo-2",
-      customerId: "3000000002",
-      name: "Site A Launch Account 2",
-      operationMccId: "mcc-op-demo",
-      currencyCode: "USD",
-      timeZone: "Asia/Shanghai",
-      status: "ENABLED",
-    },
-  ],
+  google_mcc_accounts: [],
+  google_ad_accounts: [],
   sites: [
     {
       id: "site-demo",
@@ -91,14 +54,11 @@ const seed: Collections = {
       defaultFinalUrl: "https://aurora.example/landing",
       defaultLanguage: "zh-CN",
       defaultLocations: ["CN", "US"],
-      operationMccId: "mcc-op-demo",
+      operationMccId: "",
       dailyBudgetLimitMicros: 500_000_000,
     },
   ],
-  site_ad_accounts: [
-    { siteId: "site-demo", adAccountId: "ad-demo-1" },
-    { siteId: "site-demo", adAccountId: "ad-demo-2" },
-  ],
+  site_ad_accounts: [],
   assets: [],
   campaign_drafts: [],
   google_campaign_bindings: [],
@@ -113,6 +73,25 @@ const memory: Collections = structuredClone(seed);
 
 export function newId(prefix: string) {
   return `${prefix}_${randomUUID()}`;
+}
+
+export async function replaceCollection<K extends keyof Collections>(
+  collectionName: K,
+  documents: Collections[K],
+) {
+  const db = await getMongoDb();
+  if (!db) {
+    memory[collectionName] = structuredClone(documents) as Collections[K];
+    return memory[collectionName];
+  }
+
+  const collection = db.collection(collectionName);
+  await collection.deleteMany({});
+  if (documents.length > 0) {
+    await collection.insertMany(documents as never[]);
+  }
+
+  return documents;
 }
 
 export async function listCollection<K extends keyof Collections>(

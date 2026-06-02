@@ -1,4 +1,4 @@
-import type { ApiError, CampaignDraft, DraftValidationResult } from "@/lib/types";
+import type { AdCreativeDraft, ApiError, CampaignDraft, DraftValidationResult } from "@/lib/types";
 import { validateAssetBundle } from "@/server/services/asset-service";
 import {
   findById,
@@ -11,6 +11,25 @@ function domainFromUrl(url: string) {
   return new URL(url).hostname.replace(/^www\./, "");
 }
 
+function assetsFromAd(ad: AdCreativeDraft) {
+  return {
+    headlines: ad.headlines,
+    longHeadlines: ad.longHeadlines,
+    descriptions: ad.descriptions,
+    businessName: ad.businessName,
+    marketingImages: [],
+    squareMarketingImages: [],
+    logos: ad.logos,
+    youtubeVideos: ad.youtubeVideos,
+  };
+}
+
+function detailRecord(details: unknown) {
+  return details && typeof details === "object" && !Array.isArray(details)
+    ? (details as Record<string, unknown>)
+    : {};
+}
+
 export async function validateCampaignDraft(
   draft: CampaignDraft,
 ): Promise<DraftValidationResult> {
@@ -18,11 +37,11 @@ export async function validateCampaignDraft(
   const warnings: ApiError[] = [];
 
   const [site, adAccount] = await Promise.all([
-    findById("sites", draft.siteId),
+    draft.siteId ? findById("sites", draft.siteId) : Promise.resolve(null),
     findById("google_ad_accounts", draft.adAccountId),
   ]);
 
-  if (!site) {
+  if (draft.siteId && !site) {
     errors.push({ code: "SITE_NOT_FOUND", message: "站点不存在或无权限访问。" });
   }
 
@@ -40,6 +59,23 @@ export async function validateCampaignDraft(
       });
     }
 
+    draft.adGroups?.forEach((group) => {
+      group.ads.forEach((ad) => {
+        const adFinalUrlDomain = domainFromUrl(ad.finalUrl);
+        if (adFinalUrlDomain !== site.domain && !adFinalUrlDomain.endsWith(`.${site.domain}`)) {
+          errors.push({
+            code: "AD_FINAL_URL_DOMAIN_MISMATCH",
+            message: "广告最终到达网址域名必须匹配站点域名或其子域名。",
+            details: {
+              adName: ad.name,
+              expectedDomain: site.domain,
+              finalUrlDomain: adFinalUrlDomain,
+            },
+          });
+        }
+      });
+    });
+
     if (draft.budgetMicros > site.dailyBudgetLimitMicros) {
       errors.push({
         code: "BUDGET_LIMIT_EXCEEDED",
@@ -56,7 +92,29 @@ export async function validateCampaignDraft(
   errors.push(...assetResult.errors);
   warnings.push(...assetResult.warnings);
 
-  if (draft.advertisingType === "DEMAND_GEN" && !draft.demandGen) {
+  draft.adGroups?.forEach((group) => {
+    group.ads.forEach((ad) => {
+      const adAssetResult = validateAssetBundle(draft.advertisingType, assetsFromAd(ad));
+      errors.push(
+        ...adAssetResult.errors.map((error) => ({
+          ...error,
+          details: { ...detailRecord(error.details), adGroup: group.name, ad: ad.name },
+        })),
+      );
+      warnings.push(
+        ...adAssetResult.warnings.map((warning) => ({
+          ...warning,
+          details: {
+            ...detailRecord(warning.details),
+            adGroup: group.name,
+            ad: ad.name,
+          },
+        })),
+      );
+    });
+  });
+
+  if (draft.advertisingType === "DEMAND_GEN" && !draft.demandGen && !draft.adGroups?.length) {
     errors.push({
       code: "DEMAND_GEN_SETTINGS_REQUIRED",
       message: "Demand Gen 草稿必须包含广告组名称和渠道控制。",

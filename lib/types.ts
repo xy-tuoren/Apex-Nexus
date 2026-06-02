@@ -34,6 +34,7 @@ export type GoogleAdAccount = {
   customerId: string;
   name: string;
   operationMccId: string;
+  loginCustomerId?: string;
   currencyCode: string;
   timeZone: string;
   status: "ENABLED" | "PAUSED" | "UNKNOWN";
@@ -70,17 +71,58 @@ export type CreativeAsset = {
   createdAt: string;
 };
 
+export type AdCreativeDraft = {
+  id?: string;
+  name: string;
+  finalUrl: string;
+  youtubeVideos: string[];
+  logos: string[];
+  headlines: string[];
+  longHeadlines: string[];
+  descriptions: string[];
+  callToAction: string;
+  businessName: string;
+};
+
+export type AdGroupDraft = {
+  id?: string;
+  name: string;
+  locations: string[];
+  audienceSignals: string[];
+  language: string;
+  demographics?: {
+    genders: string[];
+    ageRange: {
+      min: string;
+      max: string;
+      includeUnknown: boolean;
+    };
+  };
+  selectedChannels?: {
+    youtubeInFeed: boolean;
+    youtubeInStream: boolean;
+    youtubeShorts: boolean;
+    discover: boolean;
+    gmail: boolean;
+    display: boolean;
+  };
+  ads: AdCreativeDraft[];
+};
+
 export type CampaignDraft = {
   id: string;
-  siteId: string;
+  siteId?: string;
   adAccountId: string;
   advertisingType: AdvertisingType;
   name: string;
+  campaignObjective?: string;
+  conversionGoal?: string;
   finalUrl: string;
   budgetMicros: number;
   bidding: {
     strategy:
       | "MAXIMIZE_CONVERSIONS"
+      | "MAXIMIZE_CLICKS"
       | "MAXIMIZE_CONVERSION_VALUE"
       | "TARGET_CPA"
       | "TARGET_ROAS";
@@ -89,6 +131,14 @@ export type CampaignDraft = {
   };
   locations: string[];
   language: string;
+  os?: string;
+  device?: string;
+  devices?: string[];
+  adSchedule?: string;
+  urlPrefix?: string;
+  trackingTemplate?: string;
+  finalUrlSuffix?: string;
+  ipExclusions?: string[];
   assets: {
     headlines: string[];
     longHeadlines: string[];
@@ -110,6 +160,7 @@ export type CampaignDraft = {
       display: boolean;
     };
   };
+  adGroups?: AdGroupDraft[];
   status: "DRAFT" | "VALIDATED" | "SUBMITTED";
   createdAt: string;
   updatedAt: string;

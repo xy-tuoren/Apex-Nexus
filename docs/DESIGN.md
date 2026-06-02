@@ -197,6 +197,15 @@ components:
     rounded: "{rounded.md}"
     padding: 12px 16px
     height: 44px
+  select:
+    backgroundColor: "{colors.surface-card}"
+    textColor: "{colors.ink}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.md}"
+    padding: 0 16px
+    height: 44px
+    icon: "right aligned chevron with at least 16px inset"
+    implementation: "Use components/ui/select.tsx; do not style native select in feature files"
   badge-pill:
     backgroundColor: "{colors.surface-strong}"
     textColor: "{colors.ink}"

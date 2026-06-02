@@ -9,6 +9,7 @@ import {
   timestamp,
   updateById,
 } from "@/server/repositories/data-store";
+import { getLoginCustomerIdForAdAccount } from "@/server/services/account-service";
 import { validateCampaignDraft } from "@/server/services/validation-service";
 import { buildDemandGenMutateOperations, buildPMaxMutateOperations } from "@/server/google-ads/mutate-builder";
 
@@ -24,7 +25,6 @@ export async function createCampaignDraft(input: CampaignDraftInput) {
 
   await insertOne("campaign_drafts", draft);
   await audit("campaign_draft.create", draft.id, {
-    siteId: draft.siteId,
     adAccountId: draft.adAccountId,
     advertisingType: draft.advertisingType,
   });
@@ -64,17 +64,14 @@ export async function buildDraftPreview(id: string) {
     return null;
   }
 
-  const [site, adAccount] = await Promise.all([
-    findById("sites", draft.siteId),
-    findById("google_ad_accounts", draft.adAccountId),
-  ]);
+  const adAccount = await findById("google_ad_accounts", draft.adAccountId);
 
-  if (!site || !adAccount) {
+  if (!adAccount) {
     return {
       draft,
       mutateOperations: [],
       headers: {},
-      warnings: ["站点或投放账号不存在，无法生成完整预览。"],
+      warnings: ["投放账号不存在，无法生成完整预览。"],
     };
   }
 
@@ -83,11 +80,13 @@ export async function buildDraftPreview(id: string) {
       ? buildPMaxMutateOperations(draft, adAccount)
       : buildDemandGenMutateOperations(draft, adAccount);
 
+  const loginCustomerId = await getLoginCustomerIdForAdAccount(adAccount.id);
+
   return {
     draft,
     mutateOperations,
     headers: {
-      "login-customer-id": site.operationMccId,
+      "login-customer-id": loginCustomerId ?? adAccount.customerId,
       "developer-token": "{stored-developer-token}",
       Authorization: "Bearer {runtime-access-token}",
     },

@@ -29,6 +29,18 @@ Skills 统一维护在 `.agents/skills/`（跨 Cursor、Claude Code 等工具的
 2. **再读** `.agents/skills/frontend-design/SKILL.md` — 仅取其排版、动效、留白、层次等实现手法
 3. **对照** `app/globals.css` 与 `components/ui/*` — 复用已有变量与组件，不另起一套
 
+### 组件库复用（强制）
+
+- 业务页面不得临时手写基础控件样式；基础控件必须优先复用组件库
+- 组件实现优先级固定为：
+  1. 先复用 `components/ui/*` 中已有组件
+  2. 若没有对应组件，先查找并优先使用对应的 `@radix-ui/react-*` primitive
+  3. 基于 Radix primitive 封装到 `components/ui/`，再在业务页面使用
+  4. 只有 Radix 没有对应能力或明显不适合时，才允许自建基础交互组件
+- 新增基础控件必须先在 `components/ui/` 中封装为通用组件，不得直接写在业务页面里
+- 下拉选择统一使用 `components/ui/select.tsx`，不要在业务页面直接写原生 `<select>` / `<option>`
+- 新增组件必须使用 `app/globals.css` 中的 CSS 变量，并兼容 `[data-theme="dark"]`
+
 ### DESIGN.md 管什么（不可违反）
 
 - **颜色**：只用 `app/globals.css` 中的 CSS 变量（`--canvas`、`--ink`、`--hairline` 等）；中性黑白灰为主，禁止 pastel 渐变 orb、紫色渐变、霓虹 CTA
