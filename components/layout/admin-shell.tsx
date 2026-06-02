@@ -18,15 +18,16 @@ type NavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
+  matchPath: string;
 };
 
 const navigation: NavItem[] = [
-  { label: "工作台", href: "/", icon: MonitorCog },
-  { label: "广告投放", href: "/ads", icon: Megaphone },
-  { label: "账号中心", href: "/", icon: Database },
-  { label: "素材中心", href: "/", icon: PackageCheck },
-  { label: "数据报表", href: "/", icon: BarChart3 },
-  { label: "系统设置", href: "/", icon: Settings2 },
+  { label: "工作台", href: "/", icon: MonitorCog, matchPath: "/" },
+  { label: "广告投放", href: "/ads", icon: Megaphone, matchPath: "/ads" },
+  { label: "账号中心", href: "/accounts", icon: Database, matchPath: "/accounts" },
+  { label: "素材中心", href: "/assets", icon: PackageCheck, matchPath: "/assets" },
+  { label: "数据报表", href: "/reports", icon: BarChart3, matchPath: "/reports" },
+  { label: "系统设置", href: "/settings", icon: Settings2, matchPath: "/settings" },
 ];
 
 type AdminShellProps = {
@@ -45,7 +46,7 @@ export function AdminShell({
   return (
     <main className="canvas-surface min-h-screen bg-[var(--canvas)] text-[var(--ink)]">
       <header className="sticky top-0 z-20 border-b border-[var(--hairline)] bg-[var(--canvas)]/90 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 max-w-[1280px] items-center gap-4 px-4 sm:px-6">
+        <div className="mx-auto flex h-14 w-full max-w-none items-center gap-4 px-4 lg:px-8">
           <Link className="flex shrink-0 items-center gap-3" href="/">
             <div aria-hidden className="brand-mark">
               <Rocket className="h-4 w-4 text-[var(--ink)]" strokeWidth={1.75} />
@@ -58,19 +59,20 @@ export function AdminShell({
 
           <nav aria-label="主导航" className="nav-scroll flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
             {navigation.map((item) => {
+              const match = item.matchPath;
               const isActive =
-                item.href === "/"
+                match === "/"
                   ? activePath === "/"
-                  : activePath === item.href || activePath.startsWith(`${item.href}/`);
+                  : activePath === match || activePath.startsWith(`${match}/`);
 
               return (
                 <Link
                   key={item.label}
                   aria-current={isActive ? "page" : undefined}
-                  className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]/25 ${
+                  className={`flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]/25 ${
                     isActive
-                      ? "bg-[var(--surface-strong)] text-[var(--ink)]"
-                      : "text-[var(--body)] hover:bg-[var(--hairline-soft)] hover:text-[var(--ink)]"
+                      ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--on-primary)] shadow-[var(--shadow-soft)]"
+                      : "border-transparent text-[var(--body)] hover:border-[var(--hairline)] hover:bg-[var(--hairline-soft)] hover:text-[var(--ink)]"
                   }`}
                   href={item.href}
                 >

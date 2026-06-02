@@ -58,7 +58,9 @@ function campaignBidding(draft: CampaignDraft) {
     case "TARGET_ROAS":
       return { targetRoas: { targetRoas: draft.bidding.targetRoas } };
     case "MAXIMIZE_CLICKS":
-      return { maximizeClicks: {} };
+      return draft.bidding.maxCpcBidCeilingMicros
+        ? { maximizeClicks: { maxCpcBidCeilingMicros: draft.bidding.maxCpcBidCeilingMicros } }
+        : { maximizeClicks: {} };
     case "MAXIMIZE_CONVERSIONS":
     default:
       return { maximizeConversions: {} };

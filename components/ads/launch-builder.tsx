@@ -16,29 +16,12 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
-  CircleDollarSign,
-  Clock3,
-  Copy,
-  FileJson,
-  Layers3,
-  Link2,
-  MapPin,
-  MonitorSmartphone,
   Plus,
-  Settings2,
   Trash2,
-  UserRound,
   Video,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
@@ -52,6 +35,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  HierarchySectionLabel,
+  HierarchySummaryCard,
+} from "@/components/ads/hierarchy-item";
+import {
+  CampaignOverviewAddTile,
+  CampaignOverviewCard,
+  type CampaignOverviewMeta,
+} from "@/components/ads/campaign-overview";
 import type {
   AdvertisingType,
   GoogleAdAccount,
@@ -74,8 +66,6 @@ type LaunchBuilderProps = {
   accountSyncError?: string | null;
   accountsSyncedAt?: string | null;
   initialMccAccounts?: GoogleMccAccount[];
-  draftCount: number;
-  jobCount: number;
 };
 
 type SyncPayload = {
@@ -149,15 +139,19 @@ type AdGroupForm = {
 
 type ScheduleGridValue = Record<string, boolean[]>;
 type BiddingType = "TARGET_CPA" | "MAXIMIZE_CONVERSIONS";
+type ClickBiddingType = "MAXIMIZE_CLICKS" | "MAX_CPC";
 
-type FormState = {
+type CampaignForm = {
+  id: string;
   adAccountId: string;
   advertisingType: AdvertisingType;
   campaignName: string;
   campaignObjective: string;
   conversionGoal: string;
   biddingType: BiddingType;
+  clickBiddingType: ClickBiddingType;
   targetCpa: string;
+  targetCpc: string;
   budgetDaily: string;
   os: string;
   device: string;
@@ -168,10 +162,30 @@ type FormState = {
   adGroups: AdGroupForm[];
 };
 
-const inputGridClassName = "grid gap-4 md:grid-cols-2";
+const inputGridClassName = "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4";
+
+type ExpandState = {
+  campaign: boolean;
+  adGroups: Record<string, boolean>;
+  ads: Record<string, boolean>;
+};
+
+function buildInitialExpandState(adGroups: AdGroupForm[]): ExpandState {
+  const adGroupsRecord: Record<string, boolean> = {};
+  const adsRecord: Record<string, boolean> = {};
+
+  for (const group of adGroups) {
+    adGroupsRecord[group.id] = true;
+    for (const ad of group.ads) {
+      adsRecord[ad.id] = true;
+    }
+  }
+
+  return { campaign: true, adGroups: adGroupsRecord, ads: adsRecord };
+}
 
 const OS_OPTIONS = [
-  { value: "all", label: "all" },
+  { value: "all", label: "全部" },
   { value: "ANDROID", label: "Android" },
   { value: "IOS", label: "iOS" },
   { value: "WINDOWS", label: "Windows" },
@@ -180,11 +194,11 @@ const OS_OPTIONS = [
 ];
 
 const DEVICE_OPTIONS = [
-  { value: "all", label: "all" },
-  { value: "DESKTOP", label: "desktop" },
-  { value: "MOBILE", label: "mobile" },
-  { value: "TABLET", label: "tablet" },
-  { value: "CONNECTED_TV", label: "tv screen" },
+  { value: "all", label: "全部" },
+  { value: "DESKTOP", label: "桌面" },
+  { value: "MOBILE", label: "移动" },
+  { value: "TABLET", label: "平板" },
+  { value: "CONNECTED_TV", label: "电视" },
 ];
 
 const GENDER_OPTIONS = [
@@ -359,9 +373,31 @@ const FALLBACK_LANGUAGE_OPTIONS: LanguageTargetOption[] = [
 ];
 
 const BIDDING_TYPE_OPTIONS: { value: BiddingType; label: string }[] = [
-  { value: "TARGET_CPA", label: "TARGET_CPA" },
-  { value: "MAXIMIZE_CONVERSIONS", label: "MAXIMIZE_CONVERSIONS" },
+  { value: "TARGET_CPA", label: "目标 CPA" },
+  { value: "MAXIMIZE_CONVERSIONS", label: "尽可能提高转化次数" },
 ];
+
+const CLICK_BIDDING_TYPE_OPTIONS: { value: ClickBiddingType; label: string }[] = [
+  { value: "MAX_CPC", label: "目标 CPC" },
+  { value: "MAXIMIZE_CLICKS", label: "尽可能提高点击次数" },
+];
+
+const CONVERSION_CATEGORY_LABELS: Record<string, string> = {
+  PURCHASE: "购买",
+  ADD_TO_CART: "加入购物车",
+  BEGIN_CHECKOUT: "开始结账",
+  SUBSCRIBE: "订阅",
+  SUBMIT_LEAD_FORM: "提交潜在客户表单",
+  BOOK_APPOINTMENT: "预约",
+  REQUEST_QUOTE: "请求报价",
+  GET_DIRECTIONS: "获取路线",
+  OUTBOUND_CLICK: "出站点击",
+  CONTACT: "联系",
+  ENGAGEMENT: "互动",
+  PAGE_VIEW: "页面浏览",
+  SIGNUP: "注册",
+  DOWNLOAD: "下载",
+};
 
 const CTA_OPTIONS = [
   ["AUTO", "（自动）"],
@@ -381,8 +417,8 @@ const CTA_OPTIONS = [
 ];
 
 const OBJECTIVE_OPTIONS = [
-  { value: "CONVERSIONS", label: "转化 / Conversions" },
-  { value: "CLICKS", label: "点击次数 / Clicks" },
+  { value: "CONVERSIONS", label: "转化" },
+  { value: "CLICKS", label: "点击次数" },
 ];
 
 const DEFAULT_CHANNELS = {
@@ -395,16 +431,167 @@ const DEFAULT_CHANNELS = {
 };
 
 const SCHEDULE_DAYS = [
-  { key: "MONDAY", label: "MON." },
-  { key: "TUESDAY", label: "TUES." },
-  { key: "WEDNESDAY", label: "WED." },
-  { key: "THURSDAY", label: "THUR." },
-  { key: "FRIDAY", label: "FRI." },
-  { key: "SATURDAY", label: "SAT." },
-  { key: "SUNDAY", label: "SUN." },
+  { key: "MONDAY", label: "周一" },
+  { key: "TUESDAY", label: "周二" },
+  { key: "WEDNESDAY", label: "周三" },
+  { key: "THURSDAY", label: "周四" },
+  { key: "FRIDAY", label: "周五" },
+  { key: "SATURDAY", label: "周六" },
+  { key: "SUNDAY", label: "周日" },
 ];
 
 const SCHEDULE_HOURS = Array.from({ length: 24 }, (_, index) => index);
+
+function formatConversionGoalLabel(goal: ConversionGoalPoint) {
+  const category = CONVERSION_CATEGORY_LABELS[goal.category] ?? goal.category;
+  return `${category} · ${goal.actionCount} 个操作`;
+}
+
+function defaultBiddingForObjective(objective: string) {
+  if (objective === "CLICKS") {
+    return { clickBiddingType: "MAX_CPC" as ClickBiddingType };
+  }
+  return { biddingType: "TARGET_CPA" as BiddingType };
+}
+
+function summarizeGeoLocation(
+  locations: string,
+  geoTargets: GeoTargetOption[] = FALLBACK_GEO_TARGET_OPTIONS,
+) {
+  const value = splitLines(locations)[0] ?? locations.trim();
+  if (!value) {
+    return "未设置";
+  }
+  const match = geoTargets.find((target) => target.resourceName === value);
+  if (match) {
+    return geoTargetLabel(match);
+  }
+  return value.replace(/^geoTargetConstants\//, "") || value;
+}
+
+function summarizeLanguageValue(
+  language: string,
+  languageTargets: LanguageTargetOption[] = FALLBACK_LANGUAGE_OPTIONS,
+) {
+  if (!language || language === "all") {
+    return "所有语言";
+  }
+  const match = languageTargets.find((item) => item.resourceName === language);
+  return match ? languageTargetLabel(match) : language;
+}
+
+function summarizeOsDevice(os: string, device: string) {
+  const osLabel = OS_OPTIONS.find((option) => option.value === os)?.label ?? os;
+  const deviceLabel = DEVICE_OPTIONS.find((option) => option.value === device)?.label ?? device;
+  return `${osLabel} / ${deviceLabel}`;
+}
+
+function summarizeScheduleBrief(schedule: ScheduleGridValue) {
+  const allDaysEnabled = SCHEDULE_DAYS.every((day) =>
+    (schedule[day.key] ?? []).every(Boolean),
+  );
+  if (allDaysEnabled) {
+    return "全天投放";
+  }
+  const formatted = formatSchedule(schedule);
+  return formatted.length > 28 ? `${formatted.slice(0, 28)}…` : formatted;
+}
+
+function buildCampaignHighlights(
+  campaign: CampaignForm,
+  geoTargets: GeoTargetOption[],
+  languageTargets: LanguageTargetOption[],
+) {
+  const highlights: string[] = [];
+  const visibleGroups = campaign.adGroups.slice(0, 2);
+
+  for (const group of visibleGroups) {
+    highlights.push(
+      `${group.name} · ${summarizeGeoLocation(group.locations, geoTargets)} · ${summarizeLanguageValue(group.language, languageTargets)}`,
+    );
+    const primaryAd = group.ads[0];
+    if (primaryAd) {
+      const url = primaryAd.finalUrl.replace(/^https?:\/\//, "");
+      const urlPreview = url.length > 36 ? `${url.slice(0, 36)}…` : url;
+      highlights.push(
+        `${primaryAd.name} · ${primaryAd.businessName || "未填商家"} · ${urlPreview || "未填 URL"}`,
+      );
+    }
+    if (group.ads.length > 1) {
+      highlights.push(`  另有 ${group.ads.length - 1} 条广告`);
+    }
+  }
+
+  if (campaign.adGroups.length > 2) {
+    highlights.push(`… 还有 ${campaign.adGroups.length - 2} 个广告组`);
+  }
+
+  const allAds = campaign.adGroups.flatMap((group) => group.ads);
+  const videoCount = allAds.reduce((total, ad) => total + splitLines(ad.videoLinks).length, 0);
+  const headlineCount = allAds.reduce(
+    (total, ad) => total + splitLines(ad.shortHeadlines).length,
+    0,
+  );
+  const logoCount = allAds.reduce((total, ad) => total + splitMultiline(ad.logos).length, 0);
+  highlights.push(`素材 ${videoCount} 视频 · ${headlineCount} 标题 · ${logoCount} 徽标`);
+
+  highlights.push(`定向 ${summarizeOsDevice(campaign.os, campaign.device)}`);
+  highlights.push(`投放 ${summarizeScheduleBrief(campaign.adSchedule)}`);
+
+  if (campaign.campaignObjective === "CONVERSIONS" && campaign.conversionGoal) {
+    const goalLabel =
+      CONVERSION_CATEGORY_LABELS[campaign.conversionGoal] ?? campaign.conversionGoal;
+    highlights.push(`转化目标 ${goalLabel}`);
+  }
+
+  return highlights.slice(0, 7);
+}
+
+function buildCampaignOverviewMeta(
+  campaign: CampaignForm,
+  index: number,
+  adAccounts: GoogleAdAccount[],
+  geoTargets: GeoTargetOption[] = FALLBACK_GEO_TARGET_OPTIONS,
+  languageTargets: LanguageTargetOption[] = FALLBACK_LANGUAGE_OPTIONS,
+): CampaignOverviewMeta {
+  const selectedAccount = adAccounts.find((account) => account.id === campaign.adAccountId);
+  const objective =
+    OBJECTIVE_OPTIONS.find((option) => option.value === campaign.campaignObjective)?.label ??
+    campaign.campaignObjective;
+  const bidding =
+    campaign.campaignObjective === "CONVERSIONS"
+      ? campaign.biddingType === "TARGET_CPA"
+        ? `目标 CPA ${campaign.targetCpa}`
+        : "尽可能提高转化"
+      : campaign.clickBiddingType === "MAX_CPC"
+        ? `目标 CPC ${campaign.targetCpc}`
+        : "尽可能提高点击";
+
+  return {
+    id: campaign.id,
+    index: index + 1,
+    name: campaign.campaignName,
+    objective,
+    bidding,
+    budget: campaign.budgetDaily,
+    adGroupCount: campaign.adGroups.length,
+    adCount: campaign.adGroups.flatMap((group) => group.ads).length,
+    accountId: selectedAccount?.customerId ?? "",
+    accountName: selectedAccount?.name ?? "",
+    typeBadge: campaign.advertisingType,
+    highlights: buildCampaignHighlights(campaign, geoTargets, languageTargets),
+    groups: campaign.adGroups.map((group) => ({
+      id: group.id,
+      name: group.name,
+      summary: `${group.ads.length} ads`,
+      ads: group.ads.map((ad) => ({
+        id: ad.id,
+        name: ad.name,
+        summary: `${splitLines(ad.shortHeadlines).length} headlines`,
+      })),
+    })),
+  };
+}
 
 function buildDefaultSchedule() {
   return Object.fromEntries(
@@ -422,6 +609,19 @@ function splitLines(value: string) {
 function joinLines(values: string[]) {
   return values.join("\n");
 }
+
+function summarizeAdGroupCard(group: AdGroupForm) {
+  const locationLabel = splitLines(group.locations)[0] || "未设地理位置";
+  return `${group.ads.length} 条广告 · ${group.language || "未设语言"} · ${locationLabel}`;
+}
+
+function summarizeAdCard(ad: AdForm) {
+  return `${splitLines(ad.shortHeadlines).length} 标题 · ${splitLines(ad.videoLinks).length} 视频 · ${ad.businessName || "未填商家名"}`;
+}
+
+type EditorFocus =
+  | { level: "adgroup"; campaignId: string; groupId: string }
+  | { level: "ad"; campaignId: string; groupId: string; adId: string };
 
 /** Data URLs contain commas — only split on newlines. */
 function splitMultiline(value: string) {
@@ -480,9 +680,16 @@ function microsFromAmount(value: string) {
   return Math.round(amount * 1_000_000);
 }
 
-function buildBiddingPayload(form: FormState) {
+function buildBiddingPayload(form: CampaignForm) {
   if (form.campaignObjective === "CLICKS") {
-    return { strategy: "MAXIMIZE_CLICKS" as const };
+    return form.clickBiddingType === "MAX_CPC"
+      ? {
+          strategy: "MAXIMIZE_CLICKS" as const,
+          maxCpcBidCeilingMicros: microsFromAmount(form.targetCpc),
+        }
+      : {
+          strategy: "MAXIMIZE_CLICKS" as const,
+        };
   }
 
   if (form.biddingType === "TARGET_CPA") {
@@ -506,8 +713,38 @@ function languageTargetLabel(language: LanguageTargetOption) {
   return language.name || language.code || language.resourceName;
 }
 
-function formatJson(value: unknown) {
-  return JSON.stringify(value, null, 2);
+function buildGeoTargetSelectOptions(
+  geoTargets: GeoTargetOption[],
+  activeLocation?: string,
+): ComboboxOption[] {
+  const options = geoTargets.map((target) => ({
+    value: target.resourceName,
+    label: geoTargetLabel(target),
+    keywords: [target.name, target.canonicalName, target.countryCode, target.targetType],
+  }));
+
+  if (activeLocation && !options.some((option) => option.value === activeLocation)) {
+    options.unshift({ value: activeLocation, label: activeLocation, keywords: [] });
+  }
+
+  return options;
+}
+
+function buildLanguageTargetSelectOptions(
+  languageTargets: LanguageTargetOption[],
+  activeLanguage?: string,
+): ComboboxOption[] {
+  const options = languageTargets.map((language) => ({
+    value: language.resourceName,
+    label: languageTargetLabel(language),
+    keywords: [language.name, language.code, language.id],
+  }));
+
+  if (activeLanguage && !options.some((option) => option.value === activeLanguage)) {
+    options.unshift({ value: activeLanguage, label: activeLanguage, keywords: [] });
+  }
+
+  return options;
 }
 
 function formatHour(hour: number) {
@@ -536,12 +773,12 @@ function formatSchedule(schedule: ScheduleGridValue) {
   return SCHEDULE_DAYS.map((day) => {
     const ranges = rangesFromHours(schedule[day.key] ?? []);
     if (ranges.length === 0) {
-      return `${day.key}: OFF`;
+      return `${day.label}：关闭`;
     }
-    return `${day.key}: ${ranges
+    return `${day.label}：${ranges
       .map(([start, end]) => `${formatHour(start)}-${formatHour(end)}`)
-      .join(", ")}`;
-  }).join("; ");
+      .join("、")}`;
+  }).join("；");
 }
 
 function createDefaultAd(index = 1): AdForm {
@@ -575,15 +812,18 @@ function createDefaultAdGroup(index = 1): AdGroupForm {
   };
 }
 
-function buildDefaultForm(account?: GoogleAdAccount): FormState {
+function buildDefaultCampaign(index: number, account?: GoogleAdAccount): CampaignForm {
   return {
+    id: `cmp_${index}`,
     adAccountId: account?.id ?? "",
     advertisingType: "DEMAND_GEN",
-    campaignName: "Conversion Campaign",
+    campaignName: `广告系列 ${index}`,
     campaignObjective: "CONVERSIONS",
     conversionGoal: "PURCHASE",
     biddingType: "TARGET_CPA",
+    clickBiddingType: "MAX_CPC",
     targetCpa: "1.2",
+    targetCpc: "0.45",
     budgetDaily: "20",
     os: "all",
     device: "all",
@@ -607,7 +847,7 @@ function Field({
   className?: string;
 }) {
   return (
-    <div className={`grid min-w-0 gap-2 ${className}`}>
+    <div className={`grid min-w-0 gap-1.5 ${className}`}>
       <Label>{label}</Label>
       {children}
       {hint ? <p className="text-xs leading-relaxed text-[var(--muted)]">{hint}</p> : null}
@@ -615,31 +855,154 @@ function Field({
   );
 }
 
-function SectionCard({
-  eyebrow,
-  title,
-  description,
-  children,
-  className = "",
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-  children: ReactNode;
-  className?: string;
-}) {
+type ModalHierarchyItem = {
+  label: string;
+  name: string;
+};
+
+let bodyScrollLockCount = 0;
+
+function lockPageScroll() {
+  bodyScrollLockCount += 1;
+  if (bodyScrollLockCount !== 1 || typeof document === "undefined") {
+    return;
+  }
+
+  const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+  document.documentElement.style.overflow = "hidden";
+  document.body.style.overflow = "hidden";
+  if (scrollbarWidth > 0) {
+    document.body.style.paddingRight = `${scrollbarWidth}px`;
+  }
+}
+
+function unlockPageScroll() {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  bodyScrollLockCount = Math.max(0, bodyScrollLockCount - 1);
+  if (bodyScrollLockCount !== 0) {
+    return;
+  }
+
+  document.documentElement.style.overflow = "";
+  document.body.style.overflow = "";
+  document.body.style.paddingRight = "";
+}
+
+function usePageScrollLock() {
+  useEffect(() => {
+    lockPageScroll();
+    return unlockPageScroll;
+  }, []);
+}
+
+function ModalHierarchyTrail({ items }: { items: ModalHierarchyItem[] }) {
+  if (items.length === 0) {
+    return null;
+  }
+
   return (
-    <Card className={`animate-fade-up ${className}`}>
-      <CardHeader>
-        <div className="section-eyebrow">
-          <p className="text-caption-uppercase text-[var(--muted)]">{eyebrow}</p>
-        </div>
-        <CardTitle className="text-lg">{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
+    <ol
+      aria-label="当前层级"
+      className="mb-2 flex flex-wrap items-center gap-x-1 gap-y-1 text-xs leading-snug"
+    >
+      {items.map((item, index) => (
+        <li key={`${item.label}-${index}`} className="flex min-w-0 max-w-full items-center gap-1">
+          {index > 0 ? (
+            <ChevronRight
+              aria-hidden
+              className="h-3 w-3 shrink-0 text-[var(--muted)]"
+              strokeWidth={1.75}
+            />
+          ) : null}
+          <span className="shrink-0 text-[var(--muted)]">{item.label}:</span>
+          <span className="truncate font-medium text-[var(--ink)]" title={item.name}>
+            {item.name}
+          </span>
+        </li>
+      ))}
+    </ol>
   );
+}
+
+function BuilderModalContent({
+  title,
+  eyebrow,
+  hierarchyTrail,
+  children,
+  onClose,
+  onBack,
+  zIndexClassName = "z-50",
+  maxWidthClassName = "max-w-6xl",
+}: {
+  title: string;
+  eyebrow: string;
+  hierarchyTrail?: ModalHierarchyItem[];
+  children: ReactNode;
+  onClose: () => void;
+  onBack?: () => void;
+  zIndexClassName?: string;
+  maxWidthClassName?: string;
+}) {
+  usePageScrollLock();
+
+  return (
+    <div
+      className={`fixed inset-0 flex items-end justify-center bg-slate-950/35 p-3 backdrop-blur-sm sm:items-center sm:p-6 ${zIndexClassName}`}
+    >
+      <button
+        aria-label="关闭弹窗"
+        className="absolute inset-0 cursor-default"
+        type="button"
+        onClick={onClose}
+      />
+      <section
+        aria-modal="true"
+        className={`relative max-h-[88vh] w-full overflow-hidden rounded-[2rem] border border-[var(--hairline)] bg-[var(--surface-card)] shadow-[0_24px_80px_rgba(15,23,42,0.24)] ${maxWidthClassName}`}
+        role="dialog"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-[var(--hairline)] bg-[var(--canvas-soft)] px-5 py-4">
+          <div className="min-w-0 flex-1">
+            <ModalHierarchyTrail items={hierarchyTrail ?? []} />
+            <p className="text-caption-uppercase text-[var(--muted)]">{eyebrow}</p>
+            <h2 className="mt-1 truncate text-xl font-semibold tracking-[-0.02em] text-[var(--ink)]">
+              {title}
+            </h2>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {onBack ? (
+              <Button size="sm" type="button" variant="ghost" onClick={onBack}>
+                返回
+              </Button>
+            ) : null}
+            <Button size="sm" type="button" variant="outline" onClick={onClose}>
+              关闭
+            </Button>
+          </div>
+        </div>
+        <div className="max-h-[calc(88vh-5rem)] overflow-auto p-4 sm:p-5">{children}</div>
+      </section>
+    </div>
+  );
+}
+
+function BuilderModal(props: {
+  title: string;
+  eyebrow: string;
+  hierarchyTrail?: ModalHierarchyItem[];
+  children: ReactNode;
+  onClose: () => void;
+  onBack?: () => void;
+  zIndexClassName?: string;
+  maxWidthClassName?: string;
+}) {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(<BuilderModalContent {...props} />, document.body);
 }
 
 type SelectOption = {
@@ -679,25 +1042,6 @@ function SelectControl({
   );
 }
 
-function InlineSelectField({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: SelectOption[];
-}) {
-  return (
-    <label className="grid grid-cols-[44px_minmax(0,1fr)] items-center gap-3">
-      <span className="text-right text-sm font-medium text-[var(--ink)]">{label}</span>
-      <SelectControl className="h-10 text-sm" value={value} onChange={onChange} options={options} />
-    </label>
-  );
-}
-
 function TextList({
   value,
   onChange,
@@ -711,6 +1055,7 @@ function TextList({
 }) {
   return (
     <Textarea
+      className="min-h-20"
       placeholder={placeholder}
       rows={rows}
       value={value}
@@ -761,10 +1106,11 @@ function AssetInputList({
   }
 
   return (
-    <div className="grid gap-3 rounded-xl border border-[var(--hairline)] bg-[var(--surface-card)] p-3">
-      <div className="flex items-center justify-between gap-3">
+    <div className="grid gap-2 rounded-xl border border-[var(--hairline)] bg-[var(--canvas-soft)] p-2.5">
+      <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-[var(--muted)]">最多可添加 {maxItems} 条</p>
         <Button
+          className="h-7 px-2.5 text-xs"
           disabled={draftItems.length >= maxItems}
           size="sm"
           type="button"
@@ -775,7 +1121,7 @@ function AssetInputList({
           添加
         </Button>
       </div>
-      <div className="grid gap-3">
+      <div className="grid gap-2">
         {draftItems.map((item, index) => (
           <div key={index} className="grid gap-1.5">
             <div className="flex items-center gap-2">
@@ -787,7 +1133,7 @@ function AssetInputList({
               />
               <Button
                 aria-label="删除"
-                className="h-11 w-11 shrink-0 rounded-lg px-0"
+                className="h-10 w-10 shrink-0 rounded-lg px-0"
                 disabled={draftItems.length === 1}
                 type="button"
                 variant="outline"
@@ -1040,37 +1386,12 @@ function LogoUploadList({
   );
 }
 
-function StatRow({ icon: Icon, label, value }: { icon: typeof Settings2; label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4 border-b border-[var(--hairline)] py-3 last:border-b-0">
-      <div className="flex min-w-0 items-center gap-3">
-        <span className="voice-icon-plate shrink-0">
-          <Icon aria-hidden className="h-4 w-4" strokeWidth={1.75} />
-        </span>
-        <span className="truncate text-body-sm text-[var(--muted)]">{label}</span>
-      </div>
-      <span className="max-w-[12rem] truncate text-sm font-medium text-[var(--ink)]">{value}</span>
-    </div>
-  );
-}
-
-function CountBadge({ value, label }: { value: number; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-[var(--hairline)] bg-[var(--surface-strong)] px-3 py-1 text-xs text-[var(--body)]">
-      <span className="font-semibold text-[var(--ink)]">{value}</span>
-      {label}
-    </span>
-  );
-}
-
-function NumberStepper({
-  label,
+function NumberStepperControl({
   value,
   min,
   step,
   onChange,
 }: {
-  label: string;
   value: string;
   min: number;
   step: number;
@@ -1085,34 +1406,29 @@ function NumberStepper({
   }
 
   return (
-    <div className="grid grid-cols-[6rem_minmax(0,12rem)] items-center gap-3">
-      <Label className="text-right text-sm normal-case tracking-normal text-[var(--body-strong)]">
-        {label}
-      </Label>
-      <div className="grid h-10 grid-cols-[40px_minmax(0,1fr)_40px] overflow-hidden rounded-lg border border-[var(--hairline-strong)] bg-[var(--surface-card)]">
-        <button
-          className="border-r border-[var(--hairline)] text-lg text-[var(--body)] transition hover:bg-[var(--surface-strong)] hover:text-[var(--ink)]"
-          type="button"
-          onClick={() => applyDelta(-step)}
-        >
-          -
-        </button>
-        <input
-          className="min-w-0 bg-transparent px-3 text-center text-sm text-[var(--ink)] outline-none"
-          min={min}
-          step={step}
-          type="number"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-        />
-        <button
-          className="border-l border-[var(--hairline)] text-lg text-[var(--body)] transition hover:bg-[var(--surface-strong)] hover:text-[var(--ink)]"
-          type="button"
-          onClick={() => applyDelta(step)}
-        >
-          +
-        </button>
-      </div>
+    <div className="grid h-10 grid-cols-[36px_minmax(0,1fr)_36px] overflow-hidden rounded-lg border border-[var(--hairline)] bg-[var(--canvas-soft)]">
+      <button
+        className="border-r border-[var(--hairline)] text-base text-[var(--body)] transition hover:bg-[var(--surface-strong)] hover:text-[var(--ink)]"
+        type="button"
+        onClick={() => applyDelta(-step)}
+      >
+        -
+      </button>
+      <input
+        className="min-w-0 bg-transparent px-3 text-center text-sm text-[var(--ink)] outline-none"
+        min={min}
+        step={step}
+        type="number"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <button
+        className="border-l border-[var(--hairline)] text-base text-[var(--body)] transition hover:bg-[var(--surface-strong)] hover:text-[var(--ink)]"
+        type="button"
+        onClick={() => applyDelta(step)}
+      >
+        +
+      </button>
     </div>
   );
 }
@@ -1190,7 +1506,7 @@ function TimeSelect({
   return (
     <div ref={rootRef} className="relative">
       <button
-        className={`flex h-10 min-w-[7.5rem] items-center justify-between rounded-xl border px-4 text-base font-medium text-[var(--ink)] transition ${
+        className={`flex h-9 min-w-[6.5rem] items-center justify-between rounded-lg border px-3 text-sm font-medium text-[var(--ink)] transition ${
           open
             ? "border-[var(--ink)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]"
             : "border-[var(--hairline-strong)] bg-[var(--surface-card)] hover:border-[var(--ink)]/35"
@@ -1287,10 +1603,10 @@ function SchedulePicker({
 
   const hourOptions = Array.from({ length: 25 }, (_, hour) => hour);
   return (
-    <div className="relative overflow-visible rounded-xl border border-[var(--hairline)] bg-[var(--surface-card)] p-3">
+    <div className="relative overflow-visible rounded-xl border border-[var(--hairline)] bg-[var(--canvas-soft)] p-3">
       <div className="overflow-x-auto">
-        <div className="min-w-[720px]">
-          <div className="mb-1.5 grid grid-cols-[3.75rem_1fr_5.75rem] items-end gap-2">
+        <div className="min-w-[640px]">
+          <div className="mb-1.5 grid grid-cols-[auto_1fr_4.75rem] items-end gap-2">
             <div />
             <div className="grid grid-cols-7 text-center text-[11px] text-[var(--muted)]">
               {[3, 6, 9, 12, 15, 18, 21].map((hour) => (
@@ -1306,10 +1622,12 @@ function SchedulePicker({
               const hasCopiedOtherDay = Boolean(clipboard && clipboardDay !== day.key);
 
               return (
-                <div key={day.key} className="grid grid-cols-[3.75rem_1fr_5.75rem] items-center gap-2">
-                  <span className="text-right text-[11px] font-semibold text-[var(--muted)]">{day.label}</span>
+                <div key={day.key} className="grid grid-cols-[auto_1fr_4.75rem] items-center gap-2">
+                  <span className="whitespace-nowrap text-right text-[11px] font-semibold text-[var(--muted)]">
+                    {day.label}
+                  </span>
                   <div
-                    className="grid h-7 overflow-hidden rounded-md border border-[var(--hairline)]"
+                    className="grid h-5 overflow-hidden rounded-md border border-[var(--hairline)]"
                     style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))" }}
                     onMouseLeave={() => setPreview(null)}
                   >
@@ -1322,7 +1640,7 @@ function SchedulePicker({
                           aria-label={`${day.label} ${formatHour(hour)}`}
                           className={`border-r border-[var(--hairline)] transition-colors last:border-r-0 ${
                             enabled
-                              ? "bg-[var(--ink)]"
+                              ? "bg-[var(--body)]"
                               : previewed
                                 ? "bg-[var(--muted-soft)]"
                                 : "bg-[var(--surface-strong)]"
@@ -1336,7 +1654,7 @@ function SchedulePicker({
                   </div>
                   <div className="flex items-center justify-end gap-1">
                     <Button
-                      className="h-7 min-w-[2.75rem] px-2 text-xs"
+                      className="h-6 min-w-[2.25rem] px-1.5 text-[11px]"
                       size="sm"
                       type="button"
                       variant="outline"
@@ -1345,7 +1663,7 @@ function SchedulePicker({
                       清空
                     </Button>
                     <Button
-                      className="h-7 min-w-[2.75rem] px-2 text-xs"
+                      className="h-6 min-w-[2.25rem] px-1.5 text-[11px]"
                       size="sm"
                       type="button"
                       variant="outline"
@@ -1368,14 +1686,14 @@ function SchedulePicker({
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-[3.75rem_1fr_5.75rem] items-center gap-2">
-        <Label className="text-right text-xs normal-case tracking-normal text-[var(--body-strong)]">
-          range
+      <div className="mt-3 grid grid-cols-[auto_1fr_4.75rem] items-center gap-2">
+        <Label className="whitespace-nowrap text-right text-xs normal-case tracking-normal text-[var(--body-strong)]">
+          时间范围
         </Label>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="inline-flex h-10 items-center rounded-full border border-[var(--hairline-strong)] bg-[var(--surface-strong)] p-0.5">
+        <div className="col-span-2 flex min-w-0 flex-nowrap items-center gap-2.5">
+          <div className="inline-flex h-9 shrink-0 items-center rounded-full border border-[var(--hairline)] bg-[var(--surface-strong)] p-0.5">
             <button
-              className={`h-8 rounded-full px-3.5 text-xs font-medium transition ${
+              className={`h-7 rounded-full px-3 text-xs font-medium transition ${
                 mode === "day"
                   ? "bg-[var(--ink)] text-[var(--on-primary)]"
                   : "text-[var(--body)] hover:text-[var(--ink)]"
@@ -1386,7 +1704,7 @@ function SchedulePicker({
               按天
             </button>
             <button
-              className={`h-8 rounded-full px-3.5 text-xs font-medium transition ${
+              className={`h-7 rounded-full px-3 text-xs font-medium transition ${
                 mode === "week"
                   ? "bg-[var(--ink)] text-[var(--on-primary)]"
                   : "text-[var(--body)] hover:text-[var(--ink)]"
@@ -1398,7 +1716,7 @@ function SchedulePicker({
             </button>
           </div>
           {mode === "week" ? (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex shrink-0 flex-nowrap items-center gap-2">
               <TimeSelect
                 options={hourOptions.slice(0, 24).map((hour) => formatHour(hour))}
                 value={formatHour(Number(rangeStart))}
@@ -1410,7 +1728,7 @@ function SchedulePicker({
                 onChange={(next) => setRangeEnd(String(Number(next.slice(0, 2))))}
               />
               <Button
-                className="flex h-10 items-center justify-center rounded-xl px-4 text-sm"
+                className="flex h-9 items-center justify-center rounded-lg px-3 text-sm"
                 type="button"
                 variant="outline"
                 onClick={applyWeekRange}
@@ -1419,13 +1737,86 @@ function SchedulePicker({
               </Button>
             </div>
           ) : null}
+          <p className="shrink-0 whitespace-nowrap text-[11px] text-[var(--muted)]">
+            {mode === "week" ? "按周会覆盖全部日期" : "按天直接在图表点选"}
+          </p>
         </div>
-        <p className="flex h-10 items-center text-[11px] leading-relaxed text-[var(--muted)]">
-          {mode === "week" ? "按周会覆盖全部日期" : "按天直接在图表点选"}
-        </p>
       </div>
     </div>
   );
+}
+
+function buildPayloadFromCampaign(campaign: CampaignForm, firstAdFallback: AdForm) {
+  const adGroups = campaign.adGroups.map((group) => ({
+    id: group.id,
+    name: group.name,
+    locations: splitLines(group.locations),
+    audienceSignals: splitLines(group.audienceSignals),
+    language: group.language,
+    demographics: {
+      genders: group.genders,
+      ageRange: {
+        min: group.ageMin,
+        max: group.ageMax,
+        includeUnknown: group.includeUnknownAge,
+      },
+    },
+    selectedChannels: DEFAULT_CHANNELS,
+    ads: group.ads.map((ad) => ({
+      id: ad.id,
+      name: ad.name,
+      finalUrl: ad.finalUrl,
+      youtubeVideos: normalizeVideoInputs(ad.videoLinks),
+      logos: splitMultiline(ad.logos),
+      headlines: splitLines(ad.shortHeadlines),
+      longHeadlines: splitLines(ad.longHeadlines),
+      descriptions: splitLines(ad.descriptions),
+      callToAction: ad.callToAction,
+      businessName: ad.businessName,
+    })),
+  }));
+
+  const primaryAdGroup = adGroups[0];
+  const primaryAd = primaryAdGroup?.ads[0];
+  const selectedDevices = campaign.device === "all" ? [] : [campaign.device];
+  const bidding = buildBiddingPayload(campaign);
+
+  return {
+    adAccountId: campaign.adAccountId,
+    advertisingType: campaign.advertisingType,
+    name: campaign.campaignName,
+    campaignObjective: campaign.campaignObjective,
+    conversionGoal:
+      campaign.campaignObjective === "CONVERSIONS" ? campaign.conversionGoal : undefined,
+    finalUrl: primaryAd?.finalUrl ?? firstAdFallback.finalUrl,
+    budgetMicros: microsFromAmount(campaign.budgetDaily),
+    bidding,
+    locations: primaryAdGroup?.locations.length ? primaryAdGroup.locations : ["US"],
+    language: primaryAdGroup?.language ?? "zh-CN",
+    os: campaign.os,
+    device: campaign.device,
+    devices: selectedDevices,
+    adSchedule: formatSchedule(campaign.adSchedule),
+    urlPrefix: campaign.finalUrlSuffix,
+    trackingTemplate: campaign.trackingTemplate || undefined,
+    finalUrlSuffix: campaign.finalUrlSuffix,
+    ipExclusions: splitLines(campaign.ipExclusions),
+    assets: {
+      headlines: primaryAd?.headlines ?? [],
+      longHeadlines: primaryAd?.longHeadlines ?? [],
+      descriptions: primaryAd?.descriptions ?? [],
+      businessName: primaryAd?.businessName ?? firstAdFallback.businessName,
+      marketingImages: [],
+      squareMarketingImages: [],
+      logos: primaryAd?.logos ?? [],
+      youtubeVideos: primaryAd?.youtubeVideos ?? [],
+    },
+    demandGen: {
+      adGroupName: primaryAdGroup?.name ?? "Main Ad Group",
+      selectedChannels: DEFAULT_CHANNELS,
+    },
+    adGroups,
+  };
 }
 
 export function LaunchBuilder({
@@ -1433,8 +1824,6 @@ export function LaunchBuilder({
   accountSyncError: initialSyncError = null,
   accountsSyncedAt: initialSyncedAt = null,
   initialMccAccounts = [],
-  draftCount,
-  jobCount,
 }: LaunchBuilderProps) {
   const [adAccounts, setAdAccounts] = useState(initialAdAccounts);
   const [mccAccounts, setMccAccounts] = useState<GoogleMccAccount[]>(initialMccAccounts);
@@ -1451,219 +1840,291 @@ export function LaunchBuilder({
   const [syncedAt, setSyncedAt] = useState<string | null>(initialSyncedAt);
 
   const firstAccount = adAccounts[0];
-  const [form, setForm] = useState<FormState>(() => buildDefaultForm(firstAccount));
-  const [activeAdGroupId, setActiveAdGroupId] = useState("adg_1");
-  const [activeAdId, setActiveAdId] = useState("ad_1");
+  const initialCampaignIdRef = useRef(`cmp_1_${Date.now()}`);
+  const [campaigns, setCampaigns] = useState<CampaignForm[]>(() => {
+    const initial = {
+      ...buildDefaultCampaign(1, firstAccount),
+      id: initialCampaignIdRef.current,
+    };
+    return [initial];
+  });
+  const [expandByCampaign, setExpandByCampaign] = useState<Record<string, ExpandState>>(() => {
+    const initial = buildDefaultCampaign(1, firstAccount);
+    return {
+      [initialCampaignIdRef.current]: buildInitialExpandState(initial.adGroups),
+    };
+  });
   const [result, setResult] = useState<ApiResult | null>(null);
-  const [preview, setPreview] = useState<unknown>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [conversionGoals, setConversionGoals] = useState<ConversionGoalPoint[]>([]);
-  const [conversionGoalState, setConversionGoalState] = useState<
-    "idle" | "loading" | "success" | "error"
-  >("idle");
-  const [conversionGoalError, setConversionGoalError] = useState<string | null>(null);
-  const [geoTargets, setGeoTargets] = useState<GeoTargetOption[]>(FALLBACK_GEO_TARGET_OPTIONS);
-  const [geoTargetState, setGeoTargetState] = useState<"idle" | "loading" | "success" | "error">(
-    "idle",
+  const [conversionGoalsByAccount, setConversionGoalsByAccount] = useState<
+    Record<string, ConversionGoalPoint[]>
+  >({});
+  const [conversionGoalStateByAccount, setConversionGoalStateByAccount] = useState<
+    Record<string, "idle" | "loading" | "success" | "error">
+  >({});
+  const [conversionGoalErrorByAccount, setConversionGoalErrorByAccount] = useState<
+    Record<string, string | null>
+  >({});
+  const [geoTargetsByAccount, setGeoTargetsByAccount] = useState<
+    Record<string, GeoTargetOption[]>
+  >({});
+  const [geoTargetStateByAccount, setGeoTargetStateByAccount] = useState<
+    Record<string, "idle" | "loading" | "success" | "error">
+  >({});
+  const [geoTargetErrorByAccount, setGeoTargetErrorByAccount] = useState<
+    Record<string, string | null>
+  >({});
+  const [languageTargetsByAccount, setLanguageTargetsByAccount] = useState<
+    Record<string, LanguageTargetOption[]>
+  >({});
+  const [languageTargetStateByAccount, setLanguageTargetStateByAccount] = useState<
+    Record<string, "idle" | "loading" | "success" | "error">
+  >({});
+  const [languageTargetErrorByAccount, setLanguageTargetErrorByAccount] = useState<
+    Record<string, string | null>
+  >({});
+  const idCounterRef = useRef(2);
+  const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
+  const [editorFocus, setEditorFocus] = useState<EditorFocus | null>(null);
+  const [previewCampaignId, setPreviewCampaignId] = useState<string | null>(null);
+
+  function closeCampaignEditor() {
+    setActiveCampaignId(null);
+    setEditorFocus(null);
+  }
+
+  function clearEditorFocusForGroup(campaignId: string, groupId: string) {
+    setEditorFocus((current) => {
+      if (!current || current.campaignId !== campaignId) {
+        return current;
+      }
+      if (current.level === "adgroup" && current.groupId === groupId) {
+        return null;
+      }
+      if (current.level === "ad" && current.groupId === groupId) {
+        return null;
+      }
+      return current;
+    });
+  }
+
+  function clearEditorFocusForAd(campaignId: string, groupId: string, adId: string) {
+    setEditorFocus((current) => {
+      if (
+        current?.level === "ad" &&
+        current.campaignId === campaignId &&
+        current.groupId === groupId &&
+        current.adId === adId
+      ) {
+        return { level: "adgroup", campaignId, groupId };
+      }
+      return current;
+    });
+  }
+
+  const accountIdsKey = useMemo(
+    () =>
+      [...new Set(campaigns.map((campaign) => campaign.adAccountId).filter(Boolean))]
+        .sort()
+        .join(","),
+    [campaigns],
   );
-  const [geoTargetError, setGeoTargetError] = useState<string | null>(null);
-  const [languageTargets, setLanguageTargets] = useState<LanguageTargetOption[]>(
-    FALLBACK_LANGUAGE_OPTIONS,
+
+  function patchCampaign(campaignId: string, patch: Partial<CampaignForm>) {
+    setCampaigns((current) =>
+      current.map((campaign) =>
+        campaign.id === campaignId ? { ...campaign, ...patch } : campaign,
+      ),
+    );
+  }
+
+  const loadConversionGoals = useCallback(
+    async (campaignId: string, adAccountId: string) => {
+      if (!adAccountId) {
+        setConversionGoalsByAccount((current) => ({ ...current, [adAccountId]: [] }));
+        setConversionGoalStateByAccount((current) => ({ ...current, [adAccountId]: "idle" }));
+        setConversionGoalErrorByAccount((current) => ({ ...current, [adAccountId]: null }));
+        return;
+      }
+
+      setConversionGoalStateByAccount((current) => ({ ...current, [adAccountId]: "loading" }));
+      setConversionGoalErrorByAccount((current) => ({ ...current, [adAccountId]: null }));
+
+      try {
+        const account = adAccounts.find((item) => item.id === adAccountId);
+        const params = new URLSearchParams();
+        if (account?.customerId) {
+          params.set("customerId", account.customerId);
+        }
+        const accountLoginCustomerId =
+          account?.loginCustomerId ??
+          mccAccounts.find((mcc) => mcc.id === account?.operationMccId)?.customerId;
+        if (accountLoginCustomerId) {
+          params.set("loginCustomerId", accountLoginCustomerId);
+        }
+
+        const response = await fetch(
+          `/api/google-ads/accounts/${adAccountId}/conversion-goals?${params.toString()}`,
+        );
+        const json = (await response.json()) as ApiResult;
+
+        if (!json.success || !json.data) {
+          throw new Error(json.error?.message ?? "读取真实转化目标失败。");
+        }
+
+        const goals = json.data as ConversionGoalPoint[];
+        setConversionGoalsByAccount((current) => ({ ...current, [adAccountId]: goals }));
+        patchCampaign(campaignId, { conversionGoal: goals[0]?.id ?? "" });
+        setConversionGoalStateByAccount((current) => ({ ...current, [adAccountId]: "success" }));
+      } catch (error) {
+        setConversionGoalStateByAccount((current) => ({ ...current, [adAccountId]: "error" }));
+        setConversionGoalsByAccount((current) => ({ ...current, [adAccountId]: [] }));
+        setConversionGoalErrorByAccount((current) => ({
+          ...current,
+          [adAccountId]: error instanceof Error ? error.message : "读取真实转化目标失败。",
+        }));
+      }
+    },
+    [adAccounts, mccAccounts],
   );
-  const [languageTargetState, setLanguageTargetState] = useState<
-    "idle" | "loading" | "success" | "error"
-  >("idle");
-  const [languageTargetError, setLanguageTargetError] = useState<string | null>(null);
 
-  const selectedAccount = adAccounts.find((account) => account.id === form.adAccountId);
-  const selectedOperationMcc = mccAccounts.find((mcc) => mcc.id === selectedAccount?.operationMccId);
-  const loginCustomerId = selectedAccount?.loginCustomerId ?? selectedOperationMcc?.customerId;
-  const activeAdGroup =
-    form.adGroups.find((group) => group.id === activeAdGroupId) ?? form.adGroups[0];
-  const activeAd =
-    activeAdGroup?.ads.find((ad) => ad.id === activeAdId) ?? activeAdGroup?.ads[0];
-  const allAds = form.adGroups.flatMap((group) => group.ads);
-  const firstAd = allAds[0] ?? createDefaultAd(1);
-  const geoTargetSelectOptions = useMemo<ComboboxOption[]>(() => {
-    const options = geoTargets.map((target) => ({
-      value: target.resourceName,
-      label: geoTargetLabel(target),
-      keywords: [target.name, target.canonicalName, target.countryCode, target.targetType],
-    }));
-    const activeLocation = activeAdGroup?.locations;
-
-    if (activeLocation && !options.some((option) => option.value === activeLocation)) {
-      options.unshift({ value: activeLocation, label: activeLocation, keywords: [] });
-    }
-
-    return options;
-  }, [activeAdGroup?.locations, geoTargets]);
-  const languageTargetSelectOptions = useMemo<ComboboxOption[]>(() => {
-    const options = languageTargets.map((language) => ({
-      value: language.resourceName,
-      label: languageTargetLabel(language),
-      keywords: [language.name, language.code, language.id],
-    }));
-    const activeLanguage = activeAdGroup?.language;
-
-    if (activeLanguage && !options.some((option) => option.value === activeLanguage)) {
-      options.unshift({ value: activeLanguage, label: activeLanguage, keywords: [] });
-    }
-
-    return options;
-  }, [activeAdGroup?.language, languageTargets]);
-
-  const loadConversionGoals = useCallback(async (adAccountId = form.adAccountId) => {
-    if (!adAccountId) {
-      setConversionGoals([]);
-      setConversionGoalState("idle");
-      setConversionGoalError(null);
-      return;
-    }
-
-    setConversionGoalState("loading");
-    setConversionGoalError(null);
-
-    try {
-      const account =
-        adAccounts.find((item) => item.id === adAccountId) ?? selectedAccount;
-      const params = new URLSearchParams();
-      if (account?.customerId) {
-        params.set("customerId", account.customerId);
-      }
-      const accountLoginCustomerId =
-        account?.loginCustomerId ??
-        mccAccounts.find((mcc) => mcc.id === account?.operationMccId)?.customerId;
-      if (accountLoginCustomerId) {
-        params.set("loginCustomerId", accountLoginCustomerId);
+  const loadGeoTargets = useCallback(
+    async (adAccountId: string) => {
+      if (!adAccountId) {
+        setGeoTargetsByAccount((current) => ({
+          ...current,
+          [adAccountId]: FALLBACK_GEO_TARGET_OPTIONS,
+        }));
+        setGeoTargetStateByAccount((current) => ({ ...current, [adAccountId]: "idle" }));
+        setGeoTargetErrorByAccount((current) => ({ ...current, [adAccountId]: null }));
+        return;
       }
 
-      const response = await fetch(
-        `/api/google-ads/accounts/${adAccountId}/conversion-goals?${params.toString()}`,
-      );
-      const json = (await response.json()) as ApiResult;
+      setGeoTargetStateByAccount((current) => ({ ...current, [adAccountId]: "loading" }));
+      setGeoTargetErrorByAccount((current) => ({ ...current, [adAccountId]: null }));
 
-      if (!json.success || !json.data) {
-        throw new Error(json.error?.message ?? "读取真实转化目标失败。");
+      try {
+        const account = adAccounts.find((item) => item.id === adAccountId);
+        const params = new URLSearchParams();
+        if (account?.customerId) {
+          params.set("customerId", account.customerId);
+        }
+        const accountLoginCustomerId =
+          account?.loginCustomerId ??
+          mccAccounts.find((mcc) => mcc.id === account?.operationMccId)?.customerId;
+        if (accountLoginCustomerId) {
+          params.set("loginCustomerId", accountLoginCustomerId);
+        }
+
+        const response = await fetch(
+          `/api/google-ads/accounts/${adAccountId}/geo-targets?${params.toString()}`,
+        );
+        const json = (await response.json()) as ApiResult;
+
+        if (!json.success || !json.data) {
+          throw new Error(json.error?.message ?? "读取地理位置失败。");
+        }
+
+        const targets = json.data as GeoTargetOption[];
+        setGeoTargetsByAccount((current) => ({
+          ...current,
+          [adAccountId]: targets.length ? targets : FALLBACK_GEO_TARGET_OPTIONS,
+        }));
+        setGeoTargetStateByAccount((current) => ({ ...current, [adAccountId]: "success" }));
+      } catch (error) {
+        setGeoTargetsByAccount((current) => ({
+          ...current,
+          [adAccountId]: FALLBACK_GEO_TARGET_OPTIONS,
+        }));
+        setGeoTargetStateByAccount((current) => ({ ...current, [adAccountId]: "error" }));
+        setGeoTargetErrorByAccount((current) => ({
+          ...current,
+          [adAccountId]: error instanceof Error ? error.message : "读取地理位置失败。",
+        }));
       }
-
-      const goals = json.data as ConversionGoalPoint[];
-      setConversionGoals(goals);
-      setForm((current) => ({
-        ...current,
-        conversionGoal: goals[0]?.id ?? "",
-      }));
-      setConversionGoalState("success");
-    } catch (error) {
-      setConversionGoalState("error");
-      setConversionGoals([]);
-      setConversionGoalError(error instanceof Error ? error.message : "读取真实转化目标失败。");
-    }
-  }, [adAccounts, form.adAccountId, mccAccounts, selectedAccount]);
-
-  const loadGeoTargets = useCallback(async (adAccountId = form.adAccountId) => {
-    if (!adAccountId) {
-      setGeoTargets(FALLBACK_GEO_TARGET_OPTIONS);
-      setGeoTargetState("idle");
-      setGeoTargetError(null);
-      return;
-    }
-
-    setGeoTargetState("loading");
-    setGeoTargetError(null);
-
-    try {
-      const account =
-        adAccounts.find((item) => item.id === adAccountId) ?? selectedAccount;
-      const params = new URLSearchParams();
-      if (account?.customerId) {
-        params.set("customerId", account.customerId);
-      }
-      const accountLoginCustomerId =
-        account?.loginCustomerId ??
-        mccAccounts.find((mcc) => mcc.id === account?.operationMccId)?.customerId;
-      if (accountLoginCustomerId) {
-        params.set("loginCustomerId", accountLoginCustomerId);
-      }
-
-      const response = await fetch(
-        `/api/google-ads/accounts/${adAccountId}/geo-targets?${params.toString()}`,
-      );
-      const json = (await response.json()) as ApiResult;
-
-      if (!json.success || !json.data) {
-        throw new Error(json.error?.message ?? "读取地理位置失败。");
-      }
-
-      const targets = json.data as GeoTargetOption[];
-      setGeoTargets(targets.length ? targets : FALLBACK_GEO_TARGET_OPTIONS);
-      setGeoTargetState("success");
-    } catch (error) {
-      setGeoTargets(FALLBACK_GEO_TARGET_OPTIONS);
-      setGeoTargetState("error");
-      setGeoTargetError(error instanceof Error ? error.message : "读取地理位置失败。");
-    }
-  }, [adAccounts, form.adAccountId, mccAccounts, selectedAccount]);
+    },
+    [adAccounts, mccAccounts],
+  );
 
   useEffect(() => {
+    const accountIds = accountIdsKey ? accountIdsKey.split(",") : [];
     const timeoutId = window.setTimeout(() => {
-      void loadGeoTargets(form.adAccountId);
+      for (const adAccountId of accountIds) {
+        void loadGeoTargets(adAccountId);
+      }
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [form.adAccountId, loadGeoTargets]);
+  }, [accountIdsKey, loadGeoTargets]);
 
-  const loadLanguageTargets = useCallback(async (adAccountId = form.adAccountId) => {
-    if (!adAccountId) {
-      setLanguageTargets(FALLBACK_LANGUAGE_OPTIONS);
-      setLanguageTargetState("idle");
-      setLanguageTargetError(null);
-      return;
-    }
-
-    setLanguageTargetState("loading");
-    setLanguageTargetError(null);
-
-    try {
-      const account =
-        adAccounts.find((item) => item.id === adAccountId) ?? selectedAccount;
-      const params = new URLSearchParams();
-      if (account?.customerId) {
-        params.set("customerId", account.customerId);
-      }
-      const accountLoginCustomerId =
-        account?.loginCustomerId ??
-        mccAccounts.find((mcc) => mcc.id === account?.operationMccId)?.customerId;
-      if (accountLoginCustomerId) {
-        params.set("loginCustomerId", accountLoginCustomerId);
+  const loadLanguageTargets = useCallback(
+    async (adAccountId: string) => {
+      if (!adAccountId) {
+        setLanguageTargetsByAccount((current) => ({
+          ...current,
+          [adAccountId]: FALLBACK_LANGUAGE_OPTIONS,
+        }));
+        setLanguageTargetStateByAccount((current) => ({ ...current, [adAccountId]: "idle" }));
+        setLanguageTargetErrorByAccount((current) => ({ ...current, [adAccountId]: null }));
+        return;
       }
 
-      const response = await fetch(
-        `/api/google-ads/accounts/${adAccountId}/language-targets?${params.toString()}`,
-      );
-      const json = (await response.json()) as ApiResult;
+      setLanguageTargetStateByAccount((current) => ({ ...current, [adAccountId]: "loading" }));
+      setLanguageTargetErrorByAccount((current) => ({ ...current, [adAccountId]: null }));
 
-      if (!json.success || !json.data) {
-        throw new Error(json.error?.message ?? "读取语言失败。");
+      try {
+        const account = adAccounts.find((item) => item.id === adAccountId);
+        const params = new URLSearchParams();
+        if (account?.customerId) {
+          params.set("customerId", account.customerId);
+        }
+        const accountLoginCustomerId =
+          account?.loginCustomerId ??
+          mccAccounts.find((mcc) => mcc.id === account?.operationMccId)?.customerId;
+        if (accountLoginCustomerId) {
+          params.set("loginCustomerId", accountLoginCustomerId);
+        }
+
+        const response = await fetch(
+          `/api/google-ads/accounts/${adAccountId}/language-targets?${params.toString()}`,
+        );
+        const json = (await response.json()) as ApiResult;
+
+        if (!json.success || !json.data) {
+          throw new Error(json.error?.message ?? "读取语言失败。");
+        }
+
+        const languages = json.data as LanguageTargetOption[];
+        setLanguageTargetsByAccount((current) => ({
+          ...current,
+          [adAccountId]: languages.length ? languages : FALLBACK_LANGUAGE_OPTIONS,
+        }));
+        setLanguageTargetStateByAccount((current) => ({ ...current, [adAccountId]: "success" }));
+      } catch (error) {
+        setLanguageTargetsByAccount((current) => ({
+          ...current,
+          [adAccountId]: FALLBACK_LANGUAGE_OPTIONS,
+        }));
+        setLanguageTargetStateByAccount((current) => ({ ...current, [adAccountId]: "error" }));
+        setLanguageTargetErrorByAccount((current) => ({
+          ...current,
+          [adAccountId]: error instanceof Error ? error.message : "读取语言失败。",
+        }));
       }
-
-      const languages = json.data as LanguageTargetOption[];
-      setLanguageTargets(languages.length ? languages : FALLBACK_LANGUAGE_OPTIONS);
-      setLanguageTargetState("success");
-    } catch (error) {
-      setLanguageTargets(FALLBACK_LANGUAGE_OPTIONS);
-      setLanguageTargetState("error");
-      setLanguageTargetError(error instanceof Error ? error.message : "读取语言失败。");
-    }
-  }, [adAccounts, form.adAccountId, mccAccounts, selectedAccount]);
+    },
+    [adAccounts, mccAccounts],
+  );
 
   useEffect(() => {
+    const accountIds = accountIdsKey ? accountIdsKey.split(",") : [];
     const timeoutId = window.setTimeout(() => {
-      void loadLanguageTargets(form.adAccountId);
+      for (const adAccountId of accountIds) {
+        void loadLanguageTargets(adAccountId);
+      }
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [form.adAccountId, loadLanguageTargets]);
+  }, [accountIdsKey, loadLanguageTargets]);
 
   const syncGoogleAccounts = useCallback(async () => {
     setSyncState("loading");
@@ -1682,19 +2143,17 @@ export function LaunchBuilder({
       setAdAccounts(data.adAccounts);
       setSyncedAt(data.syncedAt);
 
-      setForm((current) => {
-        const account =
-          data.adAccounts.find((item) => item.id === current.adAccountId) ?? data.adAccounts[0];
-
-        if (!account) {
-          return current;
-        }
-
-        return {
-          ...current,
-          adAccountId: account.id,
-        };
-      });
+      setCampaigns((current) =>
+        current.map((campaign) => {
+          const account =
+            data.adAccounts.find((item) => item.id === campaign.adAccountId) ??
+            data.adAccounts[0];
+          if (!account) {
+            return campaign;
+          }
+          return { ...campaign, adAccountId: account.id };
+        }),
+      );
 
       setSyncState("success");
     } catch (error) {
@@ -1703,332 +2162,245 @@ export function LaunchBuilder({
     }
   }, []);
 
-  function patchForm(patch: Partial<FormState>) {
-    setForm((current) => ({ ...current, ...patch }));
+  function updateCampaignAdGroup(
+    campaignId: string,
+    groupId: string,
+    patch: Partial<AdGroupForm>,
+  ) {
+    setCampaigns((current) =>
+      current.map((campaign) =>
+        campaign.id === campaignId
+          ? {
+              ...campaign,
+              adGroups: campaign.adGroups.map((group) =>
+                group.id === groupId ? { ...group, ...patch } : group,
+              ),
+            }
+          : campaign,
+      ),
+    );
   }
 
-  function updateAdGroup(groupId: string, patch: Partial<AdGroupForm>) {
-    setForm((current) => ({
-      ...current,
-      adGroups: current.adGroups.map((group) =>
-        group.id === groupId ? { ...group, ...patch } : group,
+  function updateCampaignAd(
+    campaignId: string,
+    groupId: string,
+    adId: string,
+    patch: Partial<AdForm>,
+  ) {
+    setCampaigns((current) =>
+      current.map((campaign) =>
+        campaign.id === campaignId
+          ? {
+              ...campaign,
+              adGroups: campaign.adGroups.map((group) =>
+                group.id === groupId
+                  ? {
+                      ...group,
+                      ads: group.ads.map((ad) => (ad.id === adId ? { ...ad, ...patch } : ad)),
+                    }
+                  : group,
+              ),
+            }
+          : campaign,
       ),
+    );
+  }
+
+  function expandHierarchy(campaignId: string, groupId: string, adId: string) {
+    setExpandByCampaign((current) => ({
+      ...current,
+      [campaignId]: {
+        campaign: true,
+        adGroups: { ...current[campaignId]?.adGroups, [groupId]: true },
+        ads: { ...current[campaignId]?.ads, [adId]: true },
+      },
     }));
   }
 
-  function toggleAdGroupGender(group: AdGroupForm, gender: string, checked: boolean) {
+  function toggleAdGroupGender(
+    campaignId: string,
+    group: AdGroupForm,
+    gender: string,
+    checked: boolean,
+  ) {
     const genders = checked
       ? Array.from(new Set([...group.genders, gender]))
       : group.genders.filter((item) => item !== gender);
 
-    updateAdGroup(group.id, { genders });
+    updateCampaignAdGroup(campaignId, group.id, { genders });
   }
 
-  function updateAd(groupId: string, adId: string, patch: Partial<AdForm>) {
-    setForm((current) => ({
+  function openCampaignDetail(campaignId: string) {
+    const campaign = campaigns.find((item) => item.id === campaignId);
+    if (!campaign) {
+      return;
+    }
+
+    setActiveCampaignId(campaignId);
+    setExpandByCampaign((current) => ({
       ...current,
-      adGroups: current.adGroups.map((group) =>
-        group.id === groupId
-          ? {
-              ...group,
-              ads: group.ads.map((ad) => (ad.id === adId ? { ...ad, ...patch } : ad)),
-            }
-          : group,
-      ),
+      [campaignId]: {
+        campaign: true,
+        adGroups: Object.fromEntries(campaign.adGroups.map((group) => [group.id, false])),
+        ads: Object.fromEntries(
+          campaign.adGroups.flatMap((group) => group.ads.map((ad) => [ad.id, false])),
+        ),
+      },
     }));
   }
 
-  function addAdGroup() {
-    const id = `adg_${form.adGroups.length + 1}_${Date.now()}`;
+  function addCampaign() {
+    const nextIndex = campaigns.length + 1;
+    const id = `cmp_${nextIndex}_${idCounterRef.current++}`;
+    const nextCampaign = { ...buildDefaultCampaign(nextIndex, firstAccount), id };
+
+    setCampaigns((current) => [...current, nextCampaign]);
+    setExpandByCampaign((current) => ({
+      ...current,
+      [id]: buildInitialExpandState(nextCampaign.adGroups),
+    }));
+    openCampaignDetail(id);
+  }
+
+  function removeCampaign(campaignId: string) {
+    if (campaigns.length === 1) {
+      return;
+    }
+
+    setCampaigns((current) => current.filter((campaign) => campaign.id !== campaignId));
+    setExpandByCampaign((current) => {
+      const next = { ...current };
+      delete next[campaignId];
+      return next;
+    });
+    if (activeCampaignId === campaignId) {
+      closeCampaignEditor();
+    }
+  }
+
+  function addAdGroup(campaignId: string) {
+    const campaign = campaigns.find((item) => item.id === campaignId);
+    if (!campaign) {
+      return;
+    }
+
+    const id = `adg_${campaign.adGroups.length + 1}_${idCounterRef.current++}`;
     const nextGroup = {
-      ...createDefaultAdGroup(form.adGroups.length + 1),
+      ...createDefaultAdGroup(campaign.adGroups.length + 1),
       id,
       ads: [{ ...createDefaultAd(1), id: `${id}_ad_1` }],
     };
 
-    setForm((current) => ({ ...current, adGroups: [...current.adGroups, nextGroup] }));
-    setActiveAdGroupId(id);
-    setActiveAdId(nextGroup.ads[0].id);
+    patchCampaign(campaignId, { adGroups: [...campaign.adGroups, nextGroup] });
+    setExpandByCampaign((current) => ({
+      ...current,
+      [campaignId]: {
+        campaign: true,
+        adGroups: { ...current[campaignId]?.adGroups, [id]: true },
+        ads: { ...current[campaignId]?.ads, [nextGroup.ads[0].id]: true },
+      },
+    }));
   }
 
-  function removeAdGroup(groupId: string) {
-    if (form.adGroups.length === 1) {
+  function removeAdGroup(campaignId: string, groupId: string) {
+    const campaign = campaigns.find((item) => item.id === campaignId);
+    if (!campaign || campaign.adGroups.length === 1) {
       return;
     }
 
-    const nextGroups = form.adGroups.filter((group) => group.id !== groupId);
-    setForm((current) => ({ ...current, adGroups: nextGroups }));
+    const removedGroup = campaign.adGroups.find((group) => group.id === groupId);
+    patchCampaign(campaignId, {
+      adGroups: campaign.adGroups.filter((group) => group.id !== groupId),
+    });
 
-    if (activeAdGroupId === groupId) {
-      setActiveAdGroupId(nextGroups[0].id);
-      setActiveAdId(nextGroups[0].ads[0].id);
-    }
+    setExpandByCampaign((current) => {
+      const nextAdGroups = { ...current[campaignId]?.adGroups };
+      delete nextAdGroups[groupId];
+
+      const nextAds = { ...current[campaignId]?.ads };
+      for (const ad of removedGroup?.ads ?? []) {
+        delete nextAds[ad.id];
+      }
+
+      return {
+        ...current,
+        [campaignId]: { ...current[campaignId], adGroups: nextAdGroups, ads: nextAds },
+      };
+    });
+    clearEditorFocusForGroup(campaignId, groupId);
   }
 
-  function addAd(groupId: string) {
-    const group = form.adGroups.find((item) => item.id === groupId);
+  function addAd(campaignId: string, groupId: string) {
+    const campaign = campaigns.find((item) => item.id === campaignId);
+    const group = campaign?.adGroups.find((item) => item.id === groupId);
     if (!group) {
       return;
     }
 
-    const id = `${groupId}_ad_${group.ads.length + 1}_${Date.now()}`;
+    const id = `${groupId}_ad_${group.ads.length + 1}_${idCounterRef.current++}`;
     const nextAd = {
       ...createDefaultAd(group.ads.length + 1),
       id,
       finalUrl: group.ads[0]?.finalUrl ?? "https://example.com/landing",
     };
 
-    updateAdGroup(groupId, { ads: [...group.ads, nextAd] });
-    setActiveAdGroupId(groupId);
-    setActiveAdId(id);
+    updateCampaignAdGroup(campaignId, groupId, { ads: [...group.ads, nextAd] });
+    expandHierarchy(campaignId, groupId, id);
   }
 
-  function removeAd(groupId: string, adId: string) {
-    const group = form.adGroups.find((item) => item.id === groupId);
+  function removeAd(campaignId: string, groupId: string, adId: string) {
+    const campaign = campaigns.find((item) => item.id === campaignId);
+    const group = campaign?.adGroups.find((item) => item.id === groupId);
     if (!group || group.ads.length === 1) {
       return;
     }
 
-    const nextAds = group.ads.filter((ad) => ad.id !== adId);
-    updateAdGroup(groupId, { ads: nextAds });
+    updateCampaignAdGroup(campaignId, groupId, {
+      ads: group.ads.filter((ad) => ad.id !== adId),
+    });
 
-    if (activeAdId === adId) {
-      setActiveAdId(nextAds[0].id);
-    }
+    setExpandByCampaign((current) => {
+      const nextAdsState = { ...current[campaignId]?.ads };
+      delete nextAdsState[adId];
+      return {
+        ...current,
+        [campaignId]: { ...current[campaignId], ads: nextAdsState },
+      };
+    });
+    clearEditorFocusForAd(campaignId, groupId, adId);
   }
 
-  const payload = useMemo(() => {
-    const adGroups = form.adGroups.map((group) => ({
-      id: group.id,
-      name: group.name,
-      locations: splitLines(group.locations),
-      audienceSignals: splitLines(group.audienceSignals),
-      language: group.language,
-      demographics: {
-        genders: group.genders,
-        ageRange: {
-          min: group.ageMin,
-          max: group.ageMax,
-          includeUnknown: group.includeUnknownAge,
-        },
-      },
-      selectedChannels: DEFAULT_CHANNELS,
-      ads: group.ads.map((ad) => ({
-        id: ad.id,
-        name: ad.name,
-        finalUrl: ad.finalUrl,
-        youtubeVideos: normalizeVideoInputs(ad.videoLinks),
-        logos: splitMultiline(ad.logos),
-        headlines: splitLines(ad.shortHeadlines),
-        longHeadlines: splitLines(ad.longHeadlines),
-        descriptions: splitLines(ad.descriptions),
-        callToAction: ad.callToAction,
-        businessName: ad.businessName,
-      })),
-    }));
-
-    const primaryAdGroup = adGroups[0];
-    const primaryAd = primaryAdGroup?.ads[0];
-    const selectedDevices = form.device === "all" ? [] : [form.device];
-    const bidding = buildBiddingPayload(form);
-
+  function getCampaignEditorContext(campaign: CampaignForm) {
     return {
-      adAccountId: form.adAccountId,
-      advertisingType: form.advertisingType,
-      name: form.campaignName,
-      campaignObjective: form.campaignObjective,
-      conversionGoal: form.campaignObjective === "CONVERSIONS" ? form.conversionGoal : undefined,
-      finalUrl: primaryAd?.finalUrl ?? firstAd.finalUrl,
-      budgetMicros: microsFromAmount(form.budgetDaily),
-      bidding,
-      locations: primaryAdGroup?.locations.length ? primaryAdGroup.locations : ["US"],
-      language: primaryAdGroup?.language ?? "zh-CN",
-      os: form.os,
-      device: form.device,
-      devices: selectedDevices,
-      adSchedule: formatSchedule(form.adSchedule),
-      urlPrefix: form.finalUrlSuffix,
-      trackingTemplate: form.trackingTemplate || undefined,
-      finalUrlSuffix: form.finalUrlSuffix,
-      ipExclusions: splitLines(form.ipExclusions),
-      assets: {
-        headlines: primaryAd?.headlines ?? [],
-        longHeadlines: primaryAd?.longHeadlines ?? [],
-        descriptions: primaryAd?.descriptions ?? [],
-        businessName: primaryAd?.businessName ?? firstAd.businessName,
-        marketingImages: [],
-        squareMarketingImages: [],
-        logos: primaryAd?.logos ?? [],
-        youtubeVideos: primaryAd?.youtubeVideos ?? [],
-      },
-      demandGen: {
-        adGroupName: primaryAdGroup?.name ?? "Main Ad Group",
-        selectedChannels: DEFAULT_CHANNELS,
-      },
-      adGroups,
+      conversionGoals: conversionGoalsByAccount[campaign.adAccountId] ?? [],
+      conversionGoalState: conversionGoalStateByAccount[campaign.adAccountId] ?? "idle",
+      conversionGoalError: conversionGoalErrorByAccount[campaign.adAccountId] ?? null,
+      geoTargets: geoTargetsByAccount[campaign.adAccountId] ?? FALLBACK_GEO_TARGET_OPTIONS,
+      geoTargetState: geoTargetStateByAccount[campaign.adAccountId] ?? "idle",
+      geoTargetError: geoTargetErrorByAccount[campaign.adAccountId] ?? null,
+      languageTargets:
+        languageTargetsByAccount[campaign.adAccountId] ?? FALLBACK_LANGUAGE_OPTIONS,
+      languageTargetState: languageTargetStateByAccount[campaign.adAccountId] ?? "idle",
+      languageTargetError: languageTargetErrorByAccount[campaign.adAccountId] ?? null,
     };
-  }, [firstAd, form]);
-
-  const fullConfigPreview = useMemo(
-    () => ({
-      apiPayload: payload,
-      hierarchy: {
-        campaign: {
-          account: selectedAccount?.customerId ?? null,
-          name: form.campaignName,
-          objective: form.campaignObjective,
-          conversionGoal:
-            form.campaignObjective === "CONVERSIONS" ? form.conversionGoal : null,
-          biddingType: payload.bidding.strategy,
-          cpa:
-            form.campaignObjective === "CONVERSIONS" && form.biddingType === "TARGET_CPA"
-              ? form.targetCpa
-              : null,
-          budget: form.budgetDaily,
-          os: form.os,
-          device: form.device,
-          schedule: formatSchedule(form.adSchedule),
-          urlOptions: {
-            urlPrefix: form.finalUrlSuffix,
-            finalUrlSuffix: form.finalUrlSuffix,
-          },
-          ipExclusions: splitLines(form.ipExclusions),
-        },
-        adGroups: payload.adGroups,
-      },
-    }),
-    [form, payload, selectedAccount],
-  );
-
-  async function submitDraft() {
-    setIsSubmitting(true);
-    setResult(null);
-    setPreview(null);
-
-    try {
-      const createResponse = await fetch("/api/campaign-drafts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const createJson = (await createResponse.json()) as ApiResult;
-      setResult(createJson);
-
-      const draftId =
-        createJson.success &&
-        createJson.data &&
-        typeof createJson.data === "object" &&
-        "id" in createJson.data
-          ? String(createJson.data.id)
-          : "";
-
-      if (!draftId) {
-        return;
-      }
-
-      await fetch(`/api/campaign-drafts/${draftId}/validate`, { method: "POST" });
-      const previewResponse = await fetch(`/api/campaign-drafts/${draftId}/build-preview`, {
-        method: "POST",
-      });
-      const previewJson = (await previewResponse.json()) as ApiResult;
-      setPreview(previewJson);
-    } catch (error) {
-      setResult({
-        success: false,
-        error: {
-          code: "CLIENT_SUBMIT_FAILED",
-          message: error instanceof Error ? error.message : "提交草稿失败。",
-        },
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
   }
 
-  return (
-    <div className="space-y-8">
-      <section
-        aria-labelledby="launch-heading"
-        className="animate-fade-up border-b border-[var(--hairline)] py-10 lg:py-14"
-      >
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
-          <div>
-            <div className="section-eyebrow">
-              <p className="text-caption-uppercase text-[var(--muted)]">Google Ads Form Builder</p>
-            </div>
-            <h1 className="text-heading-xl mt-4 max-w-4xl text-[var(--ink)]" id="launch-heading">
-              广告投放表单
-              <span className="block text-[var(--body-strong)]">Campaign / AdGroup / Ad</span>
-            </h1>
-            <p className="mt-5 max-w-3xl text-[15px] leading-relaxed text-[var(--body)]">
-              顶层先确定账号、目标、预算和投放约束；每个 AdGroup 独立承载地域、受众和语言；
-              每个 AdGroup 下可以继续创建多个广告创意。
-            </p>
-            <div className="mt-6 flex flex-wrap gap-2">
-              <CountBadge label="AdGroups" value={form.adGroups.length} />
-              <CountBadge label="Ads" value={allAds.length} />
-              <Badge className="normal-case tracking-normal">
-                {selectedAccount?.customerId ?? "未选择投放账号"}
-              </Badge>
-            </div>
-          </div>
+  function renderCampaignEditor(campaign: CampaignForm) {
+          const {
+            conversionGoals,
+            conversionGoalState,
+            conversionGoalError,
+            geoTargets,
+            geoTargetState,
+            geoTargetError,
+            languageTargets,
+            languageTargetState,
+            languageTargetError,
+          } = getCampaignEditorContext(campaign);
 
-          <Card className="animate-fade-up stagger-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Settings2 aria-hidden className="h-5 w-5" strokeWidth={1.75} />
-                当前环境
-              </CardTitle>
-              <CardDescription>表单提交后生成暂停态创建预览。</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-0">
-              <StatRow icon={FileJson} label="草稿 / 任务" value={`${draftCount} / ${jobCount}`} />
-              <StatRow icon={UserRound} label="操作 MCC" value={loginCustomerId ?? "未选择"} />
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_390px]">
-        <div className="space-y-5">
-          <SectionCard
-            eyebrow="Campaign"
-            title="Campaign 层级"
-            description="账号、名称、目标、转化、budget、cpa、schedule、设备、网址选项和 IP 排除都在这里收口。"
-          >
-            <div className="mb-5 flex flex-wrap items-center gap-2">
-              <Badge className="normal-case tracking-normal">
-                {syncState === "loading"
-                  ? "正在同步 Google Ads 账号..."
-                  : syncState === "success"
-                    ? `已同步 ${adAccounts.length} 个投放账号`
-                    : syncState === "loaded"
-                      ? `已加载 ${adAccounts.length} 个已同步账号`
-                    : syncState === "error"
-                      ? "同步失败"
-                      : "等待同步"}
-              </Badge>
-              {syncedAt ? (
-                <span className="text-xs text-[var(--muted)]">
-                  最近同步：{new Date(syncedAt).toLocaleString()}
-                </span>
-              ) : null}
-              <Button
-                disabled={syncState === "loading"}
-                size="sm"
-                type="button"
-                variant="outline"
-                onClick={() => void syncGoogleAccounts()}
-              >
-                重新同步
-              </Button>
-            </div>
-            {syncError ? (
-              <p className="mb-4 rounded-lg border border-[var(--semantic-error)]/30 bg-[var(--surface-card)] px-3 py-2 text-sm text-[var(--semantic-error)]">
-                {syncError}
-              </p>
-            ) : null}
-
+          return (
+            <div className="space-y-5 rounded-3xl border border-[var(--hairline)] bg-[var(--surface-card)] p-3 shadow-[var(--shadow-soft)] sm:p-5">
+              <div className="space-y-4">
             <div className={inputGridClassName}>
               <Field label="账户">
                 <SelectControl
@@ -2037,48 +2409,54 @@ export function LaunchBuilder({
                     value: account.id,
                     label: `${account.name} · ${account.customerId}`,
                   }))}
-                  placeholder="暂无可用账号"
-                  value={form.adAccountId}
+                  placeholder="请选择账号"
+                  value={campaign.adAccountId}
                   onChange={(adAccountId) => {
-                    patchForm({ adAccountId, conversionGoal: "" });
-                    setConversionGoals([]);
-                    setConversionGoalState("idle");
-                    setConversionGoalError(null);
+                    patchCampaign(campaign.id, { adAccountId, conversionGoal: "" });
                   }}
                 />
               </Field>
-              <Field label="Campaign 名称">
+              <Field label="广告系列名称">
                 <Input
-                  value={form.campaignName}
-                  onChange={(event) => patchForm({ campaignName: event.target.value })}
+                  value={campaign.campaignName}
+                  onChange={(event) =>
+                    patchCampaign(campaign.id, { campaignName: event.target.value })
+                  }
                 />
               </Field>
             </div>
 
-            <div className="mt-5 space-y-5">
+            <div className="mt-4 space-y-4">
               <Field label="广告系列目标">
                 <SelectControl
                   options={OBJECTIVE_OPTIONS}
-                  value={form.campaignObjective}
-                  onChange={(campaignObjective) => patchForm({ campaignObjective })}
+                  value={campaign.campaignObjective}
+                  onChange={(campaignObjective) =>
+                    patchCampaign(campaign.id, {
+                      campaignObjective,
+                      ...defaultBiddingForObjective(campaignObjective),
+                    })
+                  }
                 />
               </Field>
 
-              {form.campaignObjective === "CONVERSIONS" ? (
+              {campaign.campaignObjective === "CONVERSIONS" ? (
                 <Field label="转化目标">
-                  <div className="space-y-3 rounded-xl border border-[var(--hairline)] bg-[var(--surface-card)] p-3">
+                  <div className="space-y-3 rounded-xl border border-[var(--hairline)] bg-[var(--canvas-soft)] p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-sm font-medium text-[var(--ink)]">
                         {conversionGoalState === "success"
                           ? `已读取 ${conversionGoals.length} 个目标`
-                          : form.conversionGoal || "待选择"}
+                          : campaign.conversionGoal || "待选择"}
                       </p>
                       <Button
-                        disabled={!form.adAccountId || conversionGoalState === "loading"}
+                        disabled={!campaign.adAccountId || conversionGoalState === "loading"}
                         size="sm"
                         type="button"
                         variant="outline"
-                        onClick={() => void loadConversionGoals()}
+                        onClick={() =>
+                          void loadConversionGoals(campaign.id, campaign.adAccountId)
+                        }
                       >
                         {conversionGoalState === "loading" ? "读取中..." : "读取目标"}
                       </Button>
@@ -2092,15 +2470,19 @@ export function LaunchBuilder({
                       <SelectControl
                         options={conversionGoals.map((goal) => ({
                           value: goal.id,
-                          label: `${goal.category} · ${goal.origin} · ${goal.actionCount} actions`,
+                          label: formatConversionGoalLabel(goal),
                         }))}
-                        value={form.conversionGoal}
-                        onChange={(conversionGoal) => patchForm({ conversionGoal })}
+                        value={campaign.conversionGoal}
+                        onChange={(conversionGoal) =>
+                          patchCampaign(campaign.id, { conversionGoal })
+                        }
                       />
                     ) : (
                       <Input
-                        value={form.conversionGoal}
-                        onChange={(event) => patchForm({ conversionGoal: event.target.value })}
+                        value={campaign.conversionGoal}
+                        onChange={(event) =>
+                          patchCampaign(campaign.id, { conversionGoal: event.target.value })
+                        }
                       />
                     )}
                   </div>
@@ -2108,536 +2490,776 @@ export function LaunchBuilder({
               ) : null}
             </div>
 
-            <div className="mt-5 space-y-5">
-              <div className="grid gap-3">
-                {form.campaignObjective === "CONVERSIONS" ? (
-                  <div className="grid gap-2 md:grid-cols-[140px_minmax(0,1fr)] md:items-center">
-                    <span className="text-sm font-medium text-[var(--ink)]">Bidding Type</span>
-                    <RadioGroup
-                      className="flex flex-wrap items-center gap-x-5 gap-y-2"
-                      value={form.biddingType}
-                      onValueChange={(biddingType) =>
-                        patchForm({ biddingType: biddingType as BiddingType })
-                      }
-                    >
-                      {BIDDING_TYPE_OPTIONS.map((option) => (
-                        <label
-                          key={option.value}
-                          className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-[var(--body)] transition-colors hover:text-[var(--ink)]"
-                        >
-                          <RadioGroupItem value={option.value} />
-                          <span>{option.label}</span>
-                        </label>
-                      ))}
-                    </RadioGroup>
-                  </div>
-                ) : null}
-                <NumberStepper
-                  label="budget"
-                  min={1}
-                  step={1}
-                  value={form.budgetDaily}
-                  onChange={(budgetDaily) => patchForm({ budgetDaily })}
-                />
-                {form.campaignObjective === "CONVERSIONS" && form.biddingType === "TARGET_CPA" ? (
-                  <NumberStepper
-                    label="cpa"
-                    min={0.1}
-                    step={0.1}
-                    value={form.targetCpa}
-                    onChange={(targetCpa) => patchForm({ targetCpa })}
+            <div className="mt-4 space-y-4">
+              {campaign.campaignObjective === "CONVERSIONS" ? (
+                <Field label="出价类型">
+                  <RadioGroup
+                    className="flex flex-wrap items-center gap-x-5 gap-y-2"
+                    value={campaign.biddingType}
+                    onValueChange={(biddingType) =>
+                      patchCampaign(campaign.id, { biddingType: biddingType as BiddingType })
+                    }
+                  >
+                    {BIDDING_TYPE_OPTIONS.map((option) => (
+                      <label
+                        key={option.value}
+                        className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-[var(--body)] transition-colors hover:text-[var(--ink)]"
+                      >
+                        <RadioGroupItem value={option.value} />
+                        <span>{option.label}</span>
+                      </label>
+                    ))}
+                  </RadioGroup>
+                </Field>
+              ) : null}
+              {campaign.campaignObjective === "CLICKS" ? (
+                <Field label="出价类型">
+                  <RadioGroup
+                    className="flex flex-wrap items-center gap-x-5 gap-y-2"
+                    value={campaign.clickBiddingType}
+                    onValueChange={(clickBiddingType) =>
+                      patchCampaign(campaign.id, {
+                        clickBiddingType: clickBiddingType as ClickBiddingType,
+                      })
+                    }
+                  >
+                    {CLICK_BIDDING_TYPE_OPTIONS.map((option) => (
+                      <label
+                        key={option.value}
+                        className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-[var(--body)] transition-colors hover:text-[var(--ink)]"
+                      >
+                        <RadioGroupItem value={option.value} />
+                        <span>{option.label}</span>
+                      </label>
+                    ))}
+                  </RadioGroup>
+                </Field>
+              ) : null}
+              <div className={inputGridClassName}>
+                <Field label="预算">
+                  <NumberStepperControl
+                    min={1}
+                    step={1}
+                    value={campaign.budgetDaily}
+                    onChange={(budgetDaily) => patchCampaign(campaign.id, { budgetDaily })}
                   />
+                </Field>
+                {campaign.campaignObjective === "CONVERSIONS" &&
+                campaign.biddingType === "TARGET_CPA" ? (
+                  <Field label="目标 CPA">
+                    <NumberStepperControl
+                      min={0.1}
+                      step={0.1}
+                      value={campaign.targetCpa}
+                      onChange={(targetCpa) => patchCampaign(campaign.id, { targetCpa })}
+                    />
+                  </Field>
+                ) : null}
+                {campaign.campaignObjective === "CLICKS" &&
+                campaign.clickBiddingType === "MAX_CPC" ? (
+                  <Field label="目标 CPC">
+                    <NumberStepperControl
+                      min={0.01}
+                      step={0.01}
+                      value={campaign.targetCpc}
+                      onChange={(targetCpc) => patchCampaign(campaign.id, { targetCpc })}
+                    />
+                  </Field>
                 ) : null}
               </div>
-              <Field label="schedule">
+              <Field label="投放时间">
                 <SchedulePicker
-                  value={form.adSchedule}
-                  onChange={(adSchedule) => patchForm({ adSchedule })}
+                  value={campaign.adSchedule}
+                  onChange={(adSchedule) => patchCampaign(campaign.id, { adSchedule })}
                 />
               </Field>
             </div>
 
-            <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-              <div className="grid content-start gap-3">
-                <InlineSelectField
-                  label="os"
+            <div className={`mt-4 ${inputGridClassName}`}>
+              <Field label="操作系统">
+                <SelectControl
                   options={OS_OPTIONS}
-                  value={form.os}
-                  onChange={(os) => patchForm({ os })}
+                  value={campaign.os}
+                  onChange={(os) => patchCampaign(campaign.id, { os })}
                 />
-                <InlineSelectField
-                  label="device"
+              </Field>
+              <Field label="设备">
+                <SelectControl
                   options={DEVICE_OPTIONS}
-                  value={form.device}
-                  onChange={(device) => patchForm({ device })}
+                  value={campaign.device}
+                  onChange={(device) => patchCampaign(campaign.id, { device })}
                 />
-              </div>
-              <div className="grid gap-4">
-                <label className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-3">
-                  <span className="text-right text-sm font-medium text-[var(--ink)]">
-                    url_prefix
-                  </span>
-                  <Input
-                    aria-label="url_prefix"
-                    value={form.finalUrlSuffix}
-                    onChange={(event) => patchForm({ finalUrlSuffix: event.target.value })}
-                  />
-                </label>
-                <Field label="IP 地址排除">
-                  <TextList
-                    placeholder="每行一个 IP 或 CIDR"
-                    rows={3}
-                    value={form.ipExclusions}
-                    onChange={(ipExclusions) => patchForm({ ipExclusions })}
-                  />
-                </Field>
-              </div>
+              </Field>
+              <Field label="URL 后缀">
+                <Input
+                  value={campaign.finalUrlSuffix}
+                  onChange={(event) =>
+                    patchCampaign(campaign.id, { finalUrlSuffix: event.target.value })
+                  }
+                />
+              </Field>
+              <Field className="lg:col-span-2" label="IP 地址排除">
+                <TextList
+                  placeholder="每行一个 IP 或 CIDR"
+                  rows={3}
+                  value={campaign.ipExclusions}
+                  onChange={(ipExclusions) => patchCampaign(campaign.id, { ipExclusions })}
+                />
+              </Field>
             </div>
-          </SectionCard>
+            </div>
 
-          <SectionCard
-            eyebrow="AdGroup"
-            title="AdGroup 层级"
-            description="左侧选择广告组，右侧编辑该广告组的名称、地域、受众群体和语言。"
-            className="stagger-2"
-          >
-            <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)]">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-[var(--ink)]">广告组</p>
-                  <Button size="sm" type="button" variant="outline" onClick={addAdGroup}>
-                    <Plus aria-hidden className="h-4 w-4" strokeWidth={1.75} />
-                    新增
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  {form.adGroups.map((group, index) => (
-                    <button
-                      key={group.id}
-                      className={`w-full rounded-xl border p-3 text-left transition ${
-                        activeAdGroup?.id === group.id
-                          ? "border-[var(--ink)] bg-[var(--surface-strong)]"
-                          : "border-[var(--hairline)] bg-[var(--surface-card)] hover:border-[var(--hairline-strong)]"
-                      }`}
-                      type="button"
-                      onClick={() => {
-                        setActiveAdGroupId(group.id);
-                        setActiveAdId(group.ads[0]?.id ?? "");
-                      }}
-                    >
-                      <span className="block text-xs text-[var(--muted)]">AdGroup {index + 1}</span>
-                      <span className="mt-1 block truncate text-sm font-medium text-[var(--ink)]">
-                        {group.name}
-                      </span>
-                      <span className="mt-2 block text-xs text-[var(--muted)]">
-                        {group.ads.length} ads · {group.language}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+            <div className="space-y-4 border-t border-[var(--hairline)] pt-5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <HierarchySectionLabel>广告组 · {campaign.adGroups.length}</HierarchySectionLabel>
+                <Button
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                  onClick={() => addAdGroup(campaign.id)}
+                >
+                  <Plus aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  新增广告组
+                </Button>
               </div>
 
-              {activeAdGroup ? (
-                <div className="space-y-4 rounded-xl border border-[var(--hairline)] bg-[var(--surface-card)] p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-[var(--ink)]">{activeAdGroup.name}</p>
-                      <p className="text-xs text-[var(--muted)]">地域、受众、语言会继承到该组下广告。</p>
-                    </div>
-                    <Button
-                      disabled={form.adGroups.length === 1}
-                      size="sm"
-                      type="button"
-                      variant="ghost"
-                      onClick={() => removeAdGroup(activeAdGroup.id)}
-                    >
-                      <Trash2 aria-hidden className="h-4 w-4" strokeWidth={1.75} />
-                    </Button>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Field label="Name">
-                      <Input
-                        value={activeAdGroup.name}
-                        onChange={(event) =>
-                          updateAdGroup(activeAdGroup.id, { name: event.target.value })
-                        }
-                      />
-                    </Field>
-                    <Field label="地理位置">
-                      <Combobox
-                        disabled={geoTargetState === "loading"}
-                        emptyText="没有匹配的地理位置"
-                        options={geoTargetSelectOptions}
-                        placeholder="选择地理位置"
-                        searchPlaceholder="搜索国家、地区、城市或代称"
-                        value={activeAdGroup.locations}
-                        onChange={(locations) =>
-                          updateAdGroup(activeAdGroup.id, { locations })
-                        }
-                      />
-                      {geoTargetError ? (
-                        <p className="text-xs leading-relaxed text-[var(--semantic-error)]">
-                          {geoTargetError}
-                        </p>
-                      ) : null}
-                    </Field>
-                    <Field label="语言">
-                      <Combobox
-                        disabled={languageTargetState === "loading"}
-                        emptyText="没有匹配的语言"
-                        options={languageTargetSelectOptions}
-                        placeholder="选择语言"
-                        searchPlaceholder="搜索语言或代称"
-                        value={activeAdGroup.language}
-                        onChange={(language) =>
-                          updateAdGroup(activeAdGroup.id, { language })
-                        }
-                      />
-                      {languageTargetError ? (
-                        <p className="text-xs leading-relaxed text-[var(--semantic-error)]">
-                          {languageTargetError}
-                        </p>
-                      ) : null}
-                    </Field>
-                    <div className="grid gap-2 md:col-span-2">
-                      <Label>受众群体</Label>
-                      <div className="rounded-xl border border-[var(--hairline)] bg-[var(--surface-card)] p-4">
-                        <p className="mb-3 text-sm font-medium text-[var(--ink)]">
-                          具有以下受众特征的用户
-                        </p>
-                        <div className="grid gap-3">
-                          <div className="rounded-lg border border-[var(--hairline)] p-3">
-                            <p className="mb-3 text-sm text-[var(--body)]">性别</p>
-                            <div className="flex flex-wrap items-center gap-x-7 gap-y-3">
-                              {GENDER_OPTIONS.map((gender) => (
-                                <label
-                                  key={gender.value}
-                                  className="inline-flex cursor-pointer items-center gap-2 text-sm text-[var(--ink)]"
-                                >
-                                  <Checkbox
-                                    checked={activeAdGroup.genders.includes(gender.value)}
-                                    onCheckedChange={(checked) =>
-                                      toggleAdGroupGender(activeAdGroup, gender.value, checked === true)
-                                    }
-                                  />
-                                  {gender.label}
-                                </label>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="rounded-lg border border-[var(--hairline)] p-3">
-                            <p className="mb-3 text-sm text-[var(--body)]">年龄</p>
-                            <div className="flex flex-wrap items-center gap-3">
-                              <SelectControl
-                                className="h-10 w-24 text-sm"
-                                options={AGE_OPTIONS}
-                                value={activeAdGroup.ageMin}
-                                onChange={(ageMin) => updateAdGroup(activeAdGroup.id, { ageMin })}
-                              />
-                              <span className="text-sm text-[var(--body)]">至</span>
-                              <SelectControl
-                                className="h-10 w-32 text-sm"
-                                options={AGE_OPTIONS}
-                                value={activeAdGroup.ageMax}
-                                onChange={(ageMax) => updateAdGroup(activeAdGroup.id, { ageMax })}
-                              />
-                              <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-[var(--ink)]">
-                                <Checkbox
-                                  checked={activeAdGroup.includeUnknownAge}
-                                  onCheckedChange={(checked) =>
-                                    updateAdGroup(activeAdGroup.id, {
-                                      includeUnknownAge: checked === true,
-                                    })
-                                  }
-                                />
-                                未知
-                              </label>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </SectionCard>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {campaign.adGroups.map((group, groupIndex) => (
+                  <HierarchySummaryCard
+                    key={group.id}
+                    canRemove={campaign.adGroups.length > 1}
+                    index={groupIndex + 1}
+                    levelLabel="广告组"
+                    summary={summarizeAdGroupCard(group)}
+                    title={group.name}
+                    onOpen={() =>
+                      setEditorFocus({
+                        level: "adgroup",
+                        campaignId: campaign.id,
+                        groupId: group.id,
+                      })
+                    }
+                    onRemove={() => removeAdGroup(campaign.id, group.id)}
+                  />
+                ))}
+              </div>
 
-          <SectionCard
-            eyebrow="Ad"
-            title="Ad 层级"
-            description="在当前 AdGroup 下创建多个广告，分别维护名称、最终到达网址、视频、徽标、标题、描述、CTA 和商家名称。"
-            className="stagger-3"
-          >
-            {activeAdGroup ? (
-              <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)]">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-[var(--ink)]">广告</p>
-                    <Button
-                      size="sm"
-                      type="button"
-                      variant="outline"
-                      onClick={() => addAd(activeAdGroup.id)}
-                    >
-                      <Plus aria-hidden className="h-4 w-4" strokeWidth={1.75} />
-                      新增
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    {activeAdGroup.ads.map((ad, index) => (
-                      <button
-                        key={ad.id}
-                        className={`w-full rounded-xl border p-3 text-left transition ${
-                          activeAd?.id === ad.id
-                            ? "border-[var(--ink)] bg-[var(--surface-strong)]"
-                            : "border-[var(--hairline)] bg-[var(--surface-card)] hover:border-[var(--hairline-strong)]"
-                        }`}
-                        type="button"
-                        onClick={() => setActiveAdId(ad.id)}
+            </div>
+            </div>
+          );
+  }
+
+  function renderAdGroupEditor(campaign: CampaignForm, group: AdGroupForm) {
+    const {
+      geoTargets,
+      geoTargetState,
+      geoTargetError,
+      languageTargets,
+      languageTargetState,
+      languageTargetError,
+    } = getCampaignEditorContext(campaign);
+
+    return (
+      <div className="space-y-5">
+        <div className="grid gap-3">
+          <Field label="广告组名称">
+            <Input
+              className="min-w-0"
+              value={group.name}
+              onChange={(event) =>
+                updateCampaignAdGroup(campaign.id, group.id, { name: event.target.value })
+              }
+            />
+          </Field>
+          <Field label="地理位置">
+            <Combobox
+              disabled={geoTargetState === "loading"}
+              emptyText="没有匹配的地理位置"
+              options={buildGeoTargetSelectOptions(geoTargets, group.locations)}
+              placeholder="选择地理位置"
+              searchPlaceholder="搜索国家、地区、城市或代称"
+              value={group.locations}
+              onChange={(locations) =>
+                updateCampaignAdGroup(campaign.id, group.id, { locations })
+              }
+            />
+            {geoTargetError ? (
+              <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{geoTargetError}</p>
+            ) : null}
+          </Field>
+          <Field label="语言">
+            <Combobox
+              disabled={languageTargetState === "loading"}
+              emptyText="没有匹配的语言"
+              options={buildLanguageTargetSelectOptions(languageTargets, group.language)}
+              placeholder="选择语言"
+              searchPlaceholder="搜索语言或代称"
+              value={group.language}
+              onChange={(language) =>
+                updateCampaignAdGroup(campaign.id, group.id, { language })
+              }
+            />
+            {languageTargetError ? (
+              <p className="text-xs leading-relaxed text-[var(--semantic-error)]">
+                {languageTargetError}
+              </p>
+            ) : null}
+          </Field>
+          <div className="grid gap-2">
+            <Label>受众群体</Label>
+            <div className="rounded-xl border border-[var(--hairline)] bg-[var(--canvas-soft)] p-3">
+              <p className="mb-2 text-sm font-medium text-[var(--body-strong)]">
+                具有以下受众特征的用户
+              </p>
+              <div className="grid gap-2">
+                <div className="rounded-lg border border-[var(--hairline)] bg-[var(--surface-card)] p-2.5">
+                  <p className="mb-2 text-xs font-medium text-[var(--body)]">性别</p>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    {GENDER_OPTIONS.map((gender) => (
+                      <label
+                        key={gender.value}
+                        className="inline-flex cursor-pointer items-center gap-2 text-sm text-[var(--body-strong)]"
                       >
-                        <span className="block text-xs text-[var(--muted)]">Ad {index + 1}</span>
-                        <span className="mt-1 block truncate text-sm font-medium text-[var(--ink)]">
-                          {ad.name}
-                        </span>
-                        <span className="mt-2 block truncate text-xs text-[var(--muted)]">
-                          {ad.businessName}
-                        </span>
-                      </button>
+                        <Checkbox
+                          checked={group.genders.includes(gender.value)}
+                          onCheckedChange={(checked) =>
+                            toggleAdGroupGender(
+                              campaign.id,
+                              group,
+                              gender.value,
+                              checked === true,
+                            )
+                          }
+                        />
+                        {gender.label}
+                      </label>
                     ))}
                   </div>
                 </div>
-
-                {activeAd ? (
-                  <div className="min-w-0 space-y-5 rounded-xl border border-[var(--hairline)] bg-[var(--surface-card)] p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-medium text-[var(--ink)]">{activeAd.name}</p>
-                        <p className="text-xs text-[var(--muted)]">
-                          短标题 {splitLines(activeAd.shortHeadlines).length} · 视频{" "}
-                          {splitLines(activeAd.videoLinks).length}
-                        </p>
-                      </div>
-                      <Button
-                        disabled={activeAdGroup.ads.length === 1}
-                        size="sm"
-                        type="button"
-                        variant="ghost"
-                        onClick={() => removeAd(activeAdGroup.id, activeAd.id)}
-                      >
-                        <Trash2 aria-hidden className="h-4 w-4" strokeWidth={1.75} />
-                      </Button>
-                    </div>
-
-                    <div className={inputGridClassName}>
-                      <Field label="广告名称">
-                        <Input
-                          className="min-w-0"
-                          value={activeAd.name}
-                          onChange={(event) =>
-                            updateAd(activeAdGroup.id, activeAd.id, { name: event.target.value })
-                          }
-                        />
-                      </Field>
-                      <Field label="商家名称">
-                        <Input
-                          className="min-w-0"
-                          maxLength={25}
-                          value={activeAd.businessName}
-                          onChange={(event) =>
-                            updateAd(activeAdGroup.id, activeAd.id, {
-                              businessName: event.target.value,
-                            })
-                          }
-                        />
-                      </Field>
-                      <Field label="最终到达网址">
-                        <Input
-                          className="min-w-0"
-                          value={activeAd.finalUrl}
-                          onChange={(event) =>
-                            updateAd(activeAdGroup.id, activeAd.id, { finalUrl: event.target.value })
-                          }
-                        />
-                      </Field>
-                      <Field label="号召性用语文字">
-                        <SelectControl
-                          className="min-w-0 w-full"
-                          options={CTA_OPTIONS.map(([value, label]) => ({ value, label }))}
-                          value={activeAd.callToAction}
-                          onChange={(callToAction) =>
-                            updateAd(activeAdGroup.id, activeAd.id, { callToAction })
-                          }
-                        />
-                      </Field>
-                    </div>
-
-                    <div className="grid min-w-0 gap-5">
-                      <Field label="视频素材链接">
-                        <VideoLinkList
-                          key={`${activeAd.id}:videoLinks`}
-                          value={activeAd.videoLinks}
-                          onChange={(videoLinks) =>
-                            updateAd(activeAdGroup.id, activeAd.id, { videoLinks })
-                          }
-                        />
-                      </Field>
-                      <Field label="徽标">
-                        <LogoUploadList
-                          value={activeAd.logos}
-                          onChange={(logos) => updateAd(activeAdGroup.id, activeAd.id, { logos })}
-                        />
-                      </Field>
-                    </div>
-
-                    <Field label="短标题">
-                      <AssetInputList
-                        key={`${activeAd.id}:shortHeadlines`}
-                        maxLength={40}
-                        placeholder="输入短标题"
-                        value={activeAd.shortHeadlines}
-                        onChange={(shortHeadlines) =>
-                          updateAd(activeAdGroup.id, activeAd.id, { shortHeadlines })
+                <div className="rounded-lg border border-[var(--hairline)] bg-[var(--surface-card)] p-2.5">
+                  <p className="mb-2 text-xs font-medium text-[var(--body)]">年龄</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <SelectControl
+                      className="h-9 w-20 text-sm"
+                      options={AGE_OPTIONS}
+                      value={group.ageMin}
+                      onChange={(ageMin) =>
+                        updateCampaignAdGroup(campaign.id, group.id, { ageMin })
+                      }
+                    />
+                    <span className="text-sm text-[var(--body)]">至</span>
+                    <SelectControl
+                      className="h-9 w-24 text-sm"
+                      options={AGE_OPTIONS}
+                      value={group.ageMax}
+                      onChange={(ageMax) =>
+                        updateCampaignAdGroup(campaign.id, group.id, { ageMax })
+                      }
+                    />
+                    <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-[var(--body-strong)]">
+                      <Checkbox
+                        checked={group.includeUnknownAge}
+                        onCheckedChange={(checked) =>
+                          updateCampaignAdGroup(campaign.id, group.id, {
+                            includeUnknownAge: checked === true,
+                          })
                         }
                       />
-                    </Field>
-                    <Field label="长标题">
-                      <AssetInputList
-                        key={`${activeAd.id}:longHeadlines`}
-                        maxLength={90}
-                        placeholder="输入长标题"
-                        value={activeAd.longHeadlines}
-                        onChange={(longHeadlines) =>
-                          updateAd(activeAdGroup.id, activeAd.id, { longHeadlines })
-                        }
-                      />
-                    </Field>
-                    <Field label="广告内容描述">
-                      <AssetInputList
-                        key={`${activeAd.id}:descriptions`}
-                        maxLength={90}
-                        placeholder="输入描述"
-                        value={activeAd.descriptions}
-                        onChange={(descriptions) =>
-                          updateAd(activeAdGroup.id, activeAd.id, { descriptions })
-                        }
-                      />
-                    </Field>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </SectionCard>
-        </div>
-
-        <aside className="space-y-5 lg:sticky lg:top-20 lg:self-start">
-          <Card className="animate-fade-up stagger-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <ChevronRight aria-hidden className="h-5 w-5" strokeWidth={1.75} />
-                提交
-              </CardTitle>
-              <CardDescription>按 Campaign → AdGroup → Ad 的层级提交草稿。</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button
-                className="w-full"
-                disabled={isSubmitting || !form.adAccountId}
-                type="button"
-                onClick={submitDraft}
-              >
-                {isSubmitting ? "提交中..." : "创建并生成预览"}
-                <ChevronRight aria-hidden className="h-4 w-4" strokeWidth={1.75} />
-              </Button>
-              {result ? (
-                <div
-                  className={`rounded-xl border p-4 ${
-                    result.success
-                      ? "border-[var(--hairline)] bg-[var(--surface-strong)]"
-                      : "border-[var(--semantic-error)]/30 bg-[var(--surface-card)]"
-                  }`}
-                >
-                  <div className="flex items-start gap-2">
-                    {result.success ? (
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 text-[var(--semantic-success)]" />
-                    ) : (
-                      <AlertCircle className="mt-0.5 h-4 w-4 text-[var(--semantic-error)]" />
-                    )}
-                    <div>
-                      <p className="text-sm font-medium text-[var(--ink)]">
-                        {result.success ? "草稿创建成功" : result.error?.code ?? "创建失败"}
-                      </p>
-                      <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
-                        {result.success ? "已继续生成 Google Ads mutate 预览。" : result.error?.message}
-                      </p>
-                    </div>
+                      未知
+                    </label>
                   </div>
                 </div>
-              ) : null}
-            </CardContent>
-          </Card>
+              </div>
+            </div>
+          </div>
+        </div>
 
-          <Card className="animate-fade-up stagger-3">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Layers3 aria-hidden className="h-5 w-5" strokeWidth={1.75} />
-                联动概览
-              </CardTitle>
-              <CardDescription>当前表单的关键选择。</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-0">
-              <StatRow
-                icon={CircleDollarSign}
-                label="bidding"
-                value={
-                  payload.bidding.strategy === "MAXIMIZE_CLICKS"
-                    ? `MAXIMIZE_CLICKS · budget ${form.budgetDaily}`
-                    : form.biddingType === "TARGET_CPA"
-                    ? `TARGET_CPA · budget ${form.budgetDaily} · cpa ${form.targetCpa}`
-                    : `MAXIMIZE_CONVERSIONS · budget ${form.budgetDaily}`
+        <div className="space-y-3 border-t border-[var(--hairline)] pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <HierarchySectionLabel>广告 · {group.ads.length}</HierarchySectionLabel>
+            <Button
+              size="sm"
+              type="button"
+              variant="outline"
+              onClick={() => addAd(campaign.id, group.id)}
+            >
+              <Plus aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+              新增广告
+            </Button>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {group.ads.map((ad, adIndex) => (
+              <HierarchySummaryCard
+                key={ad.id}
+                canRemove={group.ads.length > 1}
+                index={adIndex + 1}
+                levelLabel="广告"
+                summary={summarizeAdCard(ad)}
+                title={ad.name}
+                onOpen={() =>
+                  setEditorFocus({
+                    level: "ad",
+                    campaignId: campaign.id,
+                    groupId: group.id,
+                    adId: ad.id,
+                  })
                 }
+                onRemove={() => removeAd(campaign.id, group.id, ad.id)}
               />
-              <StatRow icon={Clock3} label="schedule" value={formatSchedule(form.adSchedule)} />
-              <StatRow icon={MonitorSmartphone} label="os / device" value={`${form.os} / ${form.device}`} />
-              <StatRow icon={MapPin} label="当前地域" value={activeAdGroup?.locations ?? "-"} />
-              <StatRow icon={Link2} label="当前 URL" value={activeAd?.finalUrl ?? "-"} />
-              <StatRow icon={Video} label="广告数量" value={`${form.adGroups.length} / ${allAds.length}`} />
-            </CardContent>
-          </Card>
-
-          <Card className="animate-fade-up stagger-4">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <FileJson aria-hidden className="h-5 w-5" strokeWidth={1.75} />
-                Payload
-              </CardTitle>
-              <CardDescription>提交到草稿接口的层级数据。</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <pre className="max-h-[520px] overflow-auto rounded-xl border border-[var(--hairline)] bg-[var(--surface-strong)] p-4 text-xs leading-relaxed text-[var(--ink)]">
-                {formatJson(fullConfigPreview)}
-              </pre>
-            </CardContent>
-          </Card>
-
-          {preview ? (
-            <Card className="animate-fade-up">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Copy aria-hidden className="h-5 w-5" strokeWidth={1.75} />
-                  Mutate Preview
-                </CardTitle>
-                <CardDescription>服务端生成的 Google Ads operations。</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <pre className="max-h-[420px] overflow-auto rounded-xl border border-[var(--hairline)] bg-[var(--surface-strong)] p-4 text-xs leading-relaxed text-[var(--ink)]">
-                  {formatJson(preview)}
-                </pre>
-              </CardContent>
-            </Card>
-          ) : null}
-        </aside>
+            ))}
+          </div>
+        </div>
       </div>
+    );
+  }
+
+  function renderAdEditor(campaign: CampaignForm, group: AdGroupForm, ad: AdForm) {
+    return (
+      <div className="grid gap-3">
+        <Field label="广告名称">
+          <Input
+            className="min-w-0"
+            value={ad.name}
+            onChange={(event) =>
+              updateCampaignAd(campaign.id, group.id, ad.id, { name: event.target.value })
+            }
+          />
+        </Field>
+        <Field label="商家名称">
+          <Input
+            className="min-w-0"
+            maxLength={25}
+            value={ad.businessName}
+            onChange={(event) =>
+              updateCampaignAd(campaign.id, group.id, ad.id, {
+                businessName: event.target.value,
+              })
+            }
+          />
+        </Field>
+        <Field label="最终到达网址">
+          <Input
+            className="min-w-0"
+            value={ad.finalUrl}
+            onChange={(event) =>
+              updateCampaignAd(campaign.id, group.id, ad.id, { finalUrl: event.target.value })
+            }
+          />
+        </Field>
+        <Field label="号召性用语文字">
+          <SelectControl
+            className="min-w-0 w-full"
+            options={CTA_OPTIONS.map(([value, label]) => ({ value, label }))}
+            value={ad.callToAction}
+            onChange={(callToAction) =>
+              updateCampaignAd(campaign.id, group.id, ad.id, { callToAction })
+            }
+          />
+        </Field>
+        <Field label="视频素材链接">
+          <VideoLinkList
+            key={`${ad.id}:videoLinks`}
+            value={ad.videoLinks}
+            onChange={(videoLinks) =>
+              updateCampaignAd(campaign.id, group.id, ad.id, { videoLinks })
+            }
+          />
+        </Field>
+        <Field label="徽标">
+          <LogoUploadList
+            value={ad.logos}
+            onChange={(logos) => updateCampaignAd(campaign.id, group.id, ad.id, { logos })}
+          />
+        </Field>
+        <Field label="短标题">
+          <AssetInputList
+            key={`${ad.id}:shortHeadlines`}
+            maxLength={40}
+            placeholder="输入短标题"
+            value={ad.shortHeadlines}
+            onChange={(shortHeadlines) =>
+              updateCampaignAd(campaign.id, group.id, ad.id, { shortHeadlines })
+            }
+          />
+        </Field>
+        <Field label="长标题">
+          <AssetInputList
+            key={`${ad.id}:longHeadlines`}
+            maxLength={90}
+            placeholder="输入长标题"
+            value={ad.longHeadlines}
+            onChange={(longHeadlines) =>
+              updateCampaignAd(campaign.id, group.id, ad.id, { longHeadlines })
+            }
+          />
+        </Field>
+        <Field label="广告内容描述">
+          <AssetInputList
+            key={`${ad.id}:descriptions`}
+            maxLength={90}
+            placeholder="输入描述"
+            value={ad.descriptions}
+            onChange={(descriptions) =>
+              updateCampaignAd(campaign.id, group.id, ad.id, { descriptions })
+            }
+          />
+        </Field>
+      </div>
+    );
+  }
+
+  function renderCampaignPreview(campaign: CampaignForm) {
+    const account = adAccounts.find((item) => item.id === campaign.adAccountId);
+    const highlights = buildCampaignHighlights(
+      campaign,
+      geoTargetsByAccount[campaign.adAccountId],
+      languageTargetsByAccount[campaign.adAccountId],
+    );
+
+    return (
+      <div className="grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
+        <section className="rounded-3xl border border-[var(--hairline)] bg-[var(--canvas-soft)] p-4">
+          <p className="text-caption-uppercase text-[var(--muted)]">Campaign Snapshot</p>
+          <h3 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-[var(--ink)]">
+            {campaign.campaignName}
+          </h3>
+          <div className="mt-4 grid gap-2 text-sm text-[var(--body)]">
+            <p>账号：{account ? `${account.name} · ${account.customerId}` : "未选择"}</p>
+            <p>目标：{OBJECTIVE_OPTIONS.find((item) => item.value === campaign.campaignObjective)?.label}</p>
+            <p>预算：{campaign.budgetDaily} / day</p>
+            <p>出价：{campaign.campaignObjective === "CLICKS" ? campaign.clickBiddingType : campaign.biddingType}</p>
+            <p>设备：{summarizeOsDevice(campaign.os, campaign.device)}</p>
+            <p>时间：{formatSchedule(campaign.adSchedule)}</p>
+          </div>
+          <div className="mt-5 rounded-2xl border border-[var(--hairline)] bg-[var(--surface-card)] p-3">
+            <p className="text-xs font-semibold text-[var(--ink)]">投放摘要</p>
+            <ul className="mt-2 space-y-1 text-xs leading-relaxed text-[var(--body)]">
+              {highlights.map((line, index) => (
+                <li key={`${line}-${index}`}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          {campaign.adGroups.map((group, groupIndex) => (
+            <div
+              key={group.id}
+              className="rounded-3xl border border-[var(--hairline)] bg-[var(--surface-card)] p-4"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-caption-uppercase text-[var(--muted)]">
+                    AdGroup {String(groupIndex + 1).padStart(2, "0")}
+                  </p>
+                  <h4 className="mt-1 text-lg font-semibold tracking-[-0.02em] text-[var(--ink)]">
+                    {group.name}
+                  </h4>
+                </div>
+                <Badge className="normal-case tracking-normal">{group.ads.length} Ads</Badge>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {group.ads.map((ad, adIndex) => (
+                  <div
+                    key={ad.id}
+                    className="rounded-2xl border border-[var(--hairline)] bg-[var(--canvas-soft)] p-3"
+                  >
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
+                      Ad {String(adIndex + 1).padStart(2, "0")}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-[var(--ink)]">{ad.name}</p>
+                    <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--body)]">
+                      {splitLines(ad.shortHeadlines).slice(0, 2).join(" / ")}
+                    </p>
+                    <p className="mt-2 truncate text-[11px] text-[var(--muted)]">{ad.finalUrl}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </section>
+      </div>
+    );
+  }
+
+  async function submitDrafts() {
+    setIsSubmitting(true);
+    setResult(null);
+
+    try {
+      const firstAdFallback = createDefaultAd(1);
+      let lastResult: ApiResult | null = null;
+
+      for (const campaign of campaigns) {
+        const payload = buildPayloadFromCampaign(campaign, firstAdFallback);
+        const createResponse = await fetch("/api/campaign-drafts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const createJson = (await createResponse.json()) as ApiResult;
+        lastResult = createJson;
+
+        const draftId =
+          createJson.success &&
+          createJson.data &&
+          typeof createJson.data === "object" &&
+          "id" in createJson.data
+            ? String(createJson.data.id)
+            : "";
+
+        if (!draftId) {
+          setResult(createJson);
+          return;
+        }
+
+        await fetch(`/api/campaign-drafts/${draftId}/validate`, { method: "POST" });
+        await fetch(`/api/campaign-drafts/${draftId}/build-preview`, { method: "POST" });
+      }
+
+      setResult(
+        lastResult
+          ? {
+              ...lastResult,
+              success: true,
+              error: undefined,
+            }
+          : {
+              success: true,
+              data: { message: `已提交 ${campaigns.length} 个广告系列草稿。` },
+            },
+      );
+    } catch (error) {
+      setResult({
+        success: false,
+        error: {
+          code: "CLIENT_SUBMIT_FAILED",
+          message: error instanceof Error ? error.message : "提交草稿失败。",
+        },
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  const activeCampaign = activeCampaignId
+    ? campaigns.find((item) => item.id === activeCampaignId) ?? null
+    : null;
+  const editorFocusGroupId =
+    editorFocus && editorFocus.campaignId === activeCampaignId ? editorFocus.groupId : null;
+  const activeEditorGroup =
+    activeCampaign && editorFocusGroupId
+      ? activeCampaign.adGroups.find((group) => group.id === editorFocusGroupId) ?? null
+      : null;
+  const activeEditorAd =
+    editorFocus?.level === "ad" && activeEditorGroup
+      ? activeEditorGroup.ads.find((ad) => ad.id === editorFocus.adId) ?? null
+      : null;
+  const previewCampaign = previewCampaignId
+    ? campaigns.find((item) => item.id === previewCampaignId) ?? null
+    : null;
+  const totalAdGroups = campaigns.reduce(
+    (total, campaign) => total + campaign.adGroups.length,
+    0,
+  );
+  const totalAds = campaigns.reduce(
+    (total, campaign) =>
+      total + campaign.adGroups.reduce((groupTotal, group) => groupTotal + group.ads.length, 0),
+    0,
+  );
+  const campaignSlots = Array.from({ length: 4 }, (_, index) => campaigns[index] ?? null);
+
+  return (
+    <div className="ads-launch-stage space-y-5 py-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-[var(--hairline)] bg-[var(--surface-card)] px-4 py-3 shadow-[var(--shadow-soft)]">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge className="normal-case tracking-normal">
+            {syncState === "loading"
+              ? "正在同步 Google Ads 账号..."
+              : syncState === "success"
+                ? `已同步 ${adAccounts.length} 个投放账号`
+                : syncState === "loaded"
+                  ? `已加载 ${adAccounts.length} 个已同步账号`
+                  : syncState === "error"
+                    ? "同步失败"
+                    : "等待同步"}
+          </Badge>
+          {syncedAt ? (
+            <span className="text-xs text-[var(--muted)]">
+              最近同步：{new Date(syncedAt).toLocaleString()}
+            </span>
+          ) : null}
+          <span className="text-xs text-[var(--muted)]">
+            {campaigns.length}/4 Campaigns · {totalAdGroups} AdGroups · {totalAds} Ads
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            disabled={syncState === "loading"}
+            size="sm"
+            type="button"
+            variant="outline"
+            onClick={() => void syncGoogleAccounts()}
+          >
+            重新同步
+          </Button>
+          <Button disabled={campaigns.length >= 4} size="sm" type="button" onClick={addCampaign}>
+            <Plus aria-hidden className="h-4 w-4" strokeWidth={1.75} />
+            新增 Campaign
+          </Button>
+        </div>
+      </div>
+      {syncError ? (
+        <p className="rounded-2xl border border-[var(--semantic-error)]/30 bg-[var(--surface-card)] px-3 py-2 text-sm text-[var(--semantic-error)]">
+          {syncError}
+        </p>
+      ) : null}
+
+      <div className="ads-campaign-grid animate-fade-up">
+        {campaignSlots.map((campaign, slotIndex) =>
+          campaign ? (
+            <CampaignOverviewCard
+              key={campaign.id}
+              campaign={buildCampaignOverviewMeta(
+                campaign,
+                slotIndex,
+                adAccounts,
+                geoTargetsByAccount[campaign.adAccountId],
+                languageTargetsByAccount[campaign.adAccountId],
+              )}
+              canRemove={campaigns.length > 1}
+              onEdit={() => openCampaignDetail(campaign.id)}
+              onPreview={() => setPreviewCampaignId(campaign.id)}
+              onRemove={() => removeCampaign(campaign.id)}
+            />
+          ) : (
+            <CampaignOverviewAddTile key={`empty-${slotIndex}`} onClick={addCampaign} />
+          ),
+        )}
+      </div>
+
+      <div className="ads-action-bar sticky bottom-0 z-10 -mx-4 border-t border-[var(--hairline)] bg-[var(--canvas)]/90 px-4 py-4 backdrop-blur-xl lg:-mx-8 lg:px-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-[var(--ink)]">
+              {campaigns.length} 个广告系列 · {totalAdGroups} 个广告组 · {totalAds} 条广告
+            </p>
+            <p className="mt-0.5 text-xs text-[var(--muted)]">
+              提交后依次创建草稿并生成 Google Ads mutate 预览。
+            </p>
+          </div>
+          <Button
+            disabled={isSubmitting || !campaigns.some((item) => item.adAccountId)}
+            size="lg"
+            type="button"
+            onClick={() => void submitDrafts()}
+          >
+            {isSubmitting ? "提交中..." : "创建并生成预览"}
+            <ChevronRight aria-hidden className="h-4 w-4" strokeWidth={1.75} />
+          </Button>
+        </div>
+        {result ? (
+          <div
+            className={`mt-3 rounded-xl border p-4 ${
+              result.success
+                ? "border-[var(--hairline)] bg-[var(--surface-strong)]"
+                : "border-[var(--semantic-error)]/30 bg-[var(--surface-card)]"
+            }`}
+          >
+            <div className="flex items-start gap-2">
+              {result.success ? (
+                <CheckCircle2 className="mt-0.5 h-4 w-4 text-[var(--semantic-success)]" />
+              ) : (
+                <AlertCircle className="mt-0.5 h-4 w-4 text-[var(--semantic-error)]" />
+              )}
+              <div>
+                <p className="text-sm font-medium text-[var(--ink)]">
+                  {result.success ? "草稿创建成功" : result.error?.code ?? "创建失败"}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
+                  {result.success
+                    ? "已继续生成 Google Ads mutate 预览。"
+                    : result.error?.message}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      {activeCampaign ? (
+        <BuilderModal
+          eyebrow="编辑广告系列"
+          hierarchyTrail={[
+            { label: "广告系列", name: activeCampaign.campaignName },
+          ]}
+          title={activeCampaign.campaignName}
+          onClose={closeCampaignEditor}
+        >
+          {renderCampaignEditor(activeCampaign)}
+        </BuilderModal>
+      ) : null}
+
+      {activeCampaign && activeEditorGroup && editorFocus?.level === "adgroup" ? (
+        <BuilderModal
+          eyebrow="编辑广告组"
+          hierarchyTrail={[
+            { label: "广告系列", name: activeCampaign.campaignName },
+            { label: "广告组", name: activeEditorGroup.name },
+          ]}
+          maxWidthClassName="max-w-4xl"
+          title={activeEditorGroup.name}
+          zIndexClassName="z-[60]"
+          onBack={() => setEditorFocus(null)}
+          onClose={() => setEditorFocus(null)}
+        >
+          {renderAdGroupEditor(activeCampaign, activeEditorGroup)}
+        </BuilderModal>
+      ) : null}
+
+      {activeCampaign && activeEditorGroup && activeEditorAd && editorFocus?.level === "ad" ? (
+        <BuilderModal
+          eyebrow="编辑广告"
+          hierarchyTrail={[
+            { label: "广告系列", name: activeCampaign.campaignName },
+            { label: "广告组", name: activeEditorGroup.name },
+            { label: "广告", name: activeEditorAd.name },
+          ]}
+          maxWidthClassName="max-w-3xl"
+          title={activeEditorAd.name}
+          zIndexClassName="z-[70]"
+          onBack={() =>
+            setEditorFocus({
+              level: "adgroup",
+              campaignId: activeCampaign.id,
+              groupId: activeEditorGroup.id,
+            })
+          }
+          onClose={() =>
+            setEditorFocus({
+              level: "adgroup",
+              campaignId: activeCampaign.id,
+              groupId: activeEditorGroup.id,
+            })
+          }
+        >
+          {renderAdEditor(activeCampaign, activeEditorGroup, activeEditorAd)}
+        </BuilderModal>
+      ) : null}
+
+      {previewCampaign ? (
+        <BuilderModal
+          eyebrow="预览广告系列"
+          hierarchyTrail={[
+            { label: "广告系列", name: previewCampaign.campaignName },
+          ]}
+          title={previewCampaign.campaignName}
+          onClose={() => setPreviewCampaignId(null)}
+        >
+          {renderCampaignPreview(previewCampaign)}
+        </BuilderModal>
+      ) : null}
     </div>
   );
 }

@@ -94,6 +94,7 @@ export const campaignDraftSchema = z.object({
         "TARGET_ROAS",
       ]),
       targetCpaMicros: z.number().int().positive().optional(),
+      maxCpcBidCeilingMicros: z.number().int().positive().optional(),
       targetRoas: z.number().positive().optional(),
     })
     .superRefine((bidding, context) => {

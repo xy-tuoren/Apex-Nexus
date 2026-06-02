@@ -1,17 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --primary: #171717;
+  --primary: #0f0f0f;
   --primary-active: #000000;
-  --ink: #0a0a0a;
+  --ink: #050505;
   --body: #525252;
-  --body-strong: #171717;
+  --body-strong: #111111;
   --muted: #737373;
   --muted-soft: #a3a3a3;
   --hairline: #e5e5e5;
   --hairline-soft: #f5f5f5;
   --hairline-strong: #d4d4d4;
-  --canvas: #fafafa;
+  --canvas: #f8f8f8;
   --canvas-soft: #ffffff;
   --canvas-deep: #0a0a0a;
   --surface-card: #ffffff;
@@ -23,6 +23,10 @@
   --on-dark-soft: #a3a3a3;
   --semantic-error: #dc2626;
   --semantic-success: #16a34a;
+  --ads-accent: #56616f;
+  --ads-accent-soft: #eef1f4;
+  --ads-accent-muted: #f7f8f9;
+  --ads-dot: #6b7280;
   --shadow-soft: 0 4px 16px rgba(0, 0, 0, 0.04);
   --shadow-elevated: 0 12px 40px rgba(0, 0, 0, 0.06);
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.6);
@@ -68,6 +72,10 @@ body {
   font-weight: 400;
   letter-spacing: 0;
   line-height: 1.5;
+}
+
+html {
+  scrollbar-gutter: stable;
 }
 
 ::selection {
@@ -189,14 +197,10 @@ body {
 }
 
 .canvas-surface::before {
-  background-image:
-    linear-gradient(var(--hairline) 1px, transparent 1px),
-    linear-gradient(90deg, var(--hairline) 1px, transparent 1px);
-  background-size: 72px 72px;
+  background: transparent;
   content: "";
   inset: 0;
-  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black, transparent);
-  opacity: 0.45;
+  opacity: 0;
   pointer-events: none;
   position: fixed;
   z-index: 0;
@@ -226,7 +230,7 @@ body {
 }
 
 .section-eyebrow::after {
-  background: linear-gradient(90deg, var(--hairline), transparent);
+  background: var(--hairline);
   content: "";
   flex: 1;
   height: 1px;
@@ -280,10 +284,10 @@ body {
 }
 
 .stat-card::before {
-  background: radial-gradient(circle at 100% 0%, var(--hairline-soft), transparent 70%);
+  background: var(--hairline-soft);
   content: "";
   inset: 0;
-  opacity: 0.8;
+  opacity: 0.35;
   pointer-events: none;
   position: absolute;
 }
@@ -331,6 +335,106 @@ body {
 .panel-header {
   border-bottom: 1px solid var(--hairline);
   padding: 1.5rem 1.5rem;
+}
+
+.ads-launch-stage {
+  position: relative;
+}
+
+.ads-launch-stage::before {
+  background: transparent;
+  content: "";
+  inset: -4rem -2rem -4rem;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+}
+
+.ads-campaign-grid {
+  align-items: stretch;
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(4, minmax(17.5rem, 1fr));
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.ads-campaign-card,
+.ads-empty-campaign {
+  box-shadow: var(--shadow-soft), var(--shadow-inset);
+  isolation: isolate;
+  position: relative;
+}
+
+.ads-campaign-card::before {
+  background: var(--ads-accent);
+  content: "";
+  inset: 0 auto 0 0;
+  opacity: 0.9;
+  position: absolute;
+  width: 5px;
+  z-index: 0;
+}
+
+.ads-campaign-card::after,
+.ads-empty-campaign::after {
+  background: transparent;
+  content: "";
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  transition: opacity 0.25s ease;
+  z-index: 0;
+}
+
+.ads-campaign-card:hover::after,
+.ads-empty-campaign:hover::after {
+  opacity: 0;
+}
+
+.ads-campaign-card > *,
+.ads-empty-campaign > * {
+  position: relative;
+  z-index: 1;
+}
+
+.ads-slot-index {
+  align-items: center;
+  background: var(--ads-accent-soft);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 9999px;
+  color: var(--ads-accent);
+  display: flex;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  height: 2.25rem;
+  justify-content: center;
+  letter-spacing: 0.08em;
+  width: 2.25rem;
+}
+
+.ads-hierarchy-item {
+  position: relative;
+}
+
+.ads-hierarchy-item::before {
+  background: var(--hairline);
+  content: "";
+  inset: 1rem auto 1rem -0.625rem;
+  opacity: 0;
+  position: absolute;
+  width: 1px;
+}
+
+.ads-hierarchy-item.is-nested::before {
+  opacity: 1;
+}
+
+.ads-action-bar {
+  box-shadow: 0 -16px 40px rgba(0, 0, 0, 0.05);
 }
 
 @media (min-width: 1024px) {
@@ -394,7 +498,7 @@ body {
 }
 
 .step-pipeline-connector {
-  background: linear-gradient(90deg, var(--hairline-strong), var(--hairline));
+  background: var(--hairline);
   display: none;
   flex: 1 1 auto;
   height: 1px;
@@ -403,7 +507,7 @@ body {
 }
 
 .step-pipeline-item.is-complete + .step-pipeline-connector {
-  background: linear-gradient(90deg, var(--ink), var(--hairline));
+  background: var(--ink);
   opacity: 0.35;
 }
 
@@ -431,14 +535,10 @@ body {
 }
 
 .login-stage::before {
-  background-image:
-    linear-gradient(var(--hairline) 1px, transparent 1px),
-    linear-gradient(90deg, var(--hairline) 1px, transparent 1px);
-  background-size: 56px 56px;
+  background: transparent;
   content: "";
   inset: 0;
-  mask-image: radial-gradient(circle at 50% 40%, black, transparent 72%);
-  opacity: 0.5;
+  opacity: 0;
   pointer-events: none;
   position: absolute;
   z-index: 0;
@@ -457,6 +557,7 @@ body {
   }
 
   .feature-card,
+  .ads-campaign-card,
   .interactive-row,
   .stat-card,
   .step-pipeline-node {

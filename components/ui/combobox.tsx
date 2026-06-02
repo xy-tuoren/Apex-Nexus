@@ -53,6 +53,7 @@ export function Combobox({
 
   return (
     <PopoverPrimitive.Root
+      modal={false}
       open={open}
       onOpenChange={(nextOpen) => {
         setOpen(nextOpen);
@@ -67,7 +68,7 @@ export function Combobox({
           aria-expanded={open}
           aria-haspopup="listbox"
           className={cn(
-            "flex h-11 w-full min-w-0 items-center justify-between gap-3 rounded-lg border border-[var(--hairline-strong)] bg-[var(--surface-card)] px-4 text-left text-[15px] text-[var(--ink)] outline-none transition duration-200 focus-visible:border-[var(--ink)] focus-visible:ring-2 focus-visible:ring-[var(--ink)]/10 disabled:cursor-not-allowed disabled:opacity-60",
+            "flex h-10 w-full min-w-0 items-center justify-between gap-3 rounded-lg border border-[var(--hairline)] bg-[var(--canvas-soft)] px-3 text-left text-sm text-[var(--body-strong)] outline-none transition duration-200 hover:border-[var(--hairline-strong)] focus-visible:border-[var(--body)] focus-visible:ring-2 focus-visible:ring-[var(--body)]/10 disabled:cursor-not-allowed disabled:opacity-60",
             className,
           )}
           disabled={disabled}
@@ -83,7 +84,7 @@ export function Combobox({
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Content
           align="start"
-          className="z-50 w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-lg border border-[var(--hairline-strong)] bg-[var(--surface-card)] shadow-[0_16px_40px_rgba(0,0,0,0.12)]"
+          className="z-50 w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-lg border border-[var(--hairline)] bg-[var(--surface-card)] shadow-[0_16px_40px_rgba(0,0,0,0.12)]"
           sideOffset={6}
         >
           <div className="flex h-11 items-center gap-2 border-b border-[var(--hairline)] px-3">

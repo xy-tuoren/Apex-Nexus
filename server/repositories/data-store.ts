@@ -75,6 +75,19 @@ export function newId(prefix: string) {
   return `${prefix}_${randomUUID()}`;
 }
 
+function serializeMongoDocument<T>(document: unknown): T {
+  if (!document || typeof document !== "object") {
+    return document as T;
+  }
+
+  const { _id: _ignored, ...rest } = document as Record<string, unknown>;
+  return rest as T;
+}
+
+function serializeMongoDocuments<T>(documents: unknown[]): T[] {
+  return documents.map((document) => serializeMongoDocument<T>(document));
+}
+
 export async function replaceCollection<K extends keyof Collections>(
   collectionName: K,
   documents: Collections[K],
@@ -102,7 +115,8 @@ export async function listCollection<K extends keyof Collections>(
     return memory[collectionName];
   }
 
-  return db.collection(collectionName).find({}).toArray() as unknown as Promise<Collections[K]>;
+  const documents = await db.collection(collectionName).find({}).toArray();
+  return serializeMongoDocuments<Collections[K][number]>(documents) as Collections[K];
 }
 
 export async function insertOne<K extends keyof Collections>(
@@ -136,7 +150,8 @@ export async function updateById<K extends keyof Collections>(
   }
 
   await db.collection(collectionName).updateOne({ id }, { $set: patch });
-  return db.collection(collectionName).findOne({ id });
+  const document = await db.collection(collectionName).findOne({ id });
+  return document ? serializeMongoDocument<Collections[K][number]>(document) : null;
 }
 
 export async function findById<K extends keyof Collections>(

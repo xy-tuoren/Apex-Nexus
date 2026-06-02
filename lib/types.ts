@@ -127,6 +127,7 @@ export type CampaignDraft = {
       | "TARGET_CPA"
       | "TARGET_ROAS";
     targetCpaMicros?: number;
+    maxCpcBidCeilingMicros?: number;
     targetRoas?: number;
   };
   locations: string[];

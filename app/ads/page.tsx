@@ -6,14 +6,10 @@ import {
   listAllAdAccounts,
   listMccAccounts,
 } from "@/server/services/account-service";
-import { listCampaignDrafts } from "@/server/services/campaign-draft-service";
-import { listLaunchJobs } from "@/server/services/launch-service";
 
 export default async function AdsLaunchPage() {
-  const [adAccounts, drafts, jobs, mccAccounts] = await Promise.all([
+  const [adAccounts, mccAccounts] = await Promise.all([
     listAllAdAccounts(),
-    listCampaignDrafts(),
-    listLaunchJobs(),
     listMccAccounts(),
   ]);
   const accountsSyncedAt =
@@ -28,13 +24,11 @@ export default async function AdsLaunchPage() {
 
   return (
     <AdminShell activePath="/ads" showLoginButton={!authEnabled} user={user}>
-      <div className="mx-auto max-w-[1280px] px-4 pb-12 sm:px-6">
+      <div className="w-full px-4 pb-28 lg:px-8">
         <LaunchBuilder
           initialAdAccounts={adAccounts}
           accountsSyncedAt={accountsSyncedAt}
-          draftCount={drafts.length}
           initialMccAccounts={mccAccounts}
-          jobCount={jobs.length}
         />
       </div>
     </AdminShell>
