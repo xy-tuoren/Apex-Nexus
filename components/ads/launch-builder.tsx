@@ -423,6 +423,18 @@ function joinLines(values: string[]) {
   return values.join("\n");
 }
 
+/** Data URLs contain commas — only split on newlines. */
+function splitMultiline(value: string) {
+  return value
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function joinMultiline(values: string[]) {
+  return values.join("\n");
+}
+
 function normalizeVideoInputs(value: string) {
   return splitLines(value)
     .map((item) => youtubeVideoIdFromInput(item))
@@ -587,13 +599,15 @@ function Field({
   label,
   children,
   hint,
+  className = "",
 }: {
   label: string;
   children: ReactNode;
   hint?: string;
+  className?: string;
 }) {
   return (
-    <div className="grid gap-2">
+    <div className={`grid min-w-0 gap-2 ${className}`}>
       <Label>{label}</Label>
       {children}
       {hint ? <p className="text-xs leading-relaxed text-[var(--muted)]">{hint}</p> : null}
@@ -830,66 +844,91 @@ function VideoLinkList({
   }
 
   return (
-    <div className="grid gap-3 rounded-xl border border-[var(--hairline)] bg-[var(--surface-card)] p-3">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-[var(--muted)]">请输入完整 YouTube 链接</p>
-        <Button
-          disabled={draftItems.length >= maxItems}
-          size="sm"
-          type="button"
-          variant="outline"
-          onClick={addItem}
-        >
-          <Plus aria-hidden className="h-4 w-4" strokeWidth={1.75} />
-          添加
-        </Button>
-      </div>
-      <div className="grid gap-3">
-        {draftItems.map((item, index) => {
-          const thumbnailUrl = youtubeThumbnailUrl(item);
-          const videoId = youtubeVideoIdFromInput(item);
+    <div className="min-w-0">
+      <div className="overflow-hidden rounded-xl border border-[var(--hairline)] bg-[var(--surface-card)]">
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--hairline)] px-3 py-2.5">
+          <p className="text-xs text-[var(--muted)]">最多 {maxItems} 条 · watch / youtu.be 链接</p>
+          <Button
+            className="shrink-0 whitespace-nowrap"
+            disabled={draftItems.length >= maxItems}
+            size="sm"
+            type="button"
+            variant="outline"
+            onClick={addItem}
+          >
+            <Plus aria-hidden className="h-4 w-4" strokeWidth={1.75} />
+            添加
+          </Button>
+        </div>
 
-          return (
-            <div key={index} className="grid gap-2 rounded-lg border border-[var(--hairline)] p-2">
-              <div className="flex items-center gap-2">
-                <Input
-                  placeholder="https://www.youtube.com/watch?v=..."
-                  value={item}
-                  onChange={(event) => updateItem(index, event.target.value)}
-                />
-                <Button
-                  aria-label="删除"
-                  className="h-11 w-11 shrink-0 rounded-lg px-0"
-                  disabled={draftItems.length === 1}
-                  type="button"
-                  variant="outline"
-                  onClick={() => removeItem(index)}
-                >
-                  <Trash2 aria-hidden className="h-4 w-4" strokeWidth={1.75} />
-                </Button>
-              </div>
-              {thumbnailUrl ? (
-                <div className="flex items-center gap-3">
-                  <Image
-                    alt="视频封面"
-                    className="h-16 w-28 rounded-md border border-[var(--hairline)] object-cover"
-                    height={90}
-                    src={thumbnailUrl}
-                    unoptimized
-                    width={160}
-                  />
-                  <p className="min-w-0 truncate text-xs text-[var(--muted)]">
-                    YouTube ID: <span className="text-[var(--ink)]">{videoId}</span>
-                  </p>
+        <ul className="divide-y divide-[var(--hairline)]">
+          {draftItems.map((item, index) => {
+            const thumbnailUrl = youtubeThumbnailUrl(item);
+            const videoId = youtubeVideoIdFromInput(item);
+
+            return (
+              <li key={index} className="p-3">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium text-[var(--ink)]">视频 {index + 1}</span>
+                  <Button
+                    aria-label={`删除视频 ${index + 1}`}
+                    className="h-7 w-7 shrink-0 rounded-md px-0"
+                    disabled={draftItems.length === 1}
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                    onClick={() => removeItem(index)}
+                  >
+                    <Trash2 aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  </Button>
                 </div>
-              ) : item.trim() ? (
-                <p className="text-xs text-[var(--semantic-error)]">
-                  请输入完整且有效的 YouTube 链接
-                </p>
-              ) : null}
-            </div>
-          );
-        })}
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                  {thumbnailUrl ? (
+                    <Image
+                      alt="视频封面"
+                      className="h-[4.5rem] w-full shrink-0 rounded-lg border border-[var(--hairline)] object-cover sm:w-32"
+                      height={90}
+                      src={thumbnailUrl}
+                      unoptimized
+                      width={160}
+                    />
+                  ) : (
+                    <div
+                      aria-hidden
+                      className="flex h-[4.5rem] w-full shrink-0 items-center justify-center rounded-lg border border-dashed border-[var(--hairline-strong)] bg-[var(--surface-strong)] sm:w-32"
+                    >
+                      <Video className="h-5 w-5 text-[var(--muted-soft)]" strokeWidth={1.75} />
+                    </div>
+                  )}
+
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <Textarea
+                      className="min-h-[3.25rem] resize-y py-2.5 text-sm leading-relaxed"
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      rows={2}
+                      spellCheck={false}
+                      value={item}
+                      onChange={(event) => updateItem(index, event.target.value)}
+                    />
+                    {thumbnailUrl && videoId ? (
+                      <p className="text-xs leading-relaxed text-[var(--muted)]">
+                        已识别视频 ID{" "}
+                        <code className="rounded-md bg-[var(--surface-strong)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--ink)]">
+                          {videoId}
+                        </code>
+                      </p>
+                    ) : item.trim() ? (
+                      <p className="text-xs text-[var(--semantic-error)]">
+                        链接无效，请输入完整 YouTube 地址
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       </div>
     </div>
   );
@@ -904,7 +943,7 @@ function LogoUploadList({
   onChange: (value: string) => void;
   maxItems?: number;
 }) {
-  const items = splitLines(value).slice(0, maxItems);
+  const items = splitMultiline(value).slice(0, maxItems);
 
   async function addFiles(files: FileList | null) {
     if (!files?.length) {
@@ -916,55 +955,86 @@ function LogoUploadList({
       .filter((file) => file.type.startsWith("image/"))
       .slice(0, remaining);
     const dataUrls = await Promise.all(selectedFiles.map(fileToDataUrl));
-    onChange(joinLines([...items, ...dataUrls]));
+    onChange(joinMultiline([...items, ...dataUrls]));
   }
 
   function removeItem(index: number) {
-    onChange(joinLines(items.filter((_, itemIndex) => itemIndex !== index)));
+    onChange(joinMultiline(items.filter((_, itemIndex) => itemIndex !== index)));
   }
 
+  const canUploadMore = items.length < maxItems;
+
   return (
-    <div className="grid gap-3 rounded-xl border border-[var(--hairline)] bg-[var(--surface-card)] p-3">
-      <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--hairline-strong)] bg-[var(--surface-strong)] px-4 py-5 text-center transition hover:border-[var(--ink)]/30">
-        <Plus aria-hidden className="h-5 w-5 text-[var(--ink)]" strokeWidth={1.75} />
-        <span className="text-sm font-medium text-[var(--ink)]">上传徽标图片</span>
-        <span className="text-xs text-[var(--muted)]">最多 {maxItems} 张，支持 PNG/JPG/WebP</span>
-        <input
-          accept="image/*"
-          className="sr-only"
-          disabled={items.length >= maxItems}
-          multiple
-          type="file"
-          onChange={(event) => {
-            void addFiles(event.target.files);
-            event.currentTarget.value = "";
-          }}
-        />
-      </label>
-      {items.length ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    <div className="min-w-0 overflow-hidden rounded-xl border border-[var(--hairline)] bg-[var(--surface-card)]">
+      <div className="border-b border-[var(--hairline)] px-3 py-2.5">
+        <p className="text-xs text-[var(--muted)]">
+          {items.length}/{maxItems} 张 · PNG / JPG / WebP
+        </p>
+      </div>
+
+      {items.length === 0 && canUploadMore ? (
+        <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 p-6 text-center transition hover:bg-[var(--surface-strong)]">
+          <Plus aria-hidden className="h-5 w-5 text-[var(--ink)]" strokeWidth={1.75} />
+          <span className="text-sm font-medium text-[var(--ink)]">上传徽标图片</span>
+          <span className="text-xs text-[var(--muted)]">点击选择本地图片</span>
+          <input
+            accept="image/*"
+            className="sr-only"
+            multiple
+            type="file"
+            onChange={(event) => {
+              void addFiles(event.target.files);
+              event.currentTarget.value = "";
+            }}
+          />
+        </label>
+      ) : (
+        <div className="flex flex-wrap gap-3 p-3">
           {items.map((item, index) => (
-            <div key={index} className="group relative overflow-hidden rounded-lg border border-[var(--hairline)] bg-[var(--surface-card)]">
-              <Image
+            <div
+              key={index}
+              className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-[var(--hairline)] bg-[var(--surface-strong)]"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 alt={`徽标 ${index + 1}`}
-                className="aspect-square w-full object-contain p-3"
-                height={160}
+                className="h-full w-full object-contain p-1.5"
                 src={item}
-                unoptimized
-                width={160}
               />
-              <Button
-                aria-label="删除徽标"
-                className="absolute right-2 top-2 h-8 w-8 rounded-full px-0 opacity-95"
+              <button
+                aria-label={`删除徽标 ${index + 1}`}
+                className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full border border-[var(--hairline)] bg-[var(--canvas)]/95 opacity-0 shadow-sm transition hover:bg-[var(--surface-card)] group-hover:opacity-100 group-focus-within:opacity-100"
                 type="button"
-                variant="outline"
                 onClick={() => removeItem(index)}
               >
-                <Trash2 aria-hidden className="h-4 w-4" strokeWidth={1.75} />
-              </Button>
+                <Trash2 aria-hidden className="h-3 w-3 text-[var(--ink)]" strokeWidth={1.75} />
+              </button>
             </div>
           ))}
+
+          {canUploadMore ? (
+            <label className="flex h-20 w-20 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-[var(--hairline-strong)] bg-[var(--surface-strong)] transition hover:border-[var(--ink)]/30 hover:bg-[var(--surface-card)]">
+              <Plus aria-hidden className="h-4 w-4 text-[var(--ink)]" strokeWidth={1.75} />
+              <span className="text-[10px] text-[var(--muted)]">上传</span>
+              <input
+                accept="image/*"
+                className="sr-only"
+                multiple
+                type="file"
+                onChange={(event) => {
+                  void addFiles(event.target.files);
+                  event.currentTarget.value = "";
+                }}
+              />
+            </label>
+          ) : null}
         </div>
+      )}
+
+      {!canUploadMore && items.length > 0 ? (
+        <p className="border-t border-[var(--hairline)] px-3 py-2 text-center text-xs text-[var(--muted)]">
+          已达上限 {maxItems} 张
+        </p>
       ) : null}
     </div>
   );
@@ -1748,7 +1818,7 @@ export function LaunchBuilder({
         name: ad.name,
         finalUrl: ad.finalUrl,
         youtubeVideos: normalizeVideoInputs(ad.videoLinks),
-        logos: splitLines(ad.logos),
+        logos: splitMultiline(ad.logos),
         headlines: splitLines(ad.shortHeadlines),
         longHeadlines: splitLines(ad.longHeadlines),
         descriptions: splitLines(ad.descriptions),
@@ -2339,7 +2409,7 @@ export function LaunchBuilder({
                 </div>
 
                 {activeAd ? (
-                  <div className="space-y-5 rounded-xl border border-[var(--hairline)] bg-[var(--surface-card)] p-4">
+                  <div className="min-w-0 space-y-5 rounded-xl border border-[var(--hairline)] bg-[var(--surface-card)] p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-medium text-[var(--ink)]">{activeAd.name}</p>
@@ -2362,6 +2432,7 @@ export function LaunchBuilder({
                     <div className={inputGridClassName}>
                       <Field label="广告名称">
                         <Input
+                          className="min-w-0"
                           value={activeAd.name}
                           onChange={(event) =>
                             updateAd(activeAdGroup.id, activeAd.id, { name: event.target.value })
@@ -2370,6 +2441,7 @@ export function LaunchBuilder({
                       </Field>
                       <Field label="商家名称">
                         <Input
+                          className="min-w-0"
                           maxLength={25}
                           value={activeAd.businessName}
                           onChange={(event) =>
@@ -2381,6 +2453,7 @@ export function LaunchBuilder({
                       </Field>
                       <Field label="最终到达网址">
                         <Input
+                          className="min-w-0"
                           value={activeAd.finalUrl}
                           onChange={(event) =>
                             updateAd(activeAdGroup.id, activeAd.id, { finalUrl: event.target.value })
@@ -2389,6 +2462,7 @@ export function LaunchBuilder({
                       </Field>
                       <Field label="号召性用语文字">
                         <SelectControl
+                          className="min-w-0 w-full"
                           options={CTA_OPTIONS.map(([value, label]) => ({ value, label }))}
                           value={activeAd.callToAction}
                           onChange={(callToAction) =>
@@ -2398,7 +2472,7 @@ export function LaunchBuilder({
                       </Field>
                     </div>
 
-                    <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="grid min-w-0 gap-5">
                       <Field label="视频素材链接">
                         <VideoLinkList
                           key={`${activeAd.id}:videoLinks`}
