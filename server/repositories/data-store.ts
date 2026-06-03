@@ -6,6 +6,7 @@ import type {
   CreativeAsset,
   GoogleAdAccount,
   GoogleCampaignBinding,
+  GoogleConversionGoalSet,
   GoogleMccAccount,
   LaunchJob,
   Site,
@@ -16,6 +17,7 @@ import type {
 type Collections = {
   google_mcc_accounts: GoogleMccAccount[];
   google_ad_accounts: GoogleAdAccount[];
+  google_conversion_goal_sets: GoogleConversionGoalSet[];
   sites: Site[];
   site_ad_accounts: SiteAdAccount[];
   assets: CreativeAsset[];
@@ -45,6 +47,7 @@ const now = () => new Date().toISOString();
 const seed: Collections = {
   google_mcc_accounts: [],
   google_ad_accounts: [],
+  google_conversion_goal_sets: [],
   sites: [
     {
       id: "site-demo",

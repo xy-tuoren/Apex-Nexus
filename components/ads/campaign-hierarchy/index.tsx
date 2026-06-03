@@ -18,6 +18,7 @@ import { HierarchyEditModal } from "@/components/ads/campaign-hierarchy/hierarch
 import {
   FALLBACK_GEO_TARGET_OPTIONS,
   FALLBACK_LANGUAGE_OPTIONS,
+  OBJECTIVE_OPTIONS,
 } from "@/components/ads/campaign-hierarchy/constants";
 import {
   buildCampaignHighlights,
@@ -65,10 +66,9 @@ export function CampaignHierarchyEditor({
   const [syncError, setSyncError] = useState<string | null>(initialSyncError);
   const [syncedAt, setSyncedAt] = useState<string | null>(initialSyncedAt);
 
-  const firstAccount = adAccounts[0];
   const initialCampaignIdRef = useRef(`cmp_1_${Date.now()}`);
   const [campaigns, setCampaigns] = useState<CampaignForm[]>(() => {
-    const initial = { ...buildDefaultCampaign(1, firstAccount), id: initialCampaignIdRef.current };
+    const initial = { ...buildDefaultCampaign(1, initialAdAccounts[0]), id: initialCampaignIdRef.current };
     return [initial];
   });
   const [result, setResult] = useState<ApiResult | null>(null);
@@ -188,15 +188,18 @@ export function CampaignHierarchyEditor({
   function openCampaignDetail(campaignId: string) {
     const campaign = campaigns.find((c) => c.id === campaignId);
     if (!campaign) return;
+    if (!campaign.adAccountId && adAccounts[0]) {
+      patchCampaign(campaignId, { adAccountId: adAccounts[0].id });
+    }
     setActiveCampaignId(campaignId);
   }
 
   function addCampaign() {
     const nextIndex = campaigns.length + 1;
     const id = `cmp_${nextIndex}_${idCounterRef.current++}`;
-    const nextCampaign = { ...buildDefaultCampaign(nextIndex, firstAccount), id };
+    const nextCampaign = { ...buildDefaultCampaign(nextIndex, adAccounts[0]), id };
     setCampaigns((current) => [...current, nextCampaign]);
-    openCampaignDetail(id);
+    setActiveCampaignId(id);
   }
 
   function removeCampaign(campaignId: string) {
@@ -326,18 +329,6 @@ export function CampaignHierarchyEditor({
     }
   }
 
-  // Auto-assign default account
-  useEffect(() => {
-    const defaultAccount = adAccounts[0];
-    if (!defaultAccount) return;
-    setCampaigns((current) =>
-      current.map((c) => {
-        if (c.adAccountId && adAccounts.some((a) => a.id === c.adAccountId)) return c;
-        return { ...c, adAccountId: defaultAccount.id };
-      }),
-    );
-  }, [adAccounts]);
-
   // Derived state
   const activeCampaign = activeCampaignId ? campaigns.find((c) => c.id === activeCampaignId) ?? null : null;
   const editorFocusGroupId = editorFocus && editorFocus.campaignId === activeCampaignId ? editorFocus.groupId : null;
@@ -356,7 +347,6 @@ export function CampaignHierarchyEditor({
     const account = adAccounts.find((a) => a.id === campaign.adAccountId);
     const r = getResources(campaign.adAccountId);
     const highlights = buildCampaignHighlights(campaign, r?.geoTargets.data, r?.languageTargets.data);
-    const { OBJECTIVE_OPTIONS } = require("@/components/ads/campaign-hierarchy/constants");
     return (
       <div className="grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
         <section className="rounded-3xl border border-[var(--hairline)] bg-[var(--canvas-soft)] p-4">
@@ -489,6 +479,7 @@ export function CampaignHierarchyEditor({
             conversionGoals={getResources(activeCampaign.adAccountId)?.conversionGoals.data ?? []}
             conversionGoalState={getResources(activeCampaign.adAccountId)?.conversionGoals.status ?? "idle"}
             conversionGoalError={getResources(activeCampaign.adAccountId)?.conversionGoals.error ?? null}
+            conversionGoalSyncedAt={getResources(activeCampaign.adAccountId)?.conversionGoals.syncedAt ?? null}
             geoTargets={getResources(activeCampaign.adAccountId)?.geoTargets.data ?? FALLBACK_GEO_TARGET_OPTIONS}
             languageTargets={getResources(activeCampaign.adAccountId)?.languageTargets.data ?? FALLBACK_LANGUAGE_OPTIONS}
             patchCampaign={patchCampaign}

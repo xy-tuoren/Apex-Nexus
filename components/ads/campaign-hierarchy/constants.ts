@@ -216,6 +216,7 @@ export const FALLBACK_LANGUAGE_OPTIONS: LanguageTargetOption[] = [
 ];
 
 export const BIDDING_TYPE_OPTIONS: { value: BiddingType; label: string }[] = [
+  { value: "TARGET_CPA", label: "目标 CPA" },
   { value: "MAXIMIZE_CONVERSIONS", label: "尽可能提高转化次数" },
 ];
 
@@ -287,5 +288,4 @@ export const SCHEDULE_DAYS = [
 ];
 
 export const SCHEDULE_HOURS = Array.from({ length: 24 }, (_, index) => index);
-
 

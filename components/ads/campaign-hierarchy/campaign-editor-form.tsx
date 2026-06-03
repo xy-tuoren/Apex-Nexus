@@ -47,6 +47,7 @@ interface CampaignEditorFormProps {
   conversionGoals: ConversionGoalPoint[];
   conversionGoalState: ResourceStatus;
   conversionGoalError: string | null;
+  conversionGoalSyncedAt: string | null;
   geoTargets: GeoTargetOption[];
   languageTargets: LanguageTargetOption[];
   // Mutation handlers
@@ -64,6 +65,7 @@ export function CampaignEditorForm({
   conversionGoals,
   conversionGoalState,
   conversionGoalError,
+  conversionGoalSyncedAt,
   geoTargets,
   languageTargets,
   patchCampaign,
@@ -125,7 +127,9 @@ export function CampaignEditorForm({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium text-[var(--ink)]">
                   {conversionGoalState === "success"
-                    ? `已读取 ${conversionGoals.length} 个目标`
+                    ? conversionGoalSyncedAt
+                      ? `已同步 ${conversionGoals.length} 个目标 · ${new Date(conversionGoalSyncedAt).toLocaleString()}`
+                      : "尚未同步转化目标"
                     : campaign.conversionGoal || "待选择"}
                 </p>
                 <Button
@@ -135,7 +139,7 @@ export function CampaignEditorForm({
                   variant="outline"
                   onClick={() => loadConversionGoals()}
                 >
-                  {conversionGoalState === "loading" ? "读取中..." : "读取目标"}
+                  {conversionGoalState === "loading" ? "同步中..." : "同步目标"}
                 </Button>
               </div>
               {conversionGoalError ? (

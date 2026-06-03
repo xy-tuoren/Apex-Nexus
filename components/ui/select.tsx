@@ -110,9 +110,15 @@ const SelectTrigger = React.forwardRef<
 });
 SelectTrigger.displayName = "SelectTrigger";
 
-function SelectValue({ placeholder }: { placeholder?: React.ReactNode }) {
+function SelectValue({
+  placeholder,
+  selectedLabel,
+}: {
+  placeholder?: React.ReactNode;
+  selectedLabel?: React.ReactNode;
+}) {
   const { value, getOptionLabel } = useSelectContext();
-  const label = value ? getOptionLabel(value) : undefined;
+  const label = selectedLabel ?? (value ? getOptionLabel(value) : undefined);
 
   return (
     <span className={cn(!label && "text-[var(--muted-soft)]")}>{label ?? placeholder}</span>

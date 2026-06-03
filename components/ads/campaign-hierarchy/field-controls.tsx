@@ -78,10 +78,12 @@ export function SelectControl({
   placeholder?: string;
   className?: string;
 }) {
+  const selectedLabel = options.find((option) => option.value === value)?.label;
+
   return (
     <Select disabled={disabled} value={value} onValueChange={onChange}>
       <SelectTrigger className={className}>
-        <SelectValue placeholder={placeholder} />
+        <SelectValue placeholder={placeholder} selectedLabel={selectedLabel} />
       </SelectTrigger>
       <SelectContent>
         {options.map((option) => (
@@ -797,4 +799,3 @@ export function SchedulePicker({
     </div>
   );
 }
-

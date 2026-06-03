@@ -1,26 +1,11 @@
-import { findById } from "@/server/repositories/data-store";
+import { audit, findById, listCollection, replaceCollection, timestamp } from "@/server/repositories/data-store";
 import { searchGoogleAdsLive } from "@/server/google-ads/account-discovery";
 import { getLoginCustomerIdForAdAccount } from "@/server/services/account-service";
+import type { GoogleConversionGoalPoint, GoogleConversionGoalSet, GoogleMccAccount } from "@/lib/types";
 
 type GoogleAdsRow = Record<string, Record<string, unknown> | undefined>;
 
-export type ConversionGoalPoint = {
-  id: string;
-  category: string;
-  origin: string;
-  biddable: boolean;
-  source: string;
-  actionCount: number;
-  actions: {
-    id: string;
-    name: string;
-    category: string;
-    type: string;
-    status: string;
-    includeInConversionsMetric: boolean;
-    primaryForGoal: boolean;
-  }[];
-};
+export type ConversionGoalPoint = GoogleConversionGoalPoint;
 
 function readString(value: unknown) {
   return typeof value === "string" ? value : value != null ? String(value) : "";
@@ -153,4 +138,61 @@ export async function listConversionGoalPoints({
       })),
     } satisfies ConversionGoalPoint;
   });
+}
+
+function resolveMccCustomerId(mccAccount: GoogleMccAccount) {
+  return normalizeCustomerId(mccAccount.customerId) || normalizeCustomerId(mccAccount.id);
+}
+
+async function getDataMccAccount(mccAccountId: string) {
+  const mccAccount = await findById("google_mcc_accounts", mccAccountId);
+  if (!mccAccount) {
+    throw new Error("找不到数据 MCC，请先同步账号。");
+  }
+  if (mccAccount.kind !== "DATA_MCC") {
+    throw new Error("转化目标需要从数据 MCC 同步，请选择数据 MCC。");
+  }
+  return mccAccount;
+}
+
+export async function getCachedConversionGoalSet(mccAccountId: string) {
+  const sets = await listCollection("google_conversion_goal_sets");
+  return sets.find((set) => set.mccAccountId === mccAccountId) ?? null;
+}
+
+export async function syncDataMccConversionGoalSet(mccAccountId: string) {
+  const mccAccount = await getDataMccAccount(mccAccountId);
+  const customerId = resolveMccCustomerId(mccAccount);
+  if (!customerId) {
+    throw new Error("数据 MCC 缺少有效的 customerId，请重新同步账号。");
+  }
+
+  const goals = await listConversionGoalPoints({
+    adAccountId: mccAccount.id,
+    customerId,
+    loginCustomerId: customerId,
+  });
+
+  const goalSet: GoogleConversionGoalSet = {
+    id: `conversion-goals-${mccAccount.id}`,
+    mccAccountId: mccAccount.id,
+    customerId,
+    loginCustomerId: customerId,
+    goals,
+    syncedAt: timestamp(),
+  };
+
+  const currentSets = await listCollection("google_conversion_goal_sets");
+  await replaceCollection("google_conversion_goal_sets", [
+    ...currentSets.filter((set) => set.mccAccountId !== mccAccount.id),
+    goalSet,
+  ]);
+
+  await audit("conversion_goals.sync", mccAccount.id, {
+    customerId,
+    goalCount: goals.length,
+    source: "data_mcc",
+  });
+
+  return goalSet;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { GoogleAdAccount, GoogleMccAccount } from "@/lib/types";
+import type { GoogleAdAccount, GoogleConversionGoalSet, GoogleMccAccount } from "@/lib/types";
 import { buildAccountQueryParams } from "@/lib/google-ads-query";
 import type { ConversionGoalPoint, GeoTargetOption, LanguageTargetOption } from "@/components/ads/campaign-hierarchy/types";
 import { FALLBACK_GEO_TARGET_OPTIONS, FALLBACK_LANGUAGE_OPTIONS } from "@/components/ads/campaign-hierarchy/constants";
@@ -9,9 +9,30 @@ import { FALLBACK_GEO_TARGET_OPTIONS, FALLBACK_LANGUAGE_OPTIONS } from "@/compon
 export type ResourceStatus = "idle" | "loading" | "success" | "error";
 
 export interface AccountResources {
-  conversionGoals: { data: ConversionGoalPoint[]; status: ResourceStatus; error: string | null; reload: () => void };
+  conversionGoals: { data: ConversionGoalPoint[]; status: ResourceStatus; error: string | null; syncedAt: string | null; reload: () => void };
   geoTargets: { data: GeoTargetOption[]; status: ResourceStatus; error: string | null; reload: () => void };
   languageTargets: { data: LanguageTargetOption[]; status: ResourceStatus; error: string | null; reload: () => void };
+}
+
+function resolveDataMccAccountId(
+  adAccountId: string,
+  adAccounts: GoogleAdAccount[],
+  mccAccounts: GoogleMccAccount[],
+) {
+  const account = adAccounts.find((item) => item.id === adAccountId);
+  const operationMcc = mccAccounts.find((item) => item.id === account?.operationMccId);
+  const parentDataMcc = operationMcc?.parentCustomerId
+    ? mccAccounts.find(
+        (item) => item.kind === "DATA_MCC" && item.customerId === operationMcc.parentCustomerId,
+      )
+    : null;
+
+  return (
+    parentDataMcc?.id ??
+    (operationMcc?.kind === "DATA_MCC" ? operationMcc.id : undefined) ??
+    mccAccounts.find((item) => item.kind === "DATA_MCC")?.id ??
+    null
+  );
 }
 
 /**
@@ -26,6 +47,7 @@ export function useAccountResources(
   const [conversionGoals, setConversionGoals] = useState<ConversionGoalPoint[]>([]);
   const [conversionGoalStatus, setConversionGoalStatus] = useState<ResourceStatus>("idle");
   const [conversionGoalError, setConversionGoalError] = useState<string | null>(null);
+  const [conversionGoalSyncedAt, setConversionGoalSyncedAt] = useState<string | null>(null);
 
   const [geoTargets, setGeoTargets] = useState<GeoTargetOption[]>(FALLBACK_GEO_TARGET_OPTIONS);
   const [geoTargetStatus, setGeoTargetStatus] = useState<ResourceStatus>("idle");
@@ -35,28 +57,62 @@ export function useAccountResources(
   const [languageTargetStatus, setLanguageTargetStatus] = useState<ResourceStatus>("idle");
   const [languageTargetError, setLanguageTargetError] = useState<string | null>(null);
 
-  const loadConversionGoals = useCallback(async () => {
-    if (!adAccountId) {
+  const dataMccAccountId = resolveDataMccAccountId(adAccountId, adAccounts, mccAccounts);
+
+  const applyConversionGoalSet = useCallback((goalSet: GoogleConversionGoalSet | null) => {
+    setConversionGoals(goalSet?.goals ?? []);
+    setConversionGoalSyncedAt(goalSet?.syncedAt ?? null);
+  }, []);
+
+  const loadCachedConversionGoals = useCallback(async () => {
+    if (!dataMccAccountId) {
       setConversionGoals([]);
       setConversionGoalStatus("idle");
       setConversionGoalError(null);
+      setConversionGoalSyncedAt(null);
       return;
     }
     setConversionGoalStatus("loading");
     setConversionGoalError(null);
     try {
-      const params = buildAccountQueryParams(adAccountId, adAccounts, mccAccounts);
-      const response = await fetch(`/api/google-ads/accounts/${adAccountId}/conversion-goals?${params.toString()}`);
-      const json = (await response.json()) as { success: boolean; data?: ConversionGoalPoint[]; error?: { message: string } };
-      if (!json.success || !json.data) throw new Error(json.error?.message ?? "读取真实转化目标失败。");
-      setConversionGoals(json.data);
+      const response = await fetch(`/api/google-ads/mccs/${dataMccAccountId}/conversion-goals`);
+      const json = (await response.json()) as { success: boolean; data?: GoogleConversionGoalSet | null; error?: { message: string } };
+      if (!json.success) throw new Error(json.error?.message ?? "读取已同步转化目标失败。");
+      applyConversionGoalSet(json.data ?? null);
       setConversionGoalStatus("success");
     } catch (err) {
       setConversionGoals([]);
       setConversionGoalStatus("error");
-      setConversionGoalError(err instanceof Error ? err.message : "读取真实转化目标失败。");
+      setConversionGoalSyncedAt(null);
+      setConversionGoalError(err instanceof Error ? err.message : "读取已同步转化目标失败。");
     }
-  }, [adAccountId, adAccounts, mccAccounts]);
+  }, [applyConversionGoalSet, dataMccAccountId]);
+
+  const syncConversionGoals = useCallback(async () => {
+    if (!dataMccAccountId) {
+      setConversionGoals([]);
+      setConversionGoalStatus("idle");
+      setConversionGoalError(null);
+      setConversionGoalSyncedAt(null);
+      return;
+    }
+    setConversionGoalStatus("loading");
+    setConversionGoalError(null);
+    try {
+      const response = await fetch(`/api/google-ads/mccs/${dataMccAccountId}/conversion-goals`, {
+        method: "POST",
+      });
+      const json = (await response.json()) as { success: boolean; data?: GoogleConversionGoalSet; error?: { message: string } };
+      if (!json.success || !json.data) throw new Error(json.error?.message ?? "同步数据 MCC 转化目标失败。");
+      applyConversionGoalSet(json.data);
+      setConversionGoalStatus("success");
+    } catch (err) {
+      setConversionGoals([]);
+      setConversionGoalStatus("error");
+      setConversionGoalSyncedAt(null);
+      setConversionGoalError(err instanceof Error ? err.message : "同步数据 MCC 转化目标失败。");
+    }
+  }, [applyConversionGoalSet, dataMccAccountId]);
 
   const loadGeoTargets = useCallback(async () => {
     if (!adAccountId) {
@@ -105,12 +161,18 @@ export function useAccountResources(
   }, [adAccountId, adAccounts, mccAccounts]);
 
   // Auto-load on mount and when account changes
-  useEffect(() => { loadConversionGoals(); }, [loadConversionGoals]);
-  useEffect(() => { loadGeoTargets(); }, [loadGeoTargets]);
-  useEffect(() => { loadLanguageTargets(); }, [loadLanguageTargets]);
+  useEffect(() => {
+    void Promise.resolve().then(loadCachedConversionGoals);
+  }, [loadCachedConversionGoals]);
+  useEffect(() => {
+    void Promise.resolve().then(loadGeoTargets);
+  }, [loadGeoTargets]);
+  useEffect(() => {
+    void Promise.resolve().then(loadLanguageTargets);
+  }, [loadLanguageTargets]);
 
   return {
-    conversionGoals: { data: conversionGoals, status: conversionGoalStatus, error: conversionGoalError, reload: loadConversionGoals },
+    conversionGoals: { data: conversionGoals, status: conversionGoalStatus, error: conversionGoalError, syncedAt: conversionGoalSyncedAt, reload: syncConversionGoals },
     geoTargets: { data: geoTargets, status: geoTargetStatus, error: geoTargetError, reload: loadGeoTargets },
     languageTargets: { data: languageTargets, status: languageTargetStatus, error: languageTargetError, reload: loadLanguageTargets },
   };

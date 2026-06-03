@@ -152,7 +152,7 @@ export function defaultBiddingForObjective(objective: string) {
   if (objective === "CLICKS") {
     return { clickBiddingType: "MAX_CPC" as ClickBiddingType };
   }
-  return { biddingType: "MAXIMIZE_CONVERSIONS" as BiddingType };
+  return { biddingType: "TARGET_CPA" as BiddingType };
 }
 
 export function summarizeGeoLocation(
@@ -590,7 +590,7 @@ export function buildDefaultCampaign(index: number, account?: GoogleAdAccount): 
     campaignName: `广告系列 ${index}`,
     campaignObjective: "CONVERSIONS",
     conversionGoal: "PURCHASE",
-    biddingType: "MAXIMIZE_CONVERSIONS",
+    biddingType: "TARGET_CPA",
     clickBiddingType: "MAX_CPC",
     targetCpa: "1.2",
     targetCpc: "0.45",
@@ -680,4 +680,3 @@ export function buildPayloadFromCampaign(campaign: CampaignForm, firstAdFallback
     adGroups,
   };
 }
-

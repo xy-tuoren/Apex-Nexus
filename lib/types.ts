@@ -40,6 +40,33 @@ export type GoogleAdAccount = {
   status: "ENABLED" | "PAUSED" | "UNKNOWN";
 };
 
+export type GoogleConversionGoalPoint = {
+  id: string;
+  category: string;
+  origin: string;
+  biddable: boolean;
+  source: string;
+  actionCount: number;
+  actions: {
+    id: string;
+    name: string;
+    category: string;
+    type: string;
+    status: string;
+    includeInConversionsMetric: boolean;
+    primaryForGoal: boolean;
+  }[];
+};
+
+export type GoogleConversionGoalSet = {
+  id: string;
+  mccAccountId: string;
+  customerId: string;
+  loginCustomerId: string;
+  goals: GoogleConversionGoalPoint[];
+  syncedAt: string;
+};
+
 export type Site = {
   id: string;
   name: string;
