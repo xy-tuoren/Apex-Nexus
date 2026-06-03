@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const advertisingTypeSchema = z.enum(["PERFORMANCE_MAX", "DEMAND_GEN"]);
+export const advertisingTypeSchema = z.enum(["DEMAND_GEN"]);
 
 export const idempotencyKeySchema = z
   .string()
@@ -109,6 +109,7 @@ export const campaignDraftSchema = z.object({
   locations: z.array(z.string().min(1)).min(1),
   language: z.string().min(2),
   os: z.string().min(1).default("all"),
+  oss: z.array(z.string().min(1)).default([]),
   device: z.string().min(1).default("all"),
   devices: z.array(z.string().min(1)).default([]),
   adSchedule: z.string().max(240).optional(),

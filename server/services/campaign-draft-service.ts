@@ -11,7 +11,7 @@ import {
 } from "@/server/repositories/data-store";
 import { getLoginCustomerIdForAdAccount } from "@/server/services/account-service";
 import { validateCampaignDraft } from "@/server/services/validation-service";
-import { buildDemandGenMutateOperations, buildPMaxMutateOperations } from "@/server/google-ads/mutate-builder";
+import { buildDemandGenMutateOperations } from "@/server/google-ads/mutate-builder";
 
 export async function createCampaignDraft(input: CampaignDraftInput) {
   const now = timestamp();
@@ -75,10 +75,7 @@ export async function buildDraftPreview(id: string) {
     };
   }
 
-  const mutateOperations =
-    draft.advertisingType === "PERFORMANCE_MAX"
-      ? buildPMaxMutateOperations(draft, adAccount)
-      : buildDemandGenMutateOperations(draft, adAccount);
+  const mutateOperations = await buildDemandGenMutateOperations(draft, adAccount);
 
   const loginCustomerId = await getLoginCustomerIdForAdAccount(adAccount.id);
 

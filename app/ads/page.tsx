@@ -1,5 +1,5 @@
 import { AdminShell } from "@/components/layout/admin-shell";
-import { LaunchBuilder } from "@/components/ads/launch-builder";
+import { CampaignHierarchyEditor } from "@/components/ads/campaign-hierarchy";
 import { isAuthEnabled } from "@/lib/auth/config";
 import { getSessionUser } from "@/lib/auth/server";
 import {
@@ -25,7 +25,7 @@ export default async function AdsLaunchPage() {
   return (
     <AdminShell activePath="/ads" showLoginButton={!authEnabled} user={user}>
       <div className="w-full px-4 pb-28 lg:px-8">
-        <LaunchBuilder
+        <CampaignHierarchyEditor
           initialAdAccounts={adAccounts}
           accountsSyncedAt={accountsSyncedAt}
           initialMccAccounts={mccAccounts}

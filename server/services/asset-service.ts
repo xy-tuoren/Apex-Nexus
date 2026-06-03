@@ -9,7 +9,7 @@ import {
 } from "@/server/repositories/data-store";
 
 export function validateAssetBundle(
-  advertisingType: "PERFORMANCE_MAX" | "DEMAND_GEN",
+  advertisingType: "DEMAND_GEN",
   assets: {
     headlines: string[];
     longHeadlines: string[];
@@ -31,27 +31,6 @@ export function validateAssetBundle(
     });
   }
 
-  if (advertisingType === "PERFORMANCE_MAX") {
-    if (assets.headlines.length < 3) {
-      errors.push({ code: "PMAX_HEADLINES_REQUIRED", message: "PMax 至少需要 3 个标题。" });
-    }
-    if (assets.longHeadlines.length < 1) {
-      errors.push({ code: "PMAX_LONG_HEADLINE_REQUIRED", message: "PMax 至少需要 1 个长标题。" });
-    }
-    if (assets.descriptions.length < 2) {
-      errors.push({ code: "PMAX_DESCRIPTIONS_REQUIRED", message: "PMax 至少需要 2 条描述。" });
-    }
-    if (assets.marketingImages.length < 1 || assets.squareMarketingImages.length < 1) {
-      errors.push({
-        code: "PMAX_IMAGES_REQUIRED",
-        message: "PMax 至少需要 1 张横图和 1 张方图。",
-      });
-    }
-    if (assets.logos.length < 1) {
-      errors.push({ code: "PMAX_LOGO_REQUIRED", message: "PMax 至少需要 1 个 Logo。" });
-    }
-  }
-
   if (advertisingType === "DEMAND_GEN") {
     if (assets.headlines.length < 1 || assets.descriptions.length < 1) {
       errors.push({
@@ -59,16 +38,16 @@ export function validateAssetBundle(
         message: "Demand Gen 至少需要 1 个标题和 1 条描述。",
       });
     }
-    if (assets.youtubeVideos.length < 1 && assets.marketingImages.length < 1) {
+    if (assets.youtubeVideos.length < 1) {
       errors.push({
-        code: "DEMAND_GEN_MEDIA_REQUIRED",
-        message: "Demand Gen 至少需要 1 个 YouTube 视频或 1 张图片。",
+        code: "DEMAND_GEN_VIDEO_REQUIRED",
+        message: "Demand Gen 视频响应式广告至少需要 1 个 YouTube 视频。",
       });
     }
     if (assets.logos.length < 1) {
-      warnings.push({
-        code: "DEMAND_GEN_LOGO_RECOMMENDED",
-        message: "建议提供 Logo，便于提升广告完整度。",
+      errors.push({
+        code: "DEMAND_GEN_LOGO_REQUIRED",
+        message: "Demand Gen 视频响应式广告至少需要 1 个 Logo。",
       });
     }
   }

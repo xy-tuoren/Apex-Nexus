@@ -2,7 +2,6 @@ import type { CampaignDraft, GoogleAdAccount } from "@/lib/types";
 import {
   adGroup,
   asset,
-  assetGroup,
   campaign,
   campaignBudget,
 } from "@/server/google-ads/resource-names";
@@ -11,27 +10,33 @@ type MutateOperation = Record<string, unknown>;
 type DraftAdGroup = NonNullable<CampaignDraft["adGroups"]>[number];
 type DraftAd = DraftAdGroup["ads"][number];
 
-function textAssetOperation(customerId: string, id: number, text: string) {
-  return {
-    assetOperation: {
-      create: {
-        resourceName: asset(customerId, id),
-        textAsset: { text },
-      },
-    },
-  };
+async function imageAssetData(url: string, name: string) {
+  const dataUrlMatch = url.match(/^data:[^;]+;base64,(.+)$/);
+  if (dataUrlMatch) {
+    return dataUrlMatch[1];
+  }
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to download Google Ads image asset "${name}": ${response.status}`);
+  }
+
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.startsWith("image/")) {
+    throw new Error(`Google Ads image asset "${name}" must resolve to an image URL.`);
+  }
+
+  return Buffer.from(await response.arrayBuffer()).toString("base64");
 }
 
-function imageAssetOperation(customerId: string, id: number, url: string, name: string) {
-  const dataUrlMatch = url.match(/^data:[^;]+;base64,(.+)$/);
-
+async function imageAssetOperation(customerId: string, id: number, url: string, name: string) {
   return {
     assetOperation: {
       create: {
         resourceName: asset(customerId, id),
         name,
         imageAsset: {
-          data: dataUrlMatch?.[1] ?? `{download-and-base64:${url}}`,
+          data: await imageAssetData(url, name),
         },
       },
     },
@@ -49,12 +54,23 @@ function youtubeAssetOperation(customerId: string, id: number, youtubeVideoId: s
   };
 }
 
+function callToActionAssetOperation(customerId: string, id: number, callToAction: string) {
+  return {
+    assetOperation: {
+      create: {
+        resourceName: asset(customerId, id),
+        callToActionAsset: { callToAction },
+      },
+    },
+  };
+}
+
 function campaignBidding(draft: CampaignDraft) {
   switch (draft.bidding.strategy) {
     case "MAXIMIZE_CONVERSION_VALUE":
       return { maximizeConversionValue: { targetRoas: draft.bidding.targetRoas } };
     case "TARGET_CPA":
-      return { maximizeConversions: { targetCpaMicros: draft.bidding.targetCpaMicros } };
+      return { maximizeConversions: {} };
     case "TARGET_ROAS":
       return { targetRoas: { targetRoas: draft.bidding.targetRoas } };
     case "MAXIMIZE_CLICKS":
@@ -94,19 +110,17 @@ function draftAdGroups(draft: CampaignDraft) {
   return draft.adGroups?.length ? draft.adGroups : [legacyAdGroup(draft)];
 }
 
-function campaignLocationOperations(campaignResource: string, groups: DraftAdGroup[]) {
+function adGroupLocationOperations(adGroupResource: string, group: DraftAdGroup) {
   const locations = Array.from(
     new Set(
-      groups
-        .flatMap((group) => group.locations)
-        .filter((location) => location.startsWith("geoTargetConstants/")),
+      group.locations.filter((location) => location.startsWith("geoTargetConstants/")),
     ),
   );
 
   return locations.map((location) => ({
-    campaignCriterionOperation: {
+    adGroupCriterionOperation: {
       create: {
-        campaign: campaignResource,
+        adGroup: adGroupResource,
         location: {
           geoTargetConstant: location,
         },
@@ -115,19 +129,17 @@ function campaignLocationOperations(campaignResource: string, groups: DraftAdGro
   }));
 }
 
-function campaignLanguageOperations(campaignResource: string, groups: DraftAdGroup[]) {
+function adGroupLanguageOperations(adGroupResource: string, group: DraftAdGroup) {
   const languages = Array.from(
     new Set(
-      groups
-        .map((group) => group.language)
-        .filter((language) => language.startsWith("languageConstants/")),
+      [group.language].filter((language) => language.startsWith("languageConstants/")),
     ),
   );
 
   return languages.map((language) => ({
-    campaignCriterionOperation: {
+    adGroupCriterionOperation: {
       create: {
-        campaign: campaignResource,
+        adGroup: adGroupResource,
         language: {
           languageConstant: language,
         },
@@ -136,110 +148,10 @@ function campaignLanguageOperations(campaignResource: string, groups: DraftAdGro
   }));
 }
 
-export function buildPMaxMutateOperations(
+export async function buildDemandGenMutateOperations(
   draft: CampaignDraft,
   adAccount: GoogleAdAccount,
-): MutateOperation[] {
-  const customerId = adAccount.customerId;
-  const operations: MutateOperation[] = [];
-  const budgetResource = campaignBudget(customerId, -1);
-  const campaignResource = campaign(customerId, -2);
-  let tempId = -10;
-
-  operations.push({
-    campaignBudgetOperation: {
-      create: {
-        resourceName: budgetResource,
-        name: `${draft.name} Budget`,
-        amountMicros: draft.budgetMicros.toString(),
-        explicitlyShared: false,
-        period: "DAILY",
-      },
-    },
-  });
-
-  operations.push({
-    campaignOperation: {
-      create: {
-        resourceName: campaignResource,
-        name: draft.name,
-        advertisingChannelType: "PERFORMANCE_MAX",
-        status: "PAUSED",
-        campaignBudget: budgetResource,
-        ...campaignBidding(draft),
-        ...(draft.trackingTemplate ? { trackingUrlTemplate: draft.trackingTemplate } : {}),
-        ...(draft.finalUrlSuffix ? { finalUrlSuffix: draft.finalUrlSuffix } : {}),
-        containsEuPoliticalAdvertising: "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
-      },
-    },
-  });
-
-  const addTextAssets = (
-    texts: string[],
-    fieldType: string,
-    assetRefs: { resourceName: string; fieldType: string }[],
-  ) => {
-    texts.forEach((text) => {
-      const id = tempId--;
-      operations.push(textAssetOperation(customerId, id, text));
-      assetRefs.push({ resourceName: asset(customerId, id), fieldType });
-    });
-  };
-
-  const groups = draftAdGroups(draft);
-  operations.push(...campaignLocationOperations(campaignResource, groups));
-  operations.push(...campaignLanguageOperations(campaignResource, groups));
-
-  groups.forEach((group, groupIndex) => {
-    const assetGroupResource = assetGroup(customerId, -3 - groupIndex);
-    const assetRefs: { resourceName: string; fieldType: string }[] = [];
-    const finalUrls = Array.from(new Set(group.ads.map((ad) => ad.finalUrl)));
-
-    group.ads.forEach((ad) => {
-      addTextAssets(ad.headlines, "HEADLINE", assetRefs);
-      addTextAssets(ad.longHeadlines, "LONG_HEADLINE", assetRefs);
-      addTextAssets(ad.descriptions, "DESCRIPTION", assetRefs);
-      addTextAssets([ad.businessName], "BUSINESS_NAME", assetRefs);
-
-      ad.logos.forEach((url, index) => {
-        const id = tempId--;
-        operations.push(imageAssetOperation(customerId, id, url, `${ad.name} logo ${index + 1}`));
-        assetRefs.push({ resourceName: asset(customerId, id), fieldType: "LOGO" });
-      });
-    });
-
-    operations.push({
-      assetGroupOperation: {
-        create: {
-          resourceName: assetGroupResource,
-          campaign: campaignResource,
-          name: group.name,
-          finalUrls: finalUrls.length ? finalUrls : [draft.finalUrl],
-          status: "PAUSED",
-        },
-      },
-    });
-
-    assetRefs.forEach((ref) => {
-      operations.push({
-        assetGroupAssetOperation: {
-          create: {
-            assetGroup: assetGroupResource,
-            asset: ref.resourceName,
-            fieldType: ref.fieldType,
-          },
-        },
-      });
-    });
-  });
-
-  return operations;
-}
-
-export function buildDemandGenMutateOperations(
-  draft: CampaignDraft,
-  adAccount: GoogleAdAccount,
-): MutateOperation[] {
+): Promise<MutateOperation[]> {
   const customerId = adAccount.customerId;
   const operations: MutateOperation[] = [];
   const budgetResource = campaignBudget(customerId, -1);
@@ -274,15 +186,18 @@ export function buildDemandGenMutateOperations(
     },
   });
 
-  const addAssetsForAd = (ad: DraftAd) => {
+  const addAssetsForAd = async (ad: DraftAd) => {
     const logoAssetRefs: string[] = [];
     const videoAssetRefs: string[] = [];
+    const callToActionAssetRefs: string[] = [];
 
-    ad.logos.forEach((url, index) => {
+    for (const [index, url] of ad.logos.entries()) {
       const id = tempId--;
-      operations.push(imageAssetOperation(customerId, id, url, `${ad.name} logo ${index + 1}`));
+      operations.push(
+        await imageAssetOperation(customerId, id, url, `${ad.name} logo ${index + 1}`),
+      );
       logoAssetRefs.push(asset(customerId, id));
-    });
+    }
 
     ad.youtubeVideos.forEach((videoId) => {
       const id = tempId--;
@@ -290,14 +205,18 @@ export function buildDemandGenMutateOperations(
       videoAssetRefs.push(asset(customerId, id));
     });
 
-    return { logoAssetRefs, videoAssetRefs };
+    if (ad.callToAction !== "AUTO") {
+      const id = tempId--;
+      operations.push(callToActionAssetOperation(customerId, id, ad.callToAction));
+      callToActionAssetRefs.push(asset(customerId, id));
+    }
+
+    return { logoAssetRefs, videoAssetRefs, callToActionAssetRefs };
   };
 
   const groups = draftAdGroups(draft);
-  operations.push(...campaignLocationOperations(campaignResource, groups));
-  operations.push(...campaignLanguageOperations(campaignResource, groups));
 
-  groups.forEach((group, groupIndex) => {
+  for (const [groupIndex, group] of groups.entries()) {
     const adGroupResource = adGroup(customerId, -3 - groupIndex);
 
     operations.push({
@@ -315,9 +234,11 @@ export function buildDemandGenMutateOperations(
         },
       },
     });
+    operations.push(...adGroupLocationOperations(adGroupResource, group));
+    operations.push(...adGroupLanguageOperations(adGroupResource, group));
 
-    group.ads.forEach((ad) => {
-      const { logoAssetRefs, videoAssetRefs } = addAssetsForAd(ad);
+    for (const ad of group.ads) {
+      const { logoAssetRefs, videoAssetRefs, callToActionAssetRefs } = await addAssetsForAd(ad);
 
       operations.push({
         adGroupAdOperation: {
@@ -334,14 +255,20 @@ export function buildDemandGenMutateOperations(
                 descriptions: ad.descriptions.map((text) => ({ text })),
                 logoImages: logoAssetRefs.map((assetRef) => ({ asset: assetRef })),
                 videos: videoAssetRefs.map((assetRef) => ({ asset: assetRef })),
-                ...(ad.callToAction === "AUTO" ? {} : { callToActionText: ad.callToAction }),
+                ...(callToActionAssetRefs.length
+                  ? {
+                      callToActions: callToActionAssetRefs.map((assetRef) => ({
+                        asset: assetRef,
+                      })),
+                    }
+                  : {}),
               },
             },
           },
         },
       });
-    });
-  });
+    }
+  }
 
   return operations;
 }

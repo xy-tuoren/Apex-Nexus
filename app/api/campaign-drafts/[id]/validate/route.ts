@@ -15,9 +15,7 @@ export async function POST(
 
     return ok(
       result,
-      result.valid
-        ? [`POST /api/campaign-drafts/${id}/build-preview`, "POST /api/launch-jobs"]
-        : ["Fix validation errors"],
+      result.valid ? ["POST /api/launch-jobs"] : ["Fix validation errors"],
     );
   } catch (error) {
     return fail(parseError(error), 500);

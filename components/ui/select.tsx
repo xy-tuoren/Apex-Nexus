@@ -128,7 +128,7 @@ const SelectContent = React.forwardRef<
       ref={ref}
       align={align}
         className={cn(
-        "z-50 max-h-72 w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-lg border border-[var(--hairline)] bg-[var(--surface-card)] text-[var(--ink)] shadow-[0_16px_40px_rgba(0,0,0,0.12)]",
+        "z-[1000] max-h-72 w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-lg border border-[var(--hairline)] bg-[var(--surface-card)] text-[var(--ink)] shadow-[0_16px_40px_rgba(0,0,0,0.12)]",
         className,
       )}
       sideOffset={sideOffset}

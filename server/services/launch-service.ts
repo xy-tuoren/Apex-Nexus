@@ -14,6 +14,43 @@ import { getLoginCustomerIdForAdAccount } from "@/server/services/account-servic
 import { buildDraftPreview } from "@/server/services/campaign-draft-service";
 import { validateLaunchEligibility } from "@/server/services/validation-service";
 
+type MutateOperationResponse = Record<string, { resourceName?: string } | undefined>;
+
+function resourceNameFromMutateResponse(
+  googleAdsResponse: unknown,
+  responseKey: string,
+) {
+  const responses =
+    googleAdsResponse &&
+    typeof googleAdsResponse === "object" &&
+    "mutateOperationResponses" in googleAdsResponse
+      ? (googleAdsResponse as { mutateOperationResponses?: MutateOperationResponse[] })
+          .mutateOperationResponses
+      : undefined;
+
+  return responses?.find((response) => response[responseKey]?.resourceName)?.[responseKey]
+    ?.resourceName;
+}
+
+function resourceNamesFromMutateResponse(
+  googleAdsResponse: unknown,
+  responseKey: string,
+) {
+  const responses =
+    googleAdsResponse &&
+    typeof googleAdsResponse === "object" &&
+    "mutateOperationResponses" in googleAdsResponse
+      ? (googleAdsResponse as { mutateOperationResponses?: MutateOperationResponse[] })
+          .mutateOperationResponses
+      : undefined;
+
+  return (
+    responses
+      ?.map((response) => response[responseKey]?.resourceName)
+      .filter((resourceName): resourceName is string => Boolean(resourceName)) ?? []
+  );
+}
+
 export async function createLaunchJob(draftId: string, idempotencyKey: string) {
   const existingJobs = await listCollection("launch_jobs");
   const existing = existingJobs.find((job) => job.idempotencyKey === idempotencyKey);
@@ -80,21 +117,19 @@ export async function runLaunchJob(jobId: string) {
       draftId: draft.id,
       adAccountId: draft.adAccountId,
       advertisingType: draft.advertisingType,
-      campaignResourceName: `customers/${adAccount.customerId}/campaigns/dry-run-or-created`,
-      budgetResourceName: `customers/${adAccount.customerId}/campaignBudgets/dry-run-or-created`,
-      assetGroupResourceName:
-        draft.advertisingType === "PERFORMANCE_MAX"
-          ? `customers/${adAccount.customerId}/assetGroups/dry-run-or-created`
-          : undefined,
+      campaignResourceName:
+        resourceNameFromMutateResponse(googleAdsResponse, "campaignResult") ??
+        `customers/${adAccount.customerId}/campaigns/dry-run-or-created`,
+      budgetResourceName:
+        resourceNameFromMutateResponse(googleAdsResponse, "campaignBudgetResult") ??
+        `customers/${adAccount.customerId}/campaignBudgets/dry-run-or-created`,
       adGroupResourceName:
-        draft.advertisingType === "DEMAND_GEN"
-          ? `customers/${adAccount.customerId}/adGroups/dry-run-or-created`
-          : undefined,
+        resourceNameFromMutateResponse(googleAdsResponse, "adGroupResult") ??
+        `customers/${adAccount.customerId}/adGroups/dry-run-or-created`,
       adGroupAdResourceName:
-        draft.advertisingType === "DEMAND_GEN"
-          ? `customers/${adAccount.customerId}/adGroupAds/dry-run-or-created`
-          : undefined,
-      assetResourceNames: [],
+        resourceNameFromMutateResponse(googleAdsResponse, "adGroupAdResult") ??
+        `customers/${adAccount.customerId}/adGroupAds/dry-run-or-created`,
+      assetResourceNames: resourceNamesFromMutateResponse(googleAdsResponse, "assetResult"),
       status: "PAUSED",
       createdAt: timestamp(),
     };

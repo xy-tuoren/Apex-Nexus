@@ -1,4 +1,4 @@
-export type AdvertisingType = "PERFORMANCE_MAX" | "DEMAND_GEN";
+export type AdvertisingType = "DEMAND_GEN";
 
 export type CampaignStatus = "DRAFT" | "PAUSED" | "ENABLED" | "REMOVED";
 
@@ -133,6 +133,7 @@ export type CampaignDraft = {
   locations: string[];
   language: string;
   os?: string;
+  oss?: string[];
   device?: string;
   devices?: string[];
   adSchedule?: string;
