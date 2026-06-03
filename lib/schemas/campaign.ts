@@ -56,20 +56,9 @@ export const adGroupDraftSchema = z.object({
     .object({
       genders: z.array(z.string().min(1)).default([]),
       ageRange: z.object({
-        min: z.string().min(1),
-        max: z.string().min(1),
+        ranges: z.array(z.string().min(1)).default([]),
         includeUnknown: z.boolean(),
       }),
-    })
-    .optional(),
-  selectedChannels: z
-    .object({
-      youtubeInFeed: z.boolean(),
-      youtubeInStream: z.boolean(),
-      youtubeShorts: z.boolean(),
-      discover: z.boolean(),
-      gmail: z.boolean(),
-      display: z.boolean(),
     })
     .optional(),
   ads: z.array(adCreativeDraftSchema).min(1),
@@ -121,14 +110,6 @@ export const campaignDraftSchema = z.object({
   demandGen: z
     .object({
       adGroupName: z.string().min(3).max(120),
-      selectedChannels: z.object({
-        youtubeInFeed: z.boolean(),
-        youtubeInStream: z.boolean(),
-        youtubeShorts: z.boolean(),
-        discover: z.boolean(),
-        gmail: z.boolean(),
-        display: z.boolean(),
-      }),
     })
     .optional(),
   adGroups: z.array(adGroupDraftSchema).min(1).optional(),

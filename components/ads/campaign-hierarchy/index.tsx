@@ -27,9 +27,11 @@ import {
   buildPayloadFromCampaign,
   createDefaultAd,
   createDefaultAdGroup,
+  extractGoogleAdsErrors,
   formatSchedule,
   notificationMessageFromResult,
   splitLines,
+  splitMultiline,
   successMessageFromResult,
   summarizeOsDevice,
 } from "@/components/ads/campaign-hierarchy/form-utils";
@@ -75,6 +77,7 @@ export function CampaignHierarchyEditor({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const idCounterRef = useRef(2);
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
+  const [isCampaignEditorOpen, setIsCampaignEditorOpen] = useState(false);
   const [editorFocus, setEditorFocus] = useState<EditorFocus | null>(null);
   const [previewCampaignId, setPreviewCampaignId] = useState<string | null>(null);
 
@@ -116,15 +119,30 @@ export function CampaignHierarchyEditor({
   useEffect(() => {
     for (const campaign of campaigns) {
       const r = allResources[campaign.adAccountId];
-      if (r?.conversionGoals.status === "success" && r.conversionGoals.data.length > 0 && !campaign.conversionGoal) {
+      if (r?.conversionGoals.status !== "success" || r.conversionGoals.data.length === 0) {
+        continue;
+      }
+
+      const hasSelectedGoal = r.conversionGoals.data.some(
+        (goal) => goal.id === campaign.conversionGoal,
+      );
+      if (!hasSelectedGoal) {
         patchCampaign(campaign.id, { conversionGoal: r.conversionGoals.data[0]?.id ?? "" });
       }
     }
   }, [allResources, campaigns]);
 
   function closeCampaignEditor() {
+    setIsCampaignEditorOpen(false);
     setActiveCampaignId(null);
     setEditorFocus(null);
+  }
+
+  function closeFocusedEditor() {
+    setEditorFocus(null);
+    if (!isCampaignEditorOpen) {
+      setActiveCampaignId(null);
+    }
   }
 
   function clearEditorFocusForGroup(campaignId: string, groupId: string) {
@@ -185,6 +203,13 @@ export function CampaignHierarchyEditor({
     updateCampaignAdGroup(campaignId, group.id, { genders });
   }
 
+  function toggleAdGroupAgeRange(campaignId: string, group: AdGroupForm, ageRange: string, checked: boolean) {
+    const ageRanges = checked
+      ? Array.from(new Set([...group.ageRanges, ageRange]))
+      : group.ageRanges.filter((value) => value !== ageRange);
+    updateCampaignAdGroup(campaignId, group.id, { ageRanges });
+  }
+
   function openCampaignDetail(campaignId: string) {
     const campaign = campaigns.find((c) => c.id === campaignId);
     if (!campaign) return;
@@ -192,6 +217,30 @@ export function CampaignHierarchyEditor({
       patchCampaign(campaignId, { adAccountId: adAccounts[0].id });
     }
     setActiveCampaignId(campaignId);
+    setIsCampaignEditorOpen(true);
+    setEditorFocus(null);
+  }
+
+  function openAdGroupEditor(campaignId: string, groupId: string) {
+    const campaign = campaigns.find((c) => c.id === campaignId);
+    if (!campaign) return;
+    if (!campaign.adAccountId && adAccounts[0]) {
+      patchCampaign(campaignId, { adAccountId: adAccounts[0].id });
+    }
+    setActiveCampaignId(campaignId);
+    setIsCampaignEditorOpen(false);
+    setEditorFocus({ level: "adgroup", campaignId, groupId });
+  }
+
+  function openAdEditor(campaignId: string, groupId: string, adId: string) {
+    const campaign = campaigns.find((c) => c.id === campaignId);
+    if (!campaign) return;
+    if (!campaign.adAccountId && adAccounts[0]) {
+      patchCampaign(campaignId, { adAccountId: adAccounts[0].id });
+    }
+    setActiveCampaignId(campaignId);
+    setIsCampaignEditorOpen(false);
+    setEditorFocus({ level: "ad", campaignId, groupId, adId });
   }
 
   function addCampaign() {
@@ -200,6 +249,8 @@ export function CampaignHierarchyEditor({
     const nextCampaign = { ...buildDefaultCampaign(nextIndex, adAccounts[0]), id };
     setCampaigns((current) => [...current, nextCampaign]);
     setActiveCampaignId(id);
+    setIsCampaignEditorOpen(true);
+    setEditorFocus(null);
   }
 
   function removeCampaign(campaignId: string) {
@@ -308,8 +359,12 @@ export function CampaignHierarchyEditor({
         const launchJson = (await launchResponse.json()) as ApiResult;
         lastResult = launchJson;
         if (!launchJson.success) {
-          notify({ tone: "error", title: launchJson.error?.code ?? "Google Ads 推送失败", description: notificationMessageFromResult(launchJson) });
-          setResult(launchJson);
+          const failedResult = {
+            ...launchJson,
+            data: { failedCampaignId: campaign.id },
+          } satisfies ApiResult;
+          notify({ tone: "error", title: failedResult.error?.code ?? "Google Ads 推送失败", description: notificationMessageFromResult(failedResult) });
+          setResult(failedResult);
           return;
         }
         submittedCount += 1;
@@ -330,8 +385,10 @@ export function CampaignHierarchyEditor({
   }
 
   // Derived state
-  const activeCampaign = activeCampaignId ? campaigns.find((c) => c.id === activeCampaignId) ?? null : null;
-  const editorFocusGroupId = editorFocus && editorFocus.campaignId === activeCampaignId ? editorFocus.groupId : null;
+  const activeEditorCampaignId = editorFocus?.campaignId ?? activeCampaignId;
+  const activeCampaign = activeEditorCampaignId ? campaigns.find((c) => c.id === activeEditorCampaignId) ?? null : null;
+  const shouldShowCampaignEditor = Boolean(activeCampaign && isCampaignEditorOpen && !editorFocus);
+  const editorFocusGroupId = editorFocus && editorFocus.campaignId === activeCampaign?.id ? editorFocus.groupId : null;
   const activeEditorGroup = activeCampaign && editorFocusGroupId ? activeCampaign.adGroups.find((g) => g.id === editorFocusGroupId) ?? null : null;
   const activeEditorAd = editorFocus?.level === "ad" && activeEditorGroup ? activeEditorGroup.ads.find((a) => a.id === editorFocus.adId) ?? null : null;
   const previewCampaign = previewCampaignId ? campaigns.find((c) => c.id === previewCampaignId) ?? null : null;
@@ -394,6 +451,160 @@ export function CampaignHierarchyEditor({
     );
   }
 
+  function operationLabelForCampaign(campaign: CampaignForm, operationIndex: number | null) {
+    if (operationIndex === null) {
+      return null;
+    }
+
+    const operations: Array<{ label: string; detail?: string }> = [
+      { label: "广告系列预算", detail: campaign.budgetDaily },
+      { label: "广告系列", detail: campaign.campaignName },
+    ];
+    const allGenders = ["FEMALE", "MALE", "UNDETERMINED"];
+    const ageBuckets = ["18", "25", "35", "45", "55", "65"];
+
+    campaign.adGroups.forEach((group, groupIndex) => {
+      const groupLabel = `广告组 ${groupIndex + 1}：${group.name}`;
+      operations.push({ label: groupLabel, detail: "创建广告组" });
+
+      splitLines(group.locations)
+        .filter((location) => location.startsWith("geoTargetConstants/"))
+        .forEach((location) => {
+          operations.push({ label: groupLabel, detail: `地理位置 ${location}` });
+        });
+
+      if (group.language.startsWith("languageConstants/")) {
+        operations.push({ label: groupLabel, detail: `语言 ${group.language}` });
+      }
+
+      const selectedGenders = Array.from(
+        new Set(group.genders.filter((gender) => allGenders.includes(gender))),
+      );
+      if (selectedGenders.length > 0 && selectedGenders.length < allGenders.length) {
+        selectedGenders.forEach((gender) => {
+          operations.push({ label: groupLabel, detail: `性别 ${gender}` });
+        });
+      }
+
+      const selectedAges = Array.from(
+        new Set(group.ageRanges.filter((age) => ageBuckets.includes(age))),
+      );
+      if (group.includeUnknownAge) {
+        selectedAges.push("UNKNOWN");
+      }
+      if (selectedAges.length > 0 && selectedAges.length < ageBuckets.length + 1) {
+        selectedAges.forEach((age) => {
+          operations.push({ label: groupLabel, detail: `年龄 ${age}` });
+        });
+      }
+
+      group.ads.forEach((ad, adIndex) => {
+        const adLabel = `${groupLabel} / 广告 ${adIndex + 1}：${ad.name}`;
+        splitMultiline(ad.logos).forEach((logo, logoIndex) => {
+          operations.push({ label: adLabel, detail: `Logo ${logoIndex + 1}: ${logo}` });
+        });
+        splitLines(ad.videoLinks).forEach((video, videoIndex) => {
+          operations.push({ label: adLabel, detail: `YouTube 视频 ${videoIndex + 1}: ${video}` });
+        });
+        if (ad.callToAction !== "AUTO") {
+          operations.push({ label: adLabel, detail: `CTA ${ad.callToAction}` });
+        }
+        operations.push({
+          label: adLabel,
+          detail: [
+            `落地页 ${ad.finalUrl}`,
+            `商家名 ${ad.businessName}`,
+            `标题 ${splitLines(ad.shortHeadlines).slice(0, 3).join(" / ")}`,
+            `描述 ${splitLines(ad.descriptions).slice(0, 2).join(" / ")}`,
+          ].join(" · "),
+        });
+      });
+    });
+
+    return operations[operationIndex] ?? null;
+  }
+
+  function renderGoogleAdsErrorDetails(result: ApiResult) {
+    if (!result.error) {
+      return null;
+    }
+
+    const googleErrors = extractGoogleAdsErrors(result.error);
+    if (googleErrors.length === 0) {
+      return null;
+    }
+
+    const failedCampaignId =
+      result.data &&
+      typeof result.data === "object" &&
+      "failedCampaignId" in result.data &&
+      typeof result.data.failedCampaignId === "string"
+        ? result.data.failedCampaignId
+        : "";
+    const failedCampaign = campaigns.find((campaign) => campaign.id === failedCampaignId) ?? campaigns[0];
+
+    return (
+      <div className="mt-3 space-y-2">
+        {googleErrors.map((googleError, index) => {
+          const operation = failedCampaign
+            ? operationLabelForCampaign(failedCampaign, googleError.operationIndex)
+            : null;
+
+          return (
+            <div key={`${googleError.path}-${index}`} className="rounded-lg border border-[var(--semantic-error)]/25 bg-[var(--canvas-soft)] p-3">
+              <p className="text-xs font-semibold text-[var(--ink)]">
+                {googleError.operationIndex !== null ? `Operation ${googleError.operationIndex}` : "Google Ads 错误"}
+                {operation ? ` · ${operation.label}` : null}
+              </p>
+              {operation?.detail ? (
+                <p className="mt-1 text-xs leading-relaxed text-[var(--body)]">{operation.detail}</p>
+              ) : null}
+              <dl className="mt-2 grid gap-1 text-xs leading-relaxed text-[var(--body)]">
+                {googleError.code ? (
+                  <div>
+                    <dt className="inline font-semibold text-[var(--ink)]">错误类型：</dt>
+                    <dd className="inline">{googleError.code}</dd>
+                  </div>
+                ) : null}
+                {googleError.path ? (
+                  <div>
+                    <dt className="inline font-semibold text-[var(--ink)]">字段路径：</dt>
+                    <dd className="inline break-all">{googleError.path}</dd>
+                  </div>
+                ) : null}
+                {googleError.trigger ? (
+                  <div>
+                    <dt className="inline font-semibold text-[var(--ink)]">触发值：</dt>
+                    <dd className="inline break-all">{googleError.trigger}</dd>
+                  </div>
+                ) : null}
+                {googleError.message ? (
+                  <div>
+                    <dt className="inline font-semibold text-[var(--ink)]">Google 原因：</dt>
+                    <dd className="inline">{googleError.message}</dd>
+                  </div>
+                ) : null}
+              </dl>
+              {googleError.policyTopics.length > 0 ? (
+                <div className="mt-2 rounded-md border border-[var(--hairline)] bg-[var(--surface-card)] p-2">
+                  <p className="text-xs font-semibold text-[var(--ink)]">政策主题</p>
+                  <ul className="mt-1 space-y-1 text-xs leading-relaxed text-[var(--body)]">
+                    {googleError.policyTopics.map((topic, topicIndex) => (
+                      <li key={`${topic.topic}-${topicIndex}`}>
+                        {[topic.topic, topic.type].filter(Boolean).join(" · ") || "未命名政策主题"}
+                        {topic.evidences.length ? `：${topic.evidences.join(" / ")}` : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className="ads-launch-stage space-y-5 py-5">
       {/* Header bar */}
@@ -430,6 +641,8 @@ export function CampaignHierarchyEditor({
               )}
               canRemove={campaigns.length > 1}
               onEdit={() => openCampaignDetail(campaign.id)}
+              onEditGroup={(groupId) => openAdGroupEditor(campaign.id, groupId)}
+              onEditAd={(groupId, adId) => openAdEditor(campaign.id, groupId, adId)}
               onPreview={() => setPreviewCampaignId(campaign.id)}
               onRemove={() => removeCampaign(campaign.id)}
             />
@@ -458,6 +671,7 @@ export function CampaignHierarchyEditor({
               <div>
                 <p className="text-sm font-medium text-[var(--ink)]">{result.success ? "提交成功" : result.error?.code ?? "创建失败"}</p>
                 <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">{result.success ? "已直接提交到 Google Ads API。" : result.error?.message}</p>
+                {!result.success ? renderGoogleAdsErrorDetails(result) : null}
               </div>
             </div>
           </div>
@@ -465,7 +679,7 @@ export function CampaignHierarchyEditor({
       </div>
 
       {/* Modals */}
-      {activeCampaign ? (
+      {activeCampaign && shouldShowCampaignEditor ? (
         <HierarchyEditModal
           eyebrow="编辑广告系列"
           hierarchyTrail={[{ label: "广告系列", name: activeCampaign.campaignName }]}
@@ -485,8 +699,8 @@ export function CampaignHierarchyEditor({
             patchCampaign={patchCampaign}
             loadConversionGoals={() => getResources(activeCampaign.adAccountId)?.conversionGoals.reload()}
             addAdGroup={addAdGroup}
-            removeAdGroup={removeAdGroup}
-            setEditorFocus={setEditorFocus}
+            openAdGroupEditor={openAdGroupEditor}
+            openAdEditor={openAdEditor}
           />
         </HierarchyEditModal>
       ) : null}
@@ -495,11 +709,11 @@ export function CampaignHierarchyEditor({
         <HierarchyEditModal
           eyebrow="编辑广告组"
           hierarchyTrail={[{ label: "广告系列", name: activeCampaign.campaignName }, { label: "广告组", name: activeEditorGroup.name }]}
-          maxWidthClassName="max-w-4xl"
+          maxWidthClassName="max-w-6xl"
           title={activeEditorGroup.name}
           zIndexClassName="z-[60]"
-          onBack={() => setEditorFocus(null)}
-          onClose={() => setEditorFocus(null)}
+          onBack={closeFocusedEditor}
+          onClose={closeFocusedEditor}
         >
           <AdGroupEditorForm
             campaign={activeCampaign}
@@ -510,9 +724,10 @@ export function CampaignHierarchyEditor({
             languageTargetState={getResources(activeCampaign.adAccountId)?.languageTargets.status ?? "idle"}
             updateCampaignAdGroup={updateCampaignAdGroup}
             toggleAdGroupGender={toggleAdGroupGender}
+            toggleAdGroupAgeRange={toggleAdGroupAgeRange}
             addAd={addAd}
-            removeAd={removeAd}
-            setEditorFocus={setEditorFocus as (focus: { level: "ad"; campaignId: string; groupId: string; adId: string } | null) => void}
+            openAdGroupEditor={openAdGroupEditor}
+            openAdEditor={openAdEditor}
           />
         </HierarchyEditModal>
       ) : null}
@@ -521,17 +736,22 @@ export function CampaignHierarchyEditor({
         <HierarchyEditModal
           eyebrow="编辑广告"
           hierarchyTrail={[{ label: "广告系列", name: activeCampaign.campaignName }, { label: "广告组", name: activeEditorGroup.name }, { label: "广告", name: activeEditorAd.name }]}
-          maxWidthClassName="max-w-3xl"
+          maxWidthClassName="max-w-6xl"
           title={activeEditorAd.name}
           zIndexClassName="z-[70]"
           onBack={() => setEditorFocus({ level: "adgroup", campaignId: activeCampaign.id, groupId: activeEditorGroup.id })}
-          onClose={() => setEditorFocus({ level: "adgroup", campaignId: activeCampaign.id, groupId: activeEditorGroup.id })}
+          onClose={closeFocusedEditor}
         >
           <AdEditorForm
             campaign={activeCampaign}
             group={activeEditorGroup}
             ad={activeEditorAd}
+            geoTargets={getResources(activeCampaign.adAccountId)?.geoTargets.data ?? FALLBACK_GEO_TARGET_OPTIONS}
+            languageTargets={getResources(activeCampaign.adAccountId)?.languageTargets.data ?? FALLBACK_LANGUAGE_OPTIONS}
             updateCampaignAd={updateCampaignAd}
+            addAd={addAd}
+            openAdGroupEditor={openAdGroupEditor}
+            openAdEditor={openAdEditor}
           />
         </HierarchyEditModal>
       ) : null}

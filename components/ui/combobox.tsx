@@ -21,6 +21,7 @@ type ComboboxProps = {
   emptyText?: string;
   disabled?: boolean;
   className?: string;
+  onSearchChange?: (query: string) => void;
 };
 
 export function Combobox({
@@ -32,6 +33,7 @@ export function Combobox({
   emptyText = "没有匹配项",
   disabled,
   className,
+  onSearchChange,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
@@ -93,7 +95,11 @@ export function Combobox({
               className="h-full min-w-0 flex-1 bg-transparent text-sm text-[var(--ink)] outline-none placeholder:text-[var(--muted-soft)]"
               placeholder={searchPlaceholder}
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                const nextQuery = event.target.value;
+                setQuery(nextQuery);
+                onSearchChange?.(nextQuery);
+              }}
             />
           </div>
           <div id={listboxId} className="max-h-64 overflow-y-auto p-1" role="listbox">

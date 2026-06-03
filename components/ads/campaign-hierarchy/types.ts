@@ -85,8 +85,7 @@ export type AdGroupForm = {
   audienceSignals: string;
   language: string;
   genders: string[];
-  ageMin: string;
-  ageMax: string;
+  ageRanges: string[];
   includeUnknownAge: boolean;
   ads: AdForm[];
 };
@@ -128,4 +127,3 @@ export type EditorFocus =
   | { level: "ad"; campaignId: string; groupId: string; adId: string };
 
 /** Data URLs contain commas — only split on newlines. */
-

@@ -89,7 +89,6 @@ function legacyAdGroup(draft: CampaignDraft): DraftAdGroup {
     locations: draft.locations,
     audienceSignals: [],
     language: draft.language,
-    selectedChannels: draft.demandGen?.selectedChannels,
     ads: [
       {
         name: `${draft.name} Ad`,
@@ -99,7 +98,7 @@ function legacyAdGroup(draft: CampaignDraft): DraftAdGroup {
         headlines: draft.assets.headlines,
         longHeadlines: draft.assets.longHeadlines,
         descriptions: draft.assets.descriptions,
-        callToAction: "SHOP_NOW",
+        callToAction: "PLAY_NOW",
         businessName: draft.assets.businessName,
       },
     ],
@@ -142,6 +141,71 @@ function adGroupLanguageOperations(adGroupResource: string, group: DraftAdGroup)
         adGroup: adGroupResource,
         language: {
           languageConstant: language,
+        },
+      },
+    },
+  }));
+}
+
+const ALL_GENDERS = ["FEMALE", "MALE", "UNDETERMINED"];
+const AGE_RANGE_BUCKETS = [
+  { value: "18", criterion: "AGE_RANGE_18_24" },
+  { value: "25", criterion: "AGE_RANGE_25_34" },
+  { value: "35", criterion: "AGE_RANGE_35_44" },
+  { value: "45", criterion: "AGE_RANGE_45_54" },
+  { value: "55", criterion: "AGE_RANGE_55_64" },
+  { value: "65", criterion: "AGE_RANGE_65_UP" },
+];
+
+function adGroupGenderOperations(adGroupResource: string, group: DraftAdGroup) {
+  const genders = Array.from(
+    new Set(
+      (group.demographics?.genders ?? []).filter((gender) => ALL_GENDERS.includes(gender)),
+    ),
+  );
+
+  if (genders.length === 0 || genders.length === ALL_GENDERS.length) {
+    return [];
+  }
+
+  return genders.map((gender) => ({
+    adGroupCriterionOperation: {
+      create: {
+        adGroup: adGroupResource,
+        gender: {
+          type: gender,
+        },
+      },
+    },
+  }));
+}
+
+function adGroupAgeRangeOperations(adGroupResource: string, group: DraftAdGroup) {
+  const ageRange = group.demographics?.ageRange;
+  if (!ageRange) {
+    return [];
+  }
+
+  const selectedAgeRanges = AGE_RANGE_BUCKETS.filter((bucket) =>
+    ageRange.ranges.includes(bucket.value),
+  ).map((bucket) => bucket.criterion);
+  if (ageRange.includeUnknown) {
+    selectedAgeRanges.push("AGE_RANGE_UNDETERMINED");
+  }
+
+  if (selectedAgeRanges.length === 0) {
+    return [];
+  }
+  if (selectedAgeRanges.length === AGE_RANGE_BUCKETS.length + 1) {
+    return [];
+  }
+
+  return selectedAgeRanges.map((type) => ({
+    adGroupCriterionOperation: {
+      create: {
+        adGroup: adGroupResource,
+        ageRange: {
+          type,
         },
       },
     },
@@ -226,16 +290,13 @@ export async function buildDemandGenMutateOperations(
           name: group.name,
           campaign: campaignResource,
           status: "ENABLED",
-          demandGenAdGroupSettings: {
-            channelControls: {
-              selectedChannels: group.selectedChannels ?? draft.demandGen?.selectedChannels,
-            },
-          },
         },
       },
     });
     operations.push(...adGroupLocationOperations(adGroupResource, group));
     operations.push(...adGroupLanguageOperations(adGroupResource, group));
+    operations.push(...adGroupGenderOperations(adGroupResource, group));
+    operations.push(...adGroupAgeRangeOperations(adGroupResource, group));
 
     for (const ad of group.ads) {
       const { logoAssetRefs, videoAssetRefs, callToActionAssetRefs } = await addAssetsForAd(ad);
@@ -257,10 +318,10 @@ export async function buildDemandGenMutateOperations(
                 videos: videoAssetRefs.map((assetRef) => ({ asset: assetRef })),
                 ...(callToActionAssetRefs.length
                   ? {
-                      callToActions: callToActionAssetRefs.map((assetRef) => ({
-                        asset: assetRef,
-                      })),
-                    }
+                    callToActions: callToActionAssetRefs.map((assetRef) => ({
+                      asset: assetRef,
+                    })),
+                  }
                   : {}),
               },
             },

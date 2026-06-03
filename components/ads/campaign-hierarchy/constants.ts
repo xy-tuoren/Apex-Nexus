@@ -1,4 +1,5 @@
 import type { ComboboxOption } from "@/components/ui/combobox";
+import { POPULAR_COUNTRY_GEO_TARGET_OPTIONS } from "@/lib/google-ads/popular-geo-targets";
 import type {
   BiddingType,
   ClickBiddingType,
@@ -51,150 +52,16 @@ export const GENDER_OPTIONS = [
 ];
 
 export const AGE_OPTIONS = [
-  { value: "18", label: "18" },
-  { value: "25", label: "25" },
-  { value: "35", label: "35" },
-  { value: "45", label: "45" },
-  { value: "55", label: "55" },
-  { value: "65", label: "65 岁以上" },
+  { value: "18", label: "18-24" },
+  { value: "25", label: "25-34" },
+  { value: "35", label: "35-44" },
+  { value: "45", label: "45-54" },
+  { value: "55", label: "55-64" },
+  { value: "65", label: "65+" },
 ];
 
 export const FALLBACK_GEO_TARGET_OPTIONS: GeoTargetOption[] = [
-  {
-    resourceName: "geoTargetConstants/2840",
-    id: "2840",
-    name: "United States",
-    canonicalName: "United States",
-    countryCode: "US",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2124",
-    id: "2124",
-    name: "Canada",
-    canonicalName: "Canada",
-    countryCode: "CA",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2826",
-    id: "2826",
-    name: "United Kingdom",
-    canonicalName: "United Kingdom",
-    countryCode: "GB",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2036",
-    id: "2036",
-    name: "Australia",
-    canonicalName: "Australia",
-    countryCode: "AU",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2276",
-    id: "2276",
-    name: "Germany",
-    canonicalName: "Germany",
-    countryCode: "DE",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2250",
-    id: "2250",
-    name: "France",
-    canonicalName: "France",
-    countryCode: "FR",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2380",
-    id: "2380",
-    name: "Italy",
-    canonicalName: "Italy",
-    countryCode: "IT",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2724",
-    id: "2724",
-    name: "Spain",
-    canonicalName: "Spain",
-    countryCode: "ES",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2528",
-    id: "2528",
-    name: "Netherlands",
-    canonicalName: "Netherlands",
-    countryCode: "NL",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2356",
-    id: "2356",
-    name: "India",
-    canonicalName: "India",
-    countryCode: "IN",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2076",
-    id: "2076",
-    name: "Brazil",
-    canonicalName: "Brazil",
-    countryCode: "BR",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2484",
-    id: "2484",
-    name: "Mexico",
-    canonicalName: "Mexico",
-    countryCode: "MX",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2702",
-    id: "2702",
-    name: "Singapore",
-    canonicalName: "Singapore",
-    countryCode: "SG",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2410",
-    id: "2410",
-    name: "South Korea",
-    canonicalName: "South Korea",
-    countryCode: "KR",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2392",
-    id: "2392",
-    name: "Japan",
-    canonicalName: "Japan",
-    countryCode: "JP",
-    targetType: "Country",
-    status: "ENABLED",
-  },
+  ...POPULAR_COUNTRY_GEO_TARGET_OPTIONS,
 ];
 
 export const FALLBACK_LANGUAGE_OPTIONS: LanguageTargetOption[] = [
@@ -268,15 +135,6 @@ export const OBJECTIVE_OPTIONS = [
   { value: "CLICKS", label: "点击次数" },
 ];
 
-export const DEFAULT_CHANNELS = {
-  youtubeInFeed: true,
-  youtubeInStream: true,
-  youtubeShorts: true,
-  discover: true,
-  gmail: true,
-  display: true,
-};
-
 export const SCHEDULE_DAYS = [
   { key: "MONDAY", label: "周一" },
   { key: "TUESDAY", label: "周二" },
@@ -288,4 +146,3 @@ export const SCHEDULE_DAYS = [
 ];
 
 export const SCHEDULE_HOURS = Array.from({ length: 24 }, (_, index) => index);
-

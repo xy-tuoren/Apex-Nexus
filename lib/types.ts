@@ -120,18 +120,9 @@ export type AdGroupDraft = {
   demographics?: {
     genders: string[];
     ageRange: {
-      min: string;
-      max: string;
+      ranges: string[];
       includeUnknown: boolean;
     };
-  };
-  selectedChannels?: {
-    youtubeInFeed: boolean;
-    youtubeInStream: boolean;
-    youtubeShorts: boolean;
-    discover: boolean;
-    gmail: boolean;
-    display: boolean;
   };
   ads: AdCreativeDraft[];
 };
@@ -180,14 +171,6 @@ export type CampaignDraft = {
   };
   demandGen?: {
     adGroupName: string;
-    selectedChannels: {
-      youtubeInFeed: boolean;
-      youtubeInStream: boolean;
-      youtubeShorts: boolean;
-      discover: boolean;
-      gmail: boolean;
-      display: boolean;
-    };
   };
   adGroups?: AdGroupDraft[];
   status: "DRAFT" | "VALIDATED" | "SUBMITTED";

@@ -54,7 +54,7 @@ const seed: Collections = {
       name: "Aurora Commerce",
       domain: "aurora.example",
       brandName: "Aurora",
-      defaultFinalUrl: "https://aurora.example/landing",
+      defaultFinalUrl: "",
       defaultLanguage: "zh-CN",
       defaultLocations: ["CN", "US"],
       operationMccId: "",

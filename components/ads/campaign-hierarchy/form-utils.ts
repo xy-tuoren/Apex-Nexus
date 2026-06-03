@@ -1,10 +1,10 @@
 import type { ComboboxOption } from "@/components/ui/combobox";
 import type { GoogleAdAccount } from "@/lib/types";
+import { POPULAR_COUNTRY_GEO_TARGETS } from "@/lib/google-ads/popular-geo-targets";
 import {
   BIDDING_TYPE_OPTIONS,
   CLICK_BIDDING_TYPE_OPTIONS,
   CONVERSION_CATEGORY_LABELS,
-  DEFAULT_CHANNELS,
   DEVICE_OPTIONS,
   DEVICE_SELECTABLE_VALUES,
   FALLBACK_GEO_TARGET_OPTIONS,
@@ -82,20 +82,113 @@ export function formatErrorCode(errorCode: unknown) {
     .join(", ");
 }
 
-export function extractGoogleAdsErrorLines(error: ApiResult["error"]) {
+function getGoogleAdsFailureDetails(error: ApiResult["error"]) {
   const detailItems =
     error?.details &&
-    typeof error.details === "object" &&
-    "error" in error.details &&
-    error.details.error &&
-    typeof error.details.error === "object" &&
-    "details" in error.details.error
+      typeof error.details === "object" &&
+      "error" in error.details &&
+      error.details.error &&
+      typeof error.details.error === "object" &&
+      "details" in error.details.error
       ? (error.details.error as { details?: unknown[] }).details
       : [];
 
   if (!Array.isArray(detailItems)) {
     return [];
   }
+
+  return detailItems;
+}
+
+function readNestedString(record: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string" && value) {
+      return value;
+    }
+  }
+  return "";
+}
+
+function extractEvidenceLines(evidence: unknown) {
+  if (!evidence || typeof evidence !== "object") {
+    return [];
+  }
+
+  const record = evidence as Record<string, unknown>;
+  const textList = record.textList;
+  const websiteList = record.websiteList;
+  const destinationTextList = record.destinationTextList;
+
+  const values: string[] = [];
+  if (textList && typeof textList === "object" && Array.isArray((textList as { texts?: unknown[] }).texts)) {
+    values.push(...(textList as { texts: unknown[] }).texts.map(String));
+  }
+  if (websiteList && typeof websiteList === "object" && Array.isArray((websiteList as { websites?: unknown[] }).websites)) {
+    values.push(...(websiteList as { websites: unknown[] }).websites.map(String));
+  }
+  if (
+    destinationTextList &&
+    typeof destinationTextList === "object" &&
+    Array.isArray((destinationTextList as { destinationTexts?: unknown[] }).destinationTexts)
+  ) {
+    values.push(...(destinationTextList as { destinationTexts: unknown[] }).destinationTexts.map(String));
+  }
+
+  return values.filter(Boolean);
+}
+
+function extractPolicyTopics(googleError: Record<string, unknown>) {
+  const details = googleError.details;
+  if (!details || typeof details !== "object") {
+    return [];
+  }
+
+  const policyFindingDetails = (details as { policyFindingDetails?: unknown }).policyFindingDetails;
+  if (!policyFindingDetails || typeof policyFindingDetails !== "object") {
+    return [];
+  }
+
+  const policyTopicEntries = (policyFindingDetails as { policyTopicEntries?: unknown }).policyTopicEntries;
+  if (!Array.isArray(policyTopicEntries)) {
+    return [];
+  }
+
+  return policyTopicEntries.map((entry) => {
+    const record = entry && typeof entry === "object" ? (entry as Record<string, unknown>) : {};
+    const nestedEntry =
+      record.policyTopicEntry && typeof record.policyTopicEntry === "object"
+        ? (record.policyTopicEntry as Record<string, unknown>)
+        : record;
+    const rawEvidences = Array.isArray(nestedEntry.evidences)
+      ? nestedEntry.evidences
+      : Array.isArray(record.evidences)
+        ? record.evidences
+        : [];
+    const evidences = rawEvidences.length
+      ? rawEvidences.flatMap(extractEvidenceLines)
+      : [];
+
+    return {
+      topic: readNestedString(nestedEntry, ["topic", "policyTopic"]),
+      type: readNestedString(nestedEntry, ["type", "policyTopicEntryType"]),
+      evidences,
+    };
+  });
+}
+
+function operationIndexFromLocation(location: unknown) {
+  if (!location || typeof location !== "object" || !("fieldPathElements" in location)) {
+    return null;
+  }
+
+  const elements = (location as { fieldPathElements?: Array<Record<string, unknown>> }).fieldPathElements;
+  const operationElement = elements?.find((element) => element.fieldName === "mutate_operations");
+  return typeof operationElement?.index === "number" ? operationElement.index : null;
+}
+
+export function extractGoogleAdsErrors(error: ApiResult["error"]) {
+  const detailItems = getGoogleAdsFailureDetails(error);
 
   return detailItems.flatMap((detail) => {
     if (!detail || typeof detail !== "object" || !("errors" in detail)) {
@@ -112,14 +205,36 @@ export function extractGoogleAdsErrorLines(error: ApiResult["error"]) {
       const code = formatErrorCode(googleError.errorCode);
       const path = fieldPathFromGoogleAdsLocation(googleError.location);
       const trigger =
-        googleError.trigger && typeof googleError.trigger === "object"
-          ? Object.values(googleError.trigger as Record<string, unknown>)
+        typeof googleError.trigger === "string"
+          ? googleError.trigger
+          : googleError.trigger && typeof googleError.trigger === "object"
+            ? Object.values(googleError.trigger as Record<string, unknown>)
               .map(String)
               .join(", ")
-          : "";
+            : "";
 
-      return [code, path, trigger, message].filter(Boolean).join(" · ");
+      return {
+        code,
+        path,
+        operationIndex: operationIndexFromLocation(googleError.location),
+        trigger,
+        message,
+        policyTopics: extractPolicyTopics(googleError),
+      };
     });
+  });
+}
+
+export function extractGoogleAdsErrorLines(error: ApiResult["error"]) {
+  return extractGoogleAdsErrors(error).map((googleError) => {
+    const policyTopics = googleError.policyTopics
+      .map((topic) => [topic.topic, topic.type, ...topic.evidences].filter(Boolean).join(" / "))
+      .filter(Boolean)
+      .join("；");
+
+    return [googleError.code, googleError.path, googleError.trigger, policyTopics, googleError.message]
+      .filter(Boolean)
+      .join(" · ");
   });
 }
 
@@ -329,11 +444,17 @@ export function buildCampaignOverviewMeta(
     groups: campaign.adGroups.map((group) => ({
       id: group.id,
       name: group.name,
-      summary: `${group.ads.length} ads`,
+      summary: `${group.ads.length} ads · ${summarizeGeoLocation(group.locations, geoTargets)} · ${summarizeLanguageValue(group.language, languageTargets)}`,
       ads: group.ads.map((ad) => ({
         id: ad.id,
         name: ad.name,
-        summary: `${splitLines(ad.shortHeadlines).length} headlines`,
+        summary: [
+          ad.businessName || "未填商家",
+          ad.finalUrl.replace(/^https?:\/\//, ""),
+          `${splitLines(ad.shortHeadlines).length} 标题`,
+        ]
+          .filter(Boolean)
+          .join(" · "),
       })),
     })),
   };
@@ -356,9 +477,14 @@ export function joinLines(values: string[]) {
   return values.join("\n");
 }
 
-export function summarizeAdGroupCard(group: AdGroupForm) {
-  const locationLabel = splitLines(group.locations)[0] || "未设地理位置";
-  return `${group.ads.length} 条广告 · ${group.language || "未设语言"} · ${locationLabel}`;
+export function summarizeAdGroupCard(
+  group: AdGroupForm,
+  geoTargets: GeoTargetOption[] = FALLBACK_GEO_TARGET_OPTIONS,
+  languageTargets: LanguageTargetOption[] = FALLBACK_LANGUAGE_OPTIONS,
+) {
+  const locationLabel = summarizeGeoLocation(group.locations, geoTargets);
+  const languageLabel = summarizeLanguageValue(group.language, languageTargets);
+  return `${group.ads.length} 条广告 · ${languageLabel} · ${locationLabel}`;
 }
 
 export function summarizeAdCard(ad: AdForm) {
@@ -454,12 +580,12 @@ export function buildBiddingPayload(form: CampaignForm) {
   if (form.campaignObjective === "CLICKS") {
     return form.clickBiddingType === "MAX_CPC"
       ? {
-          strategy: "MAXIMIZE_CLICKS" as const,
-          maxCpcBidCeilingMicros: microsFromAmount(form.targetCpc),
-        }
+        strategy: "MAXIMIZE_CLICKS" as const,
+        maxCpcBidCeilingMicros: microsFromAmount(form.targetCpc),
+      }
       : {
-          strategy: "MAXIMIZE_CLICKS" as const,
-        };
+        strategy: "MAXIMIZE_CLICKS" as const,
+      };
   }
 
   if (form.biddingType === "TARGET_CPA") {
@@ -473,7 +599,10 @@ export function buildBiddingPayload(form: CampaignForm) {
 }
 
 export function geoTargetLabel(target: GeoTargetOption) {
-  return target.countryCode || target.name || target.canonicalName || target.resourceName;
+  const name = target.name || target.canonicalName || target.resourceName;
+  return target.countryCode && name !== target.countryCode
+    ? `${name} (${target.countryCode})`
+    : name;
 }
 
 export function languageTargetLabel(language: LanguageTargetOption) {
@@ -487,14 +616,32 @@ export function buildGeoTargetSelectOptions(
   geoTargets: GeoTargetOption[],
   activeLocation?: string,
 ): ComboboxOption[] {
+  const aliasesByResourceName = new Map(
+    POPULAR_COUNTRY_GEO_TARGETS.map((target) => [target.resourceName, target.aliases]),
+  );
   const options = geoTargets.map((target) => ({
     value: target.resourceName,
     label: geoTargetLabel(target),
-    keywords: [target.name, target.canonicalName, target.countryCode, target.targetType],
+    keywords: [
+      target.name,
+      target.canonicalName,
+      target.countryCode,
+      target.targetType,
+      ...(aliasesByResourceName.get(target.resourceName) ?? []),
+    ],
   }));
 
   if (activeLocation && !options.some((option) => option.value === activeLocation)) {
-    options.unshift({ value: activeLocation, label: activeLocation, keywords: [] });
+    const fallbackTarget = FALLBACK_GEO_TARGET_OPTIONS.find(
+      (target) => target.resourceName === activeLocation,
+    );
+    options.unshift({
+      value: activeLocation,
+      label: fallbackTarget ? geoTargetLabel(fallbackTarget) : activeLocation,
+      keywords: fallbackTarget
+        ? [fallbackTarget.name, fallbackTarget.canonicalName, fallbackTarget.countryCode]
+        : [],
+    });
   }
 
   return options;
@@ -555,15 +702,14 @@ export function createDefaultAd(index = 1): AdForm {
   return {
     id: `ad_${index}`,
     name: `广告 ${index}`,
-    finalUrl: "https://example.com/landing",
-    videoLinks: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    finalUrl: "",
+    videoLinks: "",
     logos: "",
-    shortHeadlines: "Official Site\nNew Deals Today\nShop Securely",
-    longHeadlines: "Discover better products on the official website",
-    descriptions:
-      "Browse new arrivals and complete checkout online.\nTrusted service, fresh deals, and fast checkout.",
-    callToAction: "SHOP_NOW",
-    businessName: "Apex",
+    shortHeadlines: "",
+    longHeadlines: "",
+    descriptions: "",
+    callToAction: "PLAY_NOW",
+    businessName: "",
   };
 }
 
@@ -575,8 +721,7 @@ export function createDefaultAdGroup(index = 1): AdGroupForm {
     audienceSignals: "网站访客, 加购用户, 高意向购买人群",
     language: "all",
     genders: ["FEMALE", "MALE", "UNDETERMINED"],
-    ageMin: "18",
-    ageMax: "65",
+    ageRanges: ["18", "25", "35", "45", "55", "65"],
     includeUnknownAge: true,
     ads: [createDefaultAd(1)],
   };
@@ -616,12 +761,10 @@ export function buildPayloadFromCampaign(campaign: CampaignForm, firstAdFallback
     demographics: {
       genders: group.genders,
       ageRange: {
-        min: group.ageMin,
-        max: group.ageMax,
+        ranges: group.ageRanges,
         includeUnknown: group.includeUnknownAge,
       },
     },
-    selectedChannels: DEFAULT_CHANNELS,
     ads: group.ads.map((ad) => ({
       id: ad.id,
       name: ad.name,
@@ -652,7 +795,7 @@ export function buildPayloadFromCampaign(campaign: CampaignForm, firstAdFallback
     finalUrl: primaryAd?.finalUrl ?? firstAdFallback.finalUrl,
     budgetMicros: microsFromAmount(campaign.budgetDaily),
     bidding,
-    locations: primaryAdGroup?.locations.length ? primaryAdGroup.locations : ["US"],
+    locations: primaryAdGroup?.locations.length ? primaryAdGroup.locations : ["geoTargetConstants/2840"],
     language: primaryAdGroup?.language ?? "zh-CN",
     os: osPayload.os,
     oss: osPayload.oss,
@@ -675,7 +818,6 @@ export function buildPayloadFromCampaign(campaign: CampaignForm, firstAdFallback
     },
     demandGen: {
       adGroupName: primaryAdGroup?.name ?? "Main Ad Group",
-      selectedChannels: DEFAULT_CHANNELS,
     },
     adGroups,
   };

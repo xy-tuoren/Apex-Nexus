@@ -1,6 +1,7 @@
 import { findById } from "@/server/repositories/data-store";
 import { searchGoogleAds } from "@/server/google-ads/client";
 import { getLoginCustomerIdForAdAccount } from "@/server/services/account-service";
+import { POPULAR_COUNTRY_GEO_TARGET_OPTIONS } from "@/lib/google-ads/popular-geo-targets";
 
 type GoogleAdsSearchChunk = {
   results?: GoogleAdsRow[];
@@ -20,146 +21,14 @@ export type GeoTargetOption = {
   status: string;
 };
 
-const FALLBACK_GEO_TARGETS: GeoTargetOption[] = [
-  {
-    resourceName: "geoTargetConstants/2840",
-    id: "2840",
-    name: "United States",
-    canonicalName: "United States",
-    countryCode: "US",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2124",
-    id: "2124",
-    name: "Canada",
-    canonicalName: "Canada",
-    countryCode: "CA",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2826",
-    id: "2826",
-    name: "United Kingdom",
-    canonicalName: "United Kingdom",
-    countryCode: "GB",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2036",
-    id: "2036",
-    name: "Australia",
-    canonicalName: "Australia",
-    countryCode: "AU",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2276",
-    id: "2276",
-    name: "Germany",
-    canonicalName: "Germany",
-    countryCode: "DE",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2250",
-    id: "2250",
-    name: "France",
-    canonicalName: "France",
-    countryCode: "FR",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2380",
-    id: "2380",
-    name: "Italy",
-    canonicalName: "Italy",
-    countryCode: "IT",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2724",
-    id: "2724",
-    name: "Spain",
-    canonicalName: "Spain",
-    countryCode: "ES",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2528",
-    id: "2528",
-    name: "Netherlands",
-    canonicalName: "Netherlands",
-    countryCode: "NL",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2356",
-    id: "2356",
-    name: "India",
-    canonicalName: "India",
-    countryCode: "IN",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2076",
-    id: "2076",
-    name: "Brazil",
-    canonicalName: "Brazil",
-    countryCode: "BR",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2484",
-    id: "2484",
-    name: "Mexico",
-    canonicalName: "Mexico",
-    countryCode: "MX",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2702",
-    id: "2702",
-    name: "Singapore",
-    canonicalName: "Singapore",
-    countryCode: "SG",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2410",
-    id: "2410",
-    name: "South Korea",
-    canonicalName: "South Korea",
-    countryCode: "KR",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-  {
-    resourceName: "geoTargetConstants/2392",
-    id: "2392",
-    name: "Japan",
-    canonicalName: "Japan",
-    countryCode: "JP",
-    targetType: "Country",
-    status: "ENABLED",
-  },
-];
+const FALLBACK_GEO_TARGETS: GeoTargetOption[] = POPULAR_COUNTRY_GEO_TARGET_OPTIONS;
 
 function readString(value: unknown) {
   return typeof value === "string" ? value : value != null ? String(value) : "";
+}
+
+function readField(target: Record<string, unknown>, camelCase: string, snakeCase: string) {
+  return readString(target[camelCase] ?? target[snakeCase]);
 }
 
 function normalizeCustomerId(value?: string | null) {
@@ -199,7 +68,7 @@ function flattenSearchStream(payload: unknown): GoogleAdsRow[] {
 
 function mapGeoTarget(row: GoogleAdsRow): GeoTargetOption | null {
   const target = row.geoTargetConstant ?? {};
-  const resourceName = readString(target.resourceName);
+  const resourceName = readField(target, "resourceName", "resource_name");
 
   if (!resourceName) {
     return null;
@@ -209,11 +78,19 @@ function mapGeoTarget(row: GoogleAdsRow): GeoTargetOption | null {
     resourceName,
     id: readString(target.id),
     name: readString(target.name),
-    canonicalName: readString(target.canonicalName),
-    countryCode: readString(target.countryCode),
-    targetType: readString(target.targetType),
+    canonicalName: readField(target, "canonicalName", "canonical_name"),
+    countryCode: readField(target, "countryCode", "country_code"),
+    targetType: readField(target, "targetType", "target_type"),
     status: readString(target.status),
   };
+}
+
+function mergeGeoTargets(...targetGroups: GeoTargetOption[][]) {
+  const targetsByResourceName = new Map<string, GeoTargetOption>();
+  for (const target of targetGroups.flat()) {
+    targetsByResourceName.set(target.resourceName, target);
+  }
+  return [...targetsByResourceName.values()];
 }
 
 export async function listGeoTargetOptions({
@@ -243,6 +120,10 @@ export async function listGeoTargetOptions({
   }
 
   const normalizedQuery = query?.trim();
+  if (!normalizedQuery) {
+    return FALLBACK_GEO_TARGETS;
+  }
+
   const queryFilter = normalizedQuery
     ? ` AND geo_target_constant.name LIKE '%${escapeGaqlString(normalizedQuery)}%'`
     : "";
@@ -257,18 +138,21 @@ export async function listGeoTargetOptions({
       geo_target_constant.status
     FROM geo_target_constant
     WHERE geo_target_constant.status = ENABLED
+      AND geo_target_constant.target_type = 'Country'
       ${queryFilter}
     ORDER BY geo_target_constant.name
-    LIMIT 80
+    LIMIT 100
   `;
 
   try {
     const payload = await searchGoogleAds(resolvedCustomerId, loginCustomerId, gaql);
     const targets = flattenSearchStream(payload)
       .map(mapGeoTarget)
-      .filter((target): target is GeoTargetOption => Boolean(target));
+      .filter((target): target is GeoTargetOption => {
+        return target !== null && target.targetType === "Country";
+      });
 
-    return targets.length ? targets : FALLBACK_GEO_TARGETS;
+    return targets.length ? mergeGeoTargets(FALLBACK_GEO_TARGETS, targets) : FALLBACK_GEO_TARGETS;
   } catch {
     return FALLBACK_GEO_TARGETS;
   }

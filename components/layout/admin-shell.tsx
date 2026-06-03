@@ -19,15 +19,16 @@ type NavItem = {
   href: string;
   icon: LucideIcon;
   matchPath: string;
+  enabled: boolean;
 };
 
 const navigation: NavItem[] = [
-  { label: "工作台", href: "/", icon: MonitorCog, matchPath: "/" },
-  { label: "广告投放", href: "/ads", icon: Megaphone, matchPath: "/ads" },
-  { label: "账号中心", href: "/accounts", icon: Database, matchPath: "/accounts" },
-  { label: "素材中心", href: "/assets", icon: PackageCheck, matchPath: "/assets" },
-  { label: "数据报表", href: "/reports", icon: BarChart3, matchPath: "/reports" },
-  { label: "系统设置", href: "/settings", icon: Settings2, matchPath: "/settings" },
+  { label: "工作台", href: "/", icon: MonitorCog, matchPath: "/", enabled: false },
+  { label: "广告投放", href: "/ads", icon: Megaphone, matchPath: "/ads", enabled: true },
+  { label: "账号中心", href: "/accounts", icon: Database, matchPath: "/accounts", enabled: false },
+  { label: "素材中心", href: "/assets", icon: PackageCheck, matchPath: "/assets", enabled: false },
+  { label: "数据报表", href: "/reports", icon: BarChart3, matchPath: "/reports", enabled: false },
+  { label: "系统设置", href: "/settings", icon: Settings2, matchPath: "/settings", enabled: false },
 ];
 
 type AdminShellProps = {
@@ -64,16 +65,32 @@ export function AdminShell({
                 match === "/"
                   ? activePath === "/"
                   : activePath === match || activePath.startsWith(`${match}/`);
+              const className = `flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition duration-200 ${
+                isActive
+                  ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--on-primary)] shadow-[var(--shadow-soft)]"
+                  : item.enabled
+                    ? "border-transparent text-[var(--body)] hover:border-[var(--hairline)] hover:bg-[var(--hairline-soft)] hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]/25"
+                    : "border-transparent text-[var(--muted)] opacity-60"
+              }`;
+
+              if (!item.enabled) {
+                return (
+                  <span
+                    key={item.label}
+                    aria-disabled="true"
+                    className={className}
+                  >
+                    <item.icon aria-hidden className="h-4 w-4" strokeWidth={1.75} />
+                    <span className="whitespace-nowrap">{item.label}</span>
+                  </span>
+                );
+              }
 
               return (
                 <Link
                   key={item.label}
                   aria-current={isActive ? "page" : undefined}
-                  className={`flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]/25 ${
-                    isActive
-                      ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--on-primary)] shadow-[var(--shadow-soft)]"
-                      : "border-transparent text-[var(--body)] hover:border-[var(--hairline)] hover:bg-[var(--hairline-soft)] hover:text-[var(--ink)]"
-                  }`}
+                  className={className}
                   href={item.href}
                 >
                   <item.icon aria-hidden className="h-4 w-4" strokeWidth={1.75} />

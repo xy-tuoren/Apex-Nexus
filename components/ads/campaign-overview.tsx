@@ -53,6 +53,8 @@ type OverviewItemProps = {
   campaign: CampaignOverviewMeta;
   canRemove: boolean;
   onEdit: () => void;
+  onEditGroup?: (groupId: string) => void;
+  onEditAd?: (groupId: string, adId: string) => void;
   onPreview: () => void;
   onRemove: () => void;
 };
@@ -104,18 +106,17 @@ export function CampaignOverviewCard({
   campaign,
   canRemove,
   onEdit,
+  onEditGroup,
+  onEditAd,
   onPreview,
   onRemove,
 }: OverviewItemProps) {
   const indexLabel = String(campaign.index).padStart(2, "0");
+  const visibleHighlights = campaign.highlights.slice(0, 3);
 
   return (
     <article className="ads-campaign-card group flex min-h-[34rem] flex-col overflow-hidden rounded-[2rem] border border-[var(--hairline)] bg-[var(--surface-card)] transition duration-300 hover:-translate-y-1">
-      <button
-        className="flex min-h-0 flex-1 flex-col p-5 text-left"
-        type="button"
-        onClick={onPreview}
-      >
+      <div className="flex min-h-0 flex-1 flex-col p-5">
         <div className="flex items-start justify-between gap-2">
           <span className="ads-slot-index">
             {indexLabel}
@@ -130,45 +131,7 @@ export function CampaignOverviewCard({
         <p className="mt-2 text-xs leading-relaxed text-[var(--muted)]">
           {campaign.objective} · {campaign.bidding} · 预算 {campaign.budget}
         </p>
-        <div className="mt-4">
-          <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--muted)]">
-            内容概览
-          </p>
-          <OverviewHighlights highlights={campaign.highlights} />
-        </div>
-        <div className="mt-4 min-h-0 flex-1 overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--canvas-soft)]">
-          <div className="flex items-center justify-between border-b border-[var(--hairline)] px-3 py-2">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
-              AdGroup / Ad
-            </span>
-            <span className="text-[11px] text-[var(--muted)]">
-              {campaign.adGroupCount} 组 · {campaign.adCount} 条
-            </span>
-          </div>
-          <div className="max-h-44 overflow-auto p-2">
-            {campaign.groups.map((group) => (
-              <div key={group.id} className="rounded-xl px-2 py-2 hover:bg-[var(--surface-strong)]">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-xs font-semibold text-[var(--ink)]">{group.name}</p>
-                  <span className="shrink-0 text-[10px] text-[var(--muted)]">{group.summary}</span>
-                </div>
-                <ul className="mt-1.5 space-y-1">
-                  {group.ads.slice(0, 3).map((ad) => (
-                    <li key={ad.id} className="flex items-center gap-2 text-[11px] text-[var(--body)]">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--ads-dot)]" />
-                      <span className="truncate">{ad.name}</span>
-                      <span className="shrink-0 text-[var(--muted)]">{ad.summary}</span>
-                    </li>
-                  ))}
-                  {group.ads.length > 3 ? (
-                    <li className="text-[11px] text-[var(--muted)]">+ {group.ads.length - 3} 条广告</li>
-                  ) : null}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-        <dl className="mt-4 grid grid-cols-2 gap-2 border-t border-[var(--hairline)] pt-4 text-xs">
+        <dl className="mt-4 grid grid-cols-2 gap-2 text-xs">
           <div className="rounded-2xl bg-[var(--surface-strong)] px-3 py-2.5">
             <dt className="text-[var(--muted)]">结构</dt>
             <dd className="mt-0.5 font-medium text-[var(--ink)]">
@@ -182,7 +145,58 @@ export function CampaignOverviewCard({
             </dd>
           </div>
         </dl>
-      </button>
+        <div className="mt-4">
+          <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--muted)]">
+            Campaign Key Info
+          </p>
+          <OverviewHighlights highlights={visibleHighlights} />
+        </div>
+        <div className="mt-4 min-h-0 flex-1 overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--canvas-soft)]">
+          <div className="flex items-center justify-between border-b border-[var(--hairline)] px-3 py-2">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
+              AdGroup / Ad List
+            </span>
+            <span className="text-[11px] text-[var(--muted)]">
+              {campaign.adGroupCount} 组 · {campaign.adCount} 条
+            </span>
+          </div>
+          <div className="max-h-64 overflow-auto p-2">
+            {campaign.groups.map((group) => (
+              <div key={group.id} className="rounded-xl border border-transparent px-2 py-2 transition hover:border-[var(--hairline)] hover:bg-[var(--surface-strong)]">
+                <button
+                  className="flex w-full items-start justify-between gap-2 text-left"
+                  type="button"
+                  onClick={() => onEditGroup?.(group.id)}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-xs font-semibold text-[var(--ink)]">{group.name}</span>
+                    <span className="mt-0.5 block line-clamp-1 text-[10px] leading-relaxed text-[var(--muted)]">{group.summary}</span>
+                  </span>
+                  <ChevronRight aria-hidden className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--muted)]" strokeWidth={1.75} />
+                </button>
+                <ul className="mt-1.5 space-y-1">
+                  {group.ads.map((ad) => (
+                    <li key={ad.id}>
+                      <button
+                        className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[11px] text-[var(--body)] transition hover:bg-[var(--surface-card)] hover:text-[var(--ink)]"
+                        type="button"
+                        onClick={() => onEditAd?.(group.id, ad.id)}
+                      >
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--ads-dot)]" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium">{ad.name}</span>
+                          <span className="mt-0.5 block truncate text-[var(--muted)]">{ad.summary}</span>
+                        </span>
+                        <ChevronRight aria-hidden className="h-3 w-3 shrink-0 text-[var(--muted)]" strokeWidth={1.75} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
       <div className="flex items-center justify-between gap-2 border-t border-[var(--hairline)] bg-[var(--canvas-soft)] px-4 py-3">
         <Button className="h-8 gap-1 px-2.5 text-xs" size="sm" type="button" onClick={onEdit}>
           <Settings2 aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />

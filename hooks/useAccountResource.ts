@@ -10,7 +10,7 @@ export type ResourceStatus = "idle" | "loading" | "success" | "error";
 
 export interface AccountResources {
   conversionGoals: { data: ConversionGoalPoint[]; status: ResourceStatus; error: string | null; syncedAt: string | null; reload: () => void };
-  geoTargets: { data: GeoTargetOption[]; status: ResourceStatus; error: string | null; reload: () => void };
+  geoTargets: { data: GeoTargetOption[]; status: ResourceStatus; error: string | null; reload: (query?: string) => void };
   languageTargets: { data: LanguageTargetOption[]; status: ResourceStatus; error: string | null; reload: () => void };
 }
 
@@ -114,7 +114,7 @@ export function useAccountResources(
     }
   }, [applyConversionGoalSet, dataMccAccountId]);
 
-  const loadGeoTargets = useCallback(async () => {
+  const loadGeoTargets = useCallback(async (query = "") => {
     if (!adAccountId) {
       setGeoTargets(FALLBACK_GEO_TARGET_OPTIONS);
       setGeoTargetStatus("idle");
@@ -125,6 +125,9 @@ export function useAccountResources(
     setGeoTargetError(null);
     try {
       const params = buildAccountQueryParams(adAccountId, adAccounts, mccAccounts);
+      if (query.trim()) {
+        params.set("query", query.trim());
+      }
       const response = await fetch(`/api/google-ads/accounts/${adAccountId}/geo-targets?${params.toString()}`);
       const json = (await response.json()) as { success: boolean; data?: GeoTargetOption[]; error?: { message: string } };
       if (!json.success || !json.data) throw new Error(json.error?.message ?? "读取地理位置失败。");
@@ -165,7 +168,7 @@ export function useAccountResources(
     void Promise.resolve().then(loadCachedConversionGoals);
   }, [loadCachedConversionGoals]);
   useEffect(() => {
-    void Promise.resolve().then(loadGeoTargets);
+    void Promise.resolve().then(() => loadGeoTargets());
   }, [loadGeoTargets]);
   useEffect(() => {
     void Promise.resolve().then(loadLanguageTargets);

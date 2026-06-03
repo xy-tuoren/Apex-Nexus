@@ -40,6 +40,10 @@ function readString(value: unknown) {
   return typeof value === "string" ? value : value != null ? String(value) : "";
 }
 
+function readField(target: Record<string, unknown>, camelCase: string, snakeCase: string) {
+  return readString(target[camelCase] ?? target[snakeCase]);
+}
+
 function readBoolean(value: unknown) {
   return typeof value === "boolean" ? value : Boolean(value);
 }
@@ -77,7 +81,7 @@ function flattenSearchStream(payload: unknown): GoogleAdsRow[] {
 
 function mapLanguage(row: GoogleAdsRow): LanguageTargetOption | null {
   const language = row.languageConstant ?? {};
-  const resourceName = readString(language.resourceName);
+  const resourceName = readField(language, "resourceName", "resource_name");
 
   if (!resourceName) {
     return null;
@@ -88,7 +92,7 @@ function mapLanguage(row: GoogleAdsRow): LanguageTargetOption | null {
     id: readString(language.id),
     code: readString(language.code),
     name: readString(language.name),
-    targetable: readBoolean(language.targetable),
+    targetable: readBoolean(language.targetable ?? readField(language, "targetable", "targetable")),
   };
 }
 
