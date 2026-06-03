@@ -145,6 +145,14 @@ export function CampaignHierarchyEditor({
     }
   }
 
+  function returnToCampaignEditor() {
+    if (!activeCampaignId) {
+      return;
+    }
+    setEditorFocus(null);
+    setIsCampaignEditorOpen(true);
+  }
+
   function clearEditorFocusForGroup(campaignId: string, groupId: string) {
     setEditorFocus((current) => {
       if (!current || current.campaignId !== campaignId) return current;
@@ -543,9 +551,45 @@ export function CampaignHierarchyEditor({
         : "";
     const failedCampaign = campaigns.find((campaign) => campaign.id === failedCampaignId) ?? campaigns[0];
 
+    const previewErrors = googleErrors.slice(0, 3);
+
     return (
-      <div className="mt-3 space-y-2">
-        {googleErrors.map((googleError, index) => {
+      <div className="mt-3 space-y-3">
+        <div className="rounded-lg border border-[var(--semantic-error)]/20 bg-[var(--canvas-soft)] px-3 py-2">
+          <p className="text-xs font-semibold text-[var(--ink)]">
+            共 {googleErrors.length} 个 Google Ads 错误，先展示关键定位；完整详情在下方滚动查看。
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {previewErrors.map((googleError, index) => {
+              const operation = failedCampaign
+                ? operationLabelForCampaign(failedCampaign, googleError.operationIndex)
+                : null;
+
+              return (
+                <span
+                  key={`${googleError.path}-summary-${index}`}
+                  className="max-w-full truncate rounded-full border border-[var(--semantic-error)]/20 bg-[var(--surface-card)] px-2.5 py-1 text-[11px] text-[var(--body)]"
+                  title={[operation?.label, operation?.detail, googleError.code].filter(Boolean).join(" · ")}
+                >
+                  {googleError.operationIndex !== null ? `Op ${googleError.operationIndex}` : "错误"}
+                  {operation ? ` · ${operation.label}` : null}
+                </span>
+              );
+            })}
+            {googleErrors.length > previewErrors.length ? (
+              <span className="rounded-full border border-[var(--hairline)] bg-[var(--surface-card)] px-2.5 py-1 text-[11px] text-[var(--muted)]">
+                +{googleErrors.length - previewErrors.length} 个
+              </span>
+            ) : null}
+          </div>
+        </div>
+
+        <details className="rounded-lg border border-[var(--semantic-error)]/20 bg-[var(--surface-card)]" open={googleErrors.length <= 3}>
+          <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-[var(--ink)]">
+            错误详情
+          </summary>
+          <div className="max-h-72 space-y-2 overflow-auto border-t border-[var(--hairline)] p-2 pr-2.5">
+            {googleErrors.map((googleError, index) => {
           const operation = failedCampaign
             ? operationLabelForCampaign(failedCampaign, googleError.operationIndex)
             : null;
@@ -600,7 +644,9 @@ export function CampaignHierarchyEditor({
               ) : null}
             </div>
           );
-        })}
+            })}
+          </div>
+        </details>
       </div>
     );
   }
@@ -668,7 +714,7 @@ export function CampaignHierarchyEditor({
           <div className={`mt-3 rounded-xl border p-4 ${result.success ? "border-[var(--hairline)] bg-[var(--surface-strong)]" : "border-[var(--semantic-error)]/30 bg-[var(--surface-card)]"}`}>
             <div className="flex items-start gap-2">
               {result.success ? <CheckCircle2 className="mt-0.5 h-4 w-4 text-[var(--semantic-success)]" /> : <AlertCircle className="mt-0.5 h-4 w-4 text-[var(--semantic-error)]" />}
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-[var(--ink)]">{result.success ? "提交成功" : result.error?.code ?? "创建失败"}</p>
                 <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">{result.success ? "已直接提交到 Google Ads API。" : result.error?.message}</p>
                 {!result.success ? renderGoogleAdsErrorDetails(result) : null}
@@ -712,7 +758,7 @@ export function CampaignHierarchyEditor({
           maxWidthClassName="max-w-6xl"
           title={activeEditorGroup.name}
           zIndexClassName="z-[60]"
-          onBack={closeFocusedEditor}
+          onBack={returnToCampaignEditor}
           onClose={closeFocusedEditor}
         >
           <AdGroupEditorForm

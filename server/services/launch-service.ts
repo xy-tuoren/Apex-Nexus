@@ -83,6 +83,7 @@ export async function runLaunchJob(jobId: string) {
   if (!job) {
     return null;
   }
+  let googleAdsRequest: unknown;
 
   await updateById("launch_jobs", job.id, {
     status: "RUNNING",
@@ -105,6 +106,7 @@ export async function runLaunchJob(jobId: string) {
       throw new Error("Ad account not found");
     }
 
+    googleAdsRequest = preview.mutateOperations;
     const loginCustomerId = await getLoginCustomerIdForAdAccount(adAccount.id);
     const googleAdsResponse = await mutateGoogleAds({
       customerId: adAccount.customerId,
@@ -142,7 +144,7 @@ export async function runLaunchJob(jobId: string) {
     const updatedJob = await updateById("launch_jobs", job.id, {
       status: "SUCCEEDED",
       result: binding,
-      googleAdsRequest: preview.mutateOperations,
+      googleAdsRequest,
       googleAdsResponse,
       updatedAt: timestamp(),
     });
@@ -158,6 +160,7 @@ export async function runLaunchJob(jobId: string) {
     const updatedJob = await updateById("launch_jobs", job.id, {
       status: "FAILED",
       error: googleAdsError,
+      googleAdsRequest,
       updatedAt: timestamp(),
     });
 
