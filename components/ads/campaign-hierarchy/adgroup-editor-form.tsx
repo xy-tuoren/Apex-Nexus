@@ -11,7 +11,6 @@ import {
   buildLanguageTargetSelectOptions,
 } from "@/components/ads/campaign-hierarchy/form-utils";
 import type {
-  AdForm,
   AdGroupForm,
   CampaignForm,
   GeoTargetOption,
@@ -31,6 +30,8 @@ interface AdGroupEditorFormProps {
   toggleAdGroupGender: (campaignId: string, group: AdGroupForm, gender: string, checked: boolean) => void;
   toggleAdGroupAgeRange: (campaignId: string, group: AdGroupForm, ageRange: string, checked: boolean) => void;
   addAd: (campaignId: string, groupId: string) => void;
+  duplicateAdGroup: (campaignId: string, groupId: string) => void;
+  duplicateAd: (campaignId: string, groupId: string, adId: string) => void;
   openAdGroupEditor: (campaignId: string, groupId: string) => void;
   openAdEditor: (campaignId: string, groupId: string, adId: string) => void;
 }
@@ -46,6 +47,8 @@ export function AdGroupEditorForm({
   toggleAdGroupGender,
   toggleAdGroupAgeRange,
   addAd,
+  duplicateAdGroup,
+  duplicateAd,
   openAdGroupEditor,
   openAdEditor,
 }: AdGroupEditorFormProps) {
@@ -58,6 +61,8 @@ export function AdGroupEditorForm({
           geoTargets={geoTargets}
           languageTargets={languageTargets}
           onAddAd={(groupId) => addAd(campaign.id, groupId)}
+          onDuplicateAd={(groupId, adId) => duplicateAd(campaign.id, groupId, adId)}
+          onDuplicateGroup={(groupId) => duplicateAdGroup(campaign.id, groupId)}
           onOpenAd={(groupId, adId) => openAdEditor(campaign.id, groupId, adId)}
           onOpenGroup={(groupId) => openAdGroupEditor(campaign.id, groupId)}
         />

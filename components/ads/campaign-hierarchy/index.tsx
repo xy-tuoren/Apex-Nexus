@@ -261,6 +261,52 @@ export function CampaignHierarchyEditor({
     setEditorFocus(null);
   }
 
+  function duplicateCampaign(campaignId: string) {
+    const source = campaigns.find((c) => c.id === campaignId);
+    if (!source || campaigns.length >= MAX_ACCOUNTS) return;
+
+    const nextIndex = campaigns.length + 1;
+    const nextCampaignId = `cmp_${nextIndex}_${idCounterRef.current++}`;
+    const nextCampaign: CampaignForm = {
+      ...source,
+      id: nextCampaignId,
+      campaignName: `${source.campaignName} 复制`,
+      adGroups: source.adGroups.map((group, groupIndex) => {
+        const nextGroupId = `adg_${groupIndex + 1}_${idCounterRef.current++}`;
+        return {
+          ...group,
+          id: nextGroupId,
+          name: `${group.name} 复制`,
+          genders: [...group.genders],
+          ageRanges: [...group.ageRanges],
+          ads: group.ads.map((ad, adIndex) => ({
+            ...ad,
+            id: `${nextGroupId}_ad_${adIndex + 1}_${idCounterRef.current++}`,
+            name: `${ad.name} 复制`,
+          })),
+        };
+      }),
+      os: [...source.os],
+      devices: [...source.devices],
+      adSchedule: Object.fromEntries(
+        Object.entries(source.adSchedule).map(([day, values]) => [day, [...values]]),
+      ),
+    };
+
+    setCampaigns((current) => {
+      const sourceIndex = current.findIndex((campaign) => campaign.id === campaignId);
+      if (sourceIndex === -1) return current;
+      return [
+        ...current.slice(0, sourceIndex + 1),
+        nextCampaign,
+        ...current.slice(sourceIndex + 1),
+      ];
+    });
+    setActiveCampaignId(nextCampaignId);
+    setIsCampaignEditorOpen(true);
+    setEditorFocus(null);
+  }
+
   function removeCampaign(campaignId: string) {
     if (campaigns.length === 1) return;
     setCampaigns((current) => current.filter((c) => c.id !== campaignId));
@@ -277,6 +323,37 @@ export function CampaignHierarchyEditor({
       ads: [{ ...createDefaultAd(1), id: `${id}_ad_1` }],
     };
     patchCampaign(campaignId, { adGroups: [...campaign.adGroups, nextGroup] });
+  }
+
+  function duplicateAdGroup(campaignId: string, groupId: string) {
+    const campaign = campaigns.find((c) => c.id === campaignId);
+    const group = campaign?.adGroups.find((g) => g.id === groupId);
+    if (!campaign || !group) return;
+
+    const nextGroupId = `adg_${campaign.adGroups.length + 1}_${idCounterRef.current++}`;
+    const nextGroup: AdGroupForm = {
+      ...group,
+      id: nextGroupId,
+      name: `${group.name} 复制`,
+      genders: [...group.genders],
+      ageRanges: [...group.ageRanges],
+      ads: group.ads.map((ad, adIndex) => ({
+        ...ad,
+        id: `${nextGroupId}_ad_${adIndex + 1}_${idCounterRef.current++}`,
+        name: `${ad.name} 复制`,
+      })),
+    };
+    const groupIndex = campaign.adGroups.findIndex((item) => item.id === groupId);
+    const nextGroups = [
+      ...campaign.adGroups.slice(0, groupIndex + 1),
+      nextGroup,
+      ...campaign.adGroups.slice(groupIndex + 1),
+    ];
+
+    patchCampaign(campaignId, { adGroups: nextGroups });
+    setActiveCampaignId(campaignId);
+    setIsCampaignEditorOpen(false);
+    setEditorFocus({ level: "adgroup", campaignId, groupId: nextGroupId });
   }
 
   function removeAdGroup(campaignId: string, groupId: string) {
@@ -297,6 +374,31 @@ export function CampaignHierarchyEditor({
       finalUrl: group.ads[0]?.finalUrl ?? "https://example.com/landing",
     };
     updateCampaignAdGroup(campaignId, groupId, { ads: [...group.ads, nextAd] });
+  }
+
+  function duplicateAd(campaignId: string, groupId: string, adId: string) {
+    const campaign = campaigns.find((c) => c.id === campaignId);
+    const group = campaign?.adGroups.find((g) => g.id === groupId);
+    const ad = group?.ads.find((item) => item.id === adId);
+    if (!group || !ad) return;
+
+    const nextAdId = `${groupId}_ad_${group.ads.length + 1}_${idCounterRef.current++}`;
+    const nextAd: AdForm = {
+      ...ad,
+      id: nextAdId,
+      name: `${ad.name} 复制`,
+    };
+    const adIndex = group.ads.findIndex((item) => item.id === adId);
+    const nextAds = [
+      ...group.ads.slice(0, adIndex + 1),
+      nextAd,
+      ...group.ads.slice(adIndex + 1),
+    ];
+
+    updateCampaignAdGroup(campaignId, groupId, { ads: nextAds });
+    setActiveCampaignId(campaignId);
+    setIsCampaignEditorOpen(false);
+    setEditorFocus({ level: "ad", campaignId, groupId, adId: nextAdId });
   }
 
   function removeAd(campaignId: string, groupId: string, adId: string) {
@@ -485,13 +587,12 @@ export function CampaignHierarchyEditor({
         operations.push({ label: groupLabel, detail: `语言 ${group.language}` });
       }
 
+      const audienceDetails: string[] = [];
       const selectedGenders = Array.from(
         new Set(group.genders.filter((gender) => allGenders.includes(gender))),
       );
       if (selectedGenders.length > 0 && selectedGenders.length < allGenders.length) {
-        selectedGenders.forEach((gender) => {
-          operations.push({ label: groupLabel, detail: `性别 ${gender}` });
-        });
+        audienceDetails.push(`性别 ${selectedGenders.join(" / ")}`);
       }
 
       const selectedAges = Array.from(
@@ -501,9 +602,11 @@ export function CampaignHierarchyEditor({
         selectedAges.push("UNKNOWN");
       }
       if (selectedAges.length > 0 && selectedAges.length < ageBuckets.length + 1) {
-        selectedAges.forEach((age) => {
-          operations.push({ label: groupLabel, detail: `年龄 ${age}` });
-        });
+        audienceDetails.push(`年龄 ${selectedAges.join(" / ")}`);
+      }
+      if (audienceDetails.length > 0) {
+        operations.push({ label: groupLabel, detail: `受众配置 ${audienceDetails.join(" · ")}` });
+        operations.push({ label: groupLabel, detail: "绑定受众配置" });
       }
 
       group.ads.forEach((ad, adIndex) => {
@@ -686,6 +789,8 @@ export function CampaignHierarchyEditor({
                 getResources(campaign.adAccountId)?.languageTargets.data,
               )}
               canRemove={campaigns.length > 1}
+              canDuplicate={campaigns.length < MAX_ACCOUNTS}
+              onDuplicate={() => duplicateCampaign(campaign.id)}
               onEdit={() => openCampaignDetail(campaign.id)}
               onEditGroup={(groupId) => openAdGroupEditor(campaign.id, groupId)}
               onEditAd={(groupId, adId) => openAdEditor(campaign.id, groupId, adId)}
@@ -745,6 +850,8 @@ export function CampaignHierarchyEditor({
             patchCampaign={patchCampaign}
             loadConversionGoals={() => getResources(activeCampaign.adAccountId)?.conversionGoals.reload()}
             addAdGroup={addAdGroup}
+            duplicateAdGroup={duplicateAdGroup}
+            duplicateAd={duplicateAd}
             openAdGroupEditor={openAdGroupEditor}
             openAdEditor={openAdEditor}
           />
@@ -772,6 +879,8 @@ export function CampaignHierarchyEditor({
             toggleAdGroupGender={toggleAdGroupGender}
             toggleAdGroupAgeRange={toggleAdGroupAgeRange}
             addAd={addAd}
+            duplicateAdGroup={duplicateAdGroup}
+            duplicateAd={duplicateAd}
             openAdGroupEditor={openAdGroupEditor}
             openAdEditor={openAdEditor}
           />
@@ -796,6 +905,8 @@ export function CampaignHierarchyEditor({
             languageTargets={getResources(activeCampaign.adAccountId)?.languageTargets.data ?? FALLBACK_LANGUAGE_OPTIONS}
             updateCampaignAd={updateCampaignAd}
             addAd={addAd}
+            duplicateAdGroup={duplicateAdGroup}
+            duplicateAd={duplicateAd}
             openAdGroupEditor={openAdGroupEditor}
             openAdEditor={openAdEditor}
           />

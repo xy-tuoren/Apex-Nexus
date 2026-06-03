@@ -1,6 +1,7 @@
 import type { GoogleCampaignBinding, LaunchJob } from "@/lib/types";
 import { mutateGoogleAds } from "@/server/google-ads/client";
 import { toGoogleAdsError } from "@/server/google-ads/errors";
+import { buildCampaignConversionGoalMutateOperations } from "@/server/google-ads/mutate-builder";
 import {
   audit,
   findById,
@@ -12,6 +13,7 @@ import {
 } from "@/server/repositories/data-store";
 import { getLoginCustomerIdForAdAccount } from "@/server/services/account-service";
 import { buildDraftPreview } from "@/server/services/campaign-draft-service";
+import { listConversionGoalPoints } from "@/server/services/conversion-goal-service";
 import { validateLaunchEligibility } from "@/server/services/validation-service";
 
 type MutateOperationResponse = Record<string, { resourceName?: string } | undefined>;
@@ -106,32 +108,65 @@ export async function runLaunchJob(jobId: string) {
       throw new Error("Ad account not found");
     }
 
-    googleAdsRequest = preview.mutateOperations;
     const loginCustomerId = await getLoginCustomerIdForAdAccount(adAccount.id);
-    const googleAdsResponse = await mutateGoogleAds({
+    const createMutateOperations = preview.mutateOperations;
+    googleAdsRequest = createMutateOperations;
+    const createGoogleAdsResponse = await mutateGoogleAds({
       customerId: adAccount.customerId,
       loginCustomerId: loginCustomerId ?? adAccount.customerId,
-      mutateOperations: preview.mutateOperations,
+      mutateOperations: createMutateOperations,
     });
+    const campaignResourceName =
+      resourceNameFromMutateResponse(createGoogleAdsResponse, "campaignResult") ??
+      `customers/${adAccount.customerId}/campaigns/dry-run-or-created`;
+
+    const shouldLoadConversionGoals =
+      process.env.GOOGLE_ADS_DRY_RUN === "false" &&
+      draft.campaignObjective === "CONVERSIONS" &&
+      Boolean(draft.conversionGoal);
+    const conversionGoals = shouldLoadConversionGoals
+      ? await listConversionGoalPoints({
+        adAccountId: adAccount.id,
+        customerId: adAccount.customerId,
+        loginCustomerId: loginCustomerId ?? adAccount.customerId,
+      }).catch(() => [])
+      : [];
+    const conversionGoalMutateOperations = buildCampaignConversionGoalMutateOperations({
+      draft,
+      adAccount,
+      campaignResourceName,
+      conversionGoals,
+    });
+    const conversionGoalGoogleAdsResponse =
+      conversionGoalMutateOperations.length > 0
+        ? await mutateGoogleAds({
+          customerId: adAccount.customerId,
+          loginCustomerId: loginCustomerId ?? adAccount.customerId,
+          mutateOperations: conversionGoalMutateOperations,
+        })
+        : null;
+
+    googleAdsRequest = {
+      createMutateOperations,
+      conversionGoalMutateOperations,
+    };
 
     const binding: GoogleCampaignBinding = {
       id: newId("binding"),
       draftId: draft.id,
       adAccountId: draft.adAccountId,
       advertisingType: draft.advertisingType,
-      campaignResourceName:
-        resourceNameFromMutateResponse(googleAdsResponse, "campaignResult") ??
-        `customers/${adAccount.customerId}/campaigns/dry-run-or-created`,
+      campaignResourceName,
       budgetResourceName:
-        resourceNameFromMutateResponse(googleAdsResponse, "campaignBudgetResult") ??
+        resourceNameFromMutateResponse(createGoogleAdsResponse, "campaignBudgetResult") ??
         `customers/${adAccount.customerId}/campaignBudgets/dry-run-or-created`,
       adGroupResourceName:
-        resourceNameFromMutateResponse(googleAdsResponse, "adGroupResult") ??
+        resourceNameFromMutateResponse(createGoogleAdsResponse, "adGroupResult") ??
         `customers/${adAccount.customerId}/adGroups/dry-run-or-created`,
       adGroupAdResourceName:
-        resourceNameFromMutateResponse(googleAdsResponse, "adGroupAdResult") ??
+        resourceNameFromMutateResponse(createGoogleAdsResponse, "adGroupAdResult") ??
         `customers/${adAccount.customerId}/adGroupAds/dry-run-or-created`,
-      assetResourceNames: resourceNamesFromMutateResponse(googleAdsResponse, "assetResult"),
+      assetResourceNames: resourceNamesFromMutateResponse(createGoogleAdsResponse, "assetResult"),
       status: "PAUSED",
       createdAt: timestamp(),
     };
@@ -145,7 +180,10 @@ export async function runLaunchJob(jobId: string) {
       status: "SUCCEEDED",
       result: binding,
       googleAdsRequest,
-      googleAdsResponse,
+      googleAdsResponse: {
+        create: createGoogleAdsResponse,
+        conversionGoals: conversionGoalGoogleAdsResponse,
+      },
       updatedAt: timestamp(),
     });
 

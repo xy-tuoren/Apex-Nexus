@@ -27,6 +27,8 @@ interface AdEditorFormProps {
     patch: Partial<AdForm>
   ) => void;
   addAd: (campaignId: string, groupId: string) => void;
+  duplicateAdGroup: (campaignId: string, groupId: string) => void;
+  duplicateAd: (campaignId: string, groupId: string, adId: string) => void;
   openAdGroupEditor: (campaignId: string, groupId: string) => void;
   openAdEditor: (campaignId: string, groupId: string, adId: string) => void;
 }
@@ -39,6 +41,8 @@ export function AdEditorForm({
   languageTargets,
   updateCampaignAd,
   addAd,
+  duplicateAdGroup,
+  duplicateAd,
   openAdGroupEditor,
   openAdEditor,
 }: AdEditorFormProps) {
@@ -52,6 +56,8 @@ export function AdEditorForm({
           geoTargets={geoTargets}
           languageTargets={languageTargets}
           onAddAd={(groupId) => addAd(campaign.id, groupId)}
+          onDuplicateAd={(groupId, adId) => duplicateAd(campaign.id, groupId, adId)}
+          onDuplicateGroup={(groupId) => duplicateAdGroup(campaign.id, groupId)}
           onOpenAd={(groupId, adId) => openAdEditor(campaign.id, groupId, adId)}
           onOpenGroup={(groupId) => openAdGroupEditor(campaign.id, groupId)}
         />

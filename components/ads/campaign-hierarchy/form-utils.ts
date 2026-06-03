@@ -802,7 +802,6 @@ export function buildPayloadFromCampaign(campaign: CampaignForm, firstAdFallback
     device: devicePayload.device,
     devices: devicePayload.devices,
     adSchedule: formatSchedule(campaign.adSchedule),
-    urlPrefix: campaign.finalUrlSuffix,
     trackingTemplate: campaign.trackingTemplate || undefined,
     finalUrlSuffix: campaign.finalUrlSuffix,
     ipExclusions: splitLines(campaign.ipExclusions),

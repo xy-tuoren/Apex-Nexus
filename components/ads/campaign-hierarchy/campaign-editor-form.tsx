@@ -51,6 +51,8 @@ interface CampaignEditorFormProps {
   patchCampaign: (campaignId: string, patch: Partial<CampaignForm>) => void;
   loadConversionGoals: () => void;
   addAdGroup: (campaignId: string) => void;
+  duplicateAdGroup: (campaignId: string, groupId: string) => void;
+  duplicateAd: (campaignId: string, groupId: string, adId: string) => void;
   openAdGroupEditor: (campaignId: string, groupId: string) => void;
   openAdEditor: (campaignId: string, groupId: string, adId: string) => void;
 }
@@ -68,6 +70,8 @@ export function CampaignEditorForm({
   patchCampaign,
   loadConversionGoals,
   addAdGroup,
+  duplicateAdGroup,
+  duplicateAd,
   openAdGroupEditor,
   openAdEditor,
 }: CampaignEditorFormProps) {
@@ -81,6 +85,8 @@ export function CampaignEditorForm({
           languageTargets={languageTargets}
           onAddAd={(groupId) => openAdGroupEditor(campaign.id, groupId)}
           onAddGroup={() => addAdGroup(campaign.id)}
+          onDuplicateAd={(groupId, adId) => duplicateAd(campaign.id, groupId, adId)}
+          onDuplicateGroup={(groupId) => duplicateAdGroup(campaign.id, groupId)}
           onOpenAd={(groupId, adId) => openAdEditor(campaign.id, groupId, adId)}
           onOpenGroup={(groupId) => openAdGroupEditor(campaign.id, groupId)}
         />

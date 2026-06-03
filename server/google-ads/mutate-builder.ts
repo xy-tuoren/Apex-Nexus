@@ -1,14 +1,17 @@
-import type { CampaignDraft, GoogleAdAccount } from "@/lib/types";
+import type { CampaignDraft, GoogleAdAccount, GoogleConversionGoalPoint } from "@/lib/types";
 import {
   adGroup,
+  audience,
   asset,
   campaign,
   campaignBudget,
+  campaignConversionGoal,
 } from "@/server/google-ads/resource-names";
 
 type MutateOperation = Record<string, unknown>;
 type DraftAdGroup = NonNullable<CampaignDraft["adGroups"]>[number];
 type DraftAd = DraftAdGroup["ads"][number];
+type ParsedConversionGoal = { category: string; origin: string };
 
 async function imageAssetData(url: string, name: string) {
   const dataUrlMatch = url.match(/^data:[^;]+;base64,(.+)$/);
@@ -70,17 +73,104 @@ function campaignBidding(draft: CampaignDraft) {
     case "MAXIMIZE_CONVERSION_VALUE":
       return { maximizeConversionValue: { targetRoas: draft.bidding.targetRoas } };
     case "TARGET_CPA":
-      return { maximizeConversions: {} };
+      return {
+        maximizeConversions: {
+          targetCpaMicros: draft.bidding.targetCpaMicros?.toString(),
+        },
+      };
     case "TARGET_ROAS":
       return { targetRoas: { targetRoas: draft.bidding.targetRoas } };
     case "MAXIMIZE_CLICKS":
       return draft.bidding.maxCpcBidCeilingMicros
-        ? { maximizeClicks: { maxCpcBidCeilingMicros: draft.bidding.maxCpcBidCeilingMicros } }
+        ? {
+          maximizeClicks: {
+            maxCpcBidCeilingMicros: draft.bidding.maxCpcBidCeilingMicros.toString(),
+          },
+        }
         : { maximizeClicks: {} };
     case "MAXIMIZE_CONVERSIONS":
     default:
       return { maximizeConversions: {} };
   }
+}
+
+function parseConversionGoal(value?: string): ParsedConversionGoal | null {
+  if (!value) {
+    return null;
+  }
+
+  const [category, origin] = value.split(":");
+  if (!category) {
+    return null;
+  }
+
+  return {
+    category,
+    origin: origin || "WEBSITE",
+  };
+}
+
+function campaignIdFromResourceName(resourceName: string) {
+  const match = resourceName.match(/\/campaigns\/([^/]+)$/);
+  return match?.[1] ?? null;
+}
+
+export function buildCampaignConversionGoalMutateOperations({
+  draft,
+  adAccount,
+  campaignResourceName,
+  conversionGoals,
+}: {
+  draft: CampaignDraft;
+  adAccount: GoogleAdAccount;
+  campaignResourceName: string;
+  conversionGoals: GoogleConversionGoalPoint[];
+}): MutateOperation[] {
+  if (draft.campaignObjective !== "CONVERSIONS") {
+    return [];
+  }
+
+  const selectedGoal = parseConversionGoal(draft.conversionGoal);
+  const campaignId = campaignIdFromResourceName(campaignResourceName);
+
+  if (!selectedGoal || !campaignId) {
+    return [];
+  }
+
+  const goalsById = new Map(
+    conversionGoals.map((goal) => [`${goal.category}:${goal.origin}`, goal]),
+  );
+  if (!goalsById.has(`${selectedGoal.category}:${selectedGoal.origin}`)) {
+    goalsById.set(`${selectedGoal.category}:${selectedGoal.origin}`, {
+      id: `${selectedGoal.category}:${selectedGoal.origin}`,
+      category: selectedGoal.category,
+      origin: selectedGoal.origin,
+      biddable: true,
+      source: "form",
+      actionCount: 0,
+      actions: [],
+    });
+  }
+
+  return Array.from(goalsById.values()).map((goal) => {
+    const biddable =
+      goal.category === selectedGoal.category && goal.origin === selectedGoal.origin;
+
+    return {
+      campaignConversionGoalOperation: {
+        update: {
+          resourceName: campaignConversionGoal(
+            adAccount.customerId,
+            campaignId,
+            goal.category,
+            goal.origin,
+          ),
+          biddable,
+        },
+        updateMask: "biddable",
+      },
+    };
+  });
 }
 
 function legacyAdGroup(draft: CampaignDraft): DraftAdGroup {
@@ -149,67 +239,85 @@ function adGroupLanguageOperations(adGroupResource: string, group: DraftAdGroup)
 
 const ALL_GENDERS = ["FEMALE", "MALE", "UNDETERMINED"];
 const AGE_RANGE_BUCKETS = [
-  { value: "18", criterion: "AGE_RANGE_18_24" },
-  { value: "25", criterion: "AGE_RANGE_25_34" },
-  { value: "35", criterion: "AGE_RANGE_35_44" },
-  { value: "45", criterion: "AGE_RANGE_45_54" },
-  { value: "55", criterion: "AGE_RANGE_55_64" },
-  { value: "65", criterion: "AGE_RANGE_65_UP" },
+  { value: "18", segment: { minAge: 18, maxAge: 24 } },
+  { value: "25", segment: { minAge: 25, maxAge: 34 } },
+  { value: "35", segment: { minAge: 35, maxAge: 44 } },
+  { value: "45", segment: { minAge: 45, maxAge: 54 } },
+  { value: "55", segment: { minAge: 55, maxAge: 64 } },
+  { value: "65", segment: { minAge: 65 } },
 ];
 
-function adGroupGenderOperations(adGroupResource: string, group: DraftAdGroup) {
+function adGroupAudienceOperations(
+  customerId: string,
+  audienceId: number,
+  adGroupResource: string,
+  campaignName: string,
+  group: DraftAdGroup,
+) {
+  const dimensions: Record<string, unknown>[] = [];
   const genders = Array.from(
     new Set(
       (group.demographics?.genders ?? []).filter((gender) => ALL_GENDERS.includes(gender)),
     ),
   );
+  const selectedGenders = genders.filter((gender) => gender !== "UNDETERMINED");
+  const includeUndeterminedGender = genders.includes("UNDETERMINED");
 
-  if (genders.length === 0 || genders.length === ALL_GENDERS.length) {
-    return [];
+  if (genders.length > 0 && genders.length < ALL_GENDERS.length) {
+    dimensions.push({
+      gender: {
+        genders: selectedGenders,
+        ...(includeUndeterminedGender ? { includeUndetermined: true } : {}),
+      },
+    });
   }
 
-  return genders.map((gender) => ({
-    adGroupCriterionOperation: {
-      create: {
-        adGroup: adGroupResource,
-        gender: {
-          type: gender,
-        },
-      },
-    },
-  }));
-}
-
-function adGroupAgeRangeOperations(adGroupResource: string, group: DraftAdGroup) {
   const ageRange = group.demographics?.ageRange;
-  if (!ageRange) {
+  if (ageRange) {
+    const ageRanges = AGE_RANGE_BUCKETS.filter((bucket) =>
+      ageRange.ranges.includes(bucket.value),
+    ).map((bucket) => bucket.segment);
+    const totalAgeSelections = ageRanges.length + (ageRange.includeUnknown ? 1 : 0);
+
+    if (totalAgeSelections > 0 && totalAgeSelections < AGE_RANGE_BUCKETS.length + 1) {
+      dimensions.push({
+        age: {
+          ageRanges,
+          ...(ageRange.includeUnknown ? { includeUndetermined: true } : {}),
+        },
+      });
+    }
+  }
+
+  if (dimensions.length === 0) {
     return [];
   }
 
-  const selectedAgeRanges = AGE_RANGE_BUCKETS.filter((bucket) =>
-    ageRange.ranges.includes(bucket.value),
-  ).map((bucket) => bucket.criterion);
-  if (ageRange.includeUnknown) {
-    selectedAgeRanges.push("AGE_RANGE_UNDETERMINED");
-  }
+  const audienceResource = audience(customerId, audienceId);
+  const audienceName = `${campaignName} / ${group.name} Audience`.slice(0, 255);
 
-  if (selectedAgeRanges.length === 0) {
-    return [];
-  }
-  if (selectedAgeRanges.length === AGE_RANGE_BUCKETS.length + 1) {
-    return [];
-  }
-
-  return selectedAgeRanges.map((type) => ({
-    adGroupCriterionOperation: {
-      create: {
-        adGroup: adGroupResource,
-        ageRange: {
-          type,
+  return [
+    {
+      audienceOperation: {
+        create: {
+          resourceName: audienceResource,
+          name: audienceName,
+          description: "Demand Gen ad group audience generated from campaign draft demographics.",
+          dimensions,
         },
       },
     },
-  }));
+    {
+      adGroupCriterionOperation: {
+        create: {
+          adGroup: adGroupResource,
+          audience: {
+            audience: audienceResource,
+          },
+        },
+      },
+    },
+  ];
 }
 
 export async function buildDemandGenMutateOperations(
@@ -290,13 +398,17 @@ export async function buildDemandGenMutateOperations(
           name: group.name,
           campaign: campaignResource,
           status: "ENABLED",
+          audienceSetting: {
+            useAudienceGrouped: true,
+          },
         },
       },
     });
     operations.push(...adGroupLocationOperations(adGroupResource, group));
     operations.push(...adGroupLanguageOperations(adGroupResource, group));
-    operations.push(...adGroupGenderOperations(adGroupResource, group));
-    operations.push(...adGroupAgeRangeOperations(adGroupResource, group));
+    operations.push(
+      ...adGroupAudienceOperations(customerId, tempId--, adGroupResource, draft.name, group),
+    );
 
     for (const ad of group.ads) {
       const { logoAssetRefs, videoAssetRefs, callToActionAssetRefs } = await addAssetsForAd(ad);

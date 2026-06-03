@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Eye, LayoutGrid, List, Plus, Settings2, Trash2 } from "lucide-react";
+import { ChevronRight, Copy, Eye, LayoutGrid, List, Plus, Settings2, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -52,10 +52,12 @@ function OverviewHighlights({ highlights }: { highlights: string[] }) {
 type OverviewItemProps = {
   campaign: CampaignOverviewMeta;
   canRemove: boolean;
+  canDuplicate?: boolean;
   onEdit: () => void;
   onEditGroup?: (groupId: string) => void;
   onEditAd?: (groupId: string, adId: string) => void;
   onPreview: () => void;
+  onDuplicate?: () => void;
   onRemove: () => void;
 };
 
@@ -105,10 +107,12 @@ export function CampaignViewToggle({
 export function CampaignOverviewCard({
   campaign,
   canRemove,
+  canDuplicate = true,
   onEdit,
   onEditGroup,
   onEditAd,
   onPreview,
+  onDuplicate,
   onRemove,
 }: OverviewItemProps) {
   const indexLabel = String(campaign.index).padStart(2, "0");
@@ -207,6 +211,21 @@ export function CampaignOverviewCard({
           预览
         </Button>
         <Button
+          aria-label="复制广告系列"
+          className="h-8 w-8 px-0"
+          disabled={!canDuplicate}
+          size="sm"
+          title="复制广告系列"
+          type="button"
+          variant="ghost"
+          onClick={(event) => {
+            event.stopPropagation();
+            onDuplicate?.();
+          }}
+        >
+          <Copy aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+        </Button>
+        <Button
           aria-label="删除广告系列"
           className="h-8 w-8 px-0"
           disabled={!canRemove}
@@ -228,8 +247,10 @@ export function CampaignOverviewCard({
 export function CampaignOverviewListRow({
   campaign,
   canRemove,
+  canDuplicate = true,
   onEdit,
   onPreview,
+  onDuplicate,
   onRemove,
 }: OverviewItemProps) {
   const indexLabel = String(campaign.index).padStart(2, "0");
@@ -256,6 +277,18 @@ export function CampaignOverviewListRow({
       <Button className="h-8 shrink-0 gap-1 px-2.5 text-xs" size="sm" type="button" onClick={onEdit}>
         设置
           <ChevronRight aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+      </Button>
+      <Button
+        aria-label="复制广告系列"
+        className="h-8 w-8 shrink-0 px-0"
+        disabled={!canDuplicate}
+        size="sm"
+        title="复制广告系列"
+        type="button"
+        variant="ghost"
+        onClick={onDuplicate}
+      >
+        <Copy aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
       </Button>
       <Button
         aria-label="删除广告系列"
