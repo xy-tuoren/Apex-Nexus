@@ -1,0 +1,607 @@
+- generic [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e4]:
+      - link "Apex Nexus Admin" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img [ref=e7]
+        - generic [ref=e12]:
+          - paragraph [ref=e13]: Apex Nexus
+          - paragraph [ref=e14]: Admin
+      - navigation "主导航" [ref=e15]:
+        - link "工作台" [ref=e16] [cursor=pointer]:
+          - /url: /
+          - img [ref=e17]
+          - generic [ref=e28]: 工作台
+        - link "广告投放" [ref=e29] [cursor=pointer]:
+          - /url: /ads
+          - img [ref=e30]
+          - generic [ref=e33]: 广告投放
+        - link "账号中心" [ref=e34] [cursor=pointer]:
+          - /url: /accounts
+          - img [ref=e35]
+          - generic [ref=e39]: 账号中心
+        - link "素材中心" [ref=e40] [cursor=pointer]:
+          - /url: /assets
+          - img [ref=e41]
+          - generic [ref=e46]: 素材中心
+        - link "数据报表" [ref=e47] [cursor=pointer]:
+          - /url: /reports
+          - img [ref=e48]
+          - generic [ref=e50]: 数据报表
+        - link "系统设置" [ref=e51] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e52]
+          - generic [ref=e55]: 系统设置
+      - generic [ref=e56]:
+        - button "切换为暗色模式" [ref=e57] [cursor=pointer]:
+          - img [ref=e58]
+        - link "登录" [ref=e60] [cursor=pointer]:
+          - /url: /login
+    - generic [ref=e62]:
+      - generic [ref=e63]:
+        - generic [ref=e64]:
+          - generic [ref=e65]: 已加载 14 个已同步账号
+          - generic [ref=e66]: 最近同步：2026/6/2 22:26:07
+          - generic [ref=e67]: 1/4 Campaigns · 1 AdGroups · 1 Ads
+        - generic [ref=e68]:
+          - button "重新同步" [ref=e69] [cursor=pointer]
+          - button "新增 Campaign" [ref=e70] [cursor=pointer]:
+            - img [ref=e71]
+            - text: 新增 Campaign
+      - generic [ref=e72]:
+        - article [ref=e73]:
+          - button "01 DEMAND_GEN 广告系列 1 转化 · 尽可能提高转化 · 预算 20 内容概览 广告组 1 · CA · 所有语言 广告 1 · Apex · example.com/landing 素材 1 视频 · 3 标题 · 0 徽标 定向 全部 / 桌面、移动、平板 投放 全天投放 转化目标 购买 AdGroup / Ad 1 组 · 1 条 广告组 1 1 ads 广告 1 3 headlines 结构 1 组 · 1 广告 账号 3580644047" [ref=e587]:
+            - generic [ref=e75]:
+              - generic [ref=e76]: "01"
+              - generic [ref=e77]: DEMAND_GEN
+            - paragraph [ref=e78]: 广告系列 1
+            - paragraph [ref=e79]: 转化 · 尽可能提高转化 · 预算 20
+            - generic [ref=e80]:
+              - paragraph [ref=e81]: 内容概览
+              - list [ref=e82]:
+                - listitem [ref=e588]: 广告组 1 · CA · 所有语言
+                - listitem [ref=e84]: 广告 1 · Apex · example.com/landing
+                - listitem [ref=e85]: 素材 1 视频 · 3 标题 · 0 徽标
+                - listitem [ref=e86]: 定向 全部 / 桌面、移动、平板
+                - listitem [ref=e87]: 投放 全天投放
+                - listitem [ref=e88]: 转化目标 购买
+            - generic [ref=e89]:
+              - generic [ref=e90]:
+                - generic [ref=e91]: AdGroup / Ad
+                - generic [ref=e92]: 1 组 · 1 条
+              - generic [ref=e94]:
+                - generic [ref=e95]:
+                  - paragraph [ref=e96]: 广告组 1
+                  - generic [ref=e97]: 1 ads
+                - list [ref=e98]:
+                  - listitem [ref=e99]:
+                    - generic [ref=e101]: 广告 1
+                    - generic [ref=e102]: 3 headlines
+            - generic [ref=e103]:
+              - generic [ref=e104]:
+                - term [ref=e105]: 结构
+                - definition [ref=e106]: 1 组 · 1 广告
+              - generic [ref=e107]:
+                - term [ref=e108]: 账号
+                - definition [ref=e109]: "3580644047"
+          - generic [ref=e110]:
+            - button "设置 Campaign" [ref=e111] [cursor=pointer]:
+              - img [ref=e112]
+              - text: 设置 Campaign
+            - button "预览" [ref=e115] [cursor=pointer]:
+              - img [ref=e116]
+              - text: 预览
+            - button "删除广告系列" [disabled]:
+              - img
+        - button "新增广告系列" [ref=e119]:
+          - img [ref=e121]
+          - text: 新增广告系列
+        - button "新增广告系列" [ref=e122]:
+          - img [ref=e124]
+          - text: 新增广告系列
+        - button "新增广告系列" [ref=e125]:
+          - img [ref=e127]
+          - text: 新增广告系列
+      - generic [ref=e129]:
+        - generic [ref=e130]:
+          - paragraph [ref=e131]: 1 个广告系列 · 1 个广告组 · 1 条广告
+          - paragraph [ref=e132]: 提交后会创建草稿并直接推送 Google Ads API。
+        - button "创建并推送" [ref=e133] [cursor=pointer]:
+          - text: 创建并推送
+          - img [ref=e134]
+  - region "Notifications (F8)":
+    - list
+  - button "Open Next.js Dev Tools" [ref=e141] [cursor=pointer]:
+    - img [ref=e142]
+  - alert [ref=e145]
+  - generic [ref=e146]:
+    - button "关闭弹窗" [ref=e147]
+    - dialog [ref=e148]:
+      - generic [ref=e149]:
+        - generic [ref=e150]:
+          - list "当前层级" [ref=e151]:
+            - listitem [ref=e152]:
+              - generic [ref=e153]: "广告系列:"
+              - generic "广告系列 1" [ref=e154]
+          - paragraph [ref=e155]: 编辑广告系列
+          - heading "广告系列 1" [level=2] [ref=e156]
+        - button "关闭" [ref=e158] [cursor=pointer]
+      - generic [ref=e160]:
+        - generic [ref=e162]:
+          - generic [ref=e163]:
+            - generic [ref=e164]: 账户
+            - button "请选择账号" [ref=e165]:
+              - generic [ref=e166]: 请选择账号
+              - img [ref=e167]
+          - generic [ref=e169]:
+            - generic [ref=e170]: 广告系列名称
+            - textbox [ref=e171]: 广告系列 1
+        - generic [ref=e172]:
+          - generic [ref=e173]:
+            - generic [ref=e174]: 广告系列目标
+            - button [ref=e175]:
+              - img [ref=e176]
+          - generic [ref=e178]:
+            - generic [ref=e179]: 转化目标
+            - generic [ref=e180]:
+              - generic [ref=e181]:
+                - paragraph [ref=e182]: PURCHASE
+                - button "读取目标" [ref=e183] [cursor=pointer]
+              - paragraph [ref=e184]: fetch failed
+              - textbox [ref=e185]: PURCHASE
+        - generic [ref=e186]:
+          - generic [ref=e187]:
+            - generic [ref=e188]: 出价类型
+            - radiogroup [ref=e189]:
+              - generic [ref=e190] [cursor=pointer]:
+                - radio "尽可能提高转化次数" [checked] [ref=e191]:
+                  - img [ref=e193]
+                - generic [ref=e195]: 尽可能提高转化次数
+          - generic [ref=e197]:
+            - generic [ref=e198]: 预算
+            - generic [ref=e199]:
+              - button "-" [ref=e200]
+              - spinbutton [ref=e201]: "20"
+              - button "+" [ref=e202]
+          - generic [ref=e203]:
+            - generic [ref=e204]: 投放时间
+            - generic [ref=e205]:
+              - generic [ref=e207]:
+                - generic [ref=e209]:
+                  - generic [ref=e210]: 03:00
+                  - generic [ref=e211]: 06:00
+                  - generic [ref=e212]: 09:00
+                  - generic [ref=e213]: 12:00
+                  - generic [ref=e214]: 15:00
+                  - generic [ref=e215]: 18:00
+                  - generic [ref=e216]: 21:00
+                - generic [ref=e217]:
+                  - generic [ref=e218]:
+                    - generic [ref=e219]: 周一
+                    - generic [ref=e220]:
+                      - button "周一 00:00" [ref=e221]
+                      - button "周一 01:00" [ref=e222]
+                      - button "周一 02:00" [ref=e223]
+                      - button "周一 03:00" [ref=e224]
+                      - button "周一 04:00" [ref=e225]
+                      - button "周一 05:00" [ref=e226]
+                      - button "周一 06:00" [ref=e227]
+                      - button "周一 07:00" [ref=e228]
+                      - button "周一 08:00" [ref=e229]
+                      - button "周一 09:00" [ref=e230]
+                      - button "周一 10:00" [ref=e231]
+                      - button "周一 11:00" [ref=e232]
+                      - button "周一 12:00" [ref=e233]
+                      - button "周一 13:00" [ref=e234]
+                      - button "周一 14:00" [ref=e235]
+                      - button "周一 15:00" [ref=e236]
+                      - button "周一 16:00" [ref=e237]
+                      - button "周一 17:00" [ref=e238]
+                      - button "周一 18:00" [ref=e239]
+                      - button "周一 19:00" [ref=e240]
+                      - button "周一 20:00" [ref=e241]
+                      - button "周一 21:00" [ref=e242]
+                      - button "周一 22:00" [ref=e243]
+                      - button "周一 23:00" [ref=e244]
+                    - generic [ref=e245]:
+                      - button "清空" [ref=e246] [cursor=pointer]
+                      - button "复制" [ref=e247] [cursor=pointer]
+                  - generic [ref=e248]:
+                    - generic [ref=e249]: 周二
+                    - generic [ref=e250]:
+                      - button "周二 00:00" [ref=e251]
+                      - button "周二 01:00" [ref=e252]
+                      - button "周二 02:00" [ref=e253]
+                      - button "周二 03:00" [ref=e254]
+                      - button "周二 04:00" [ref=e255]
+                      - button "周二 05:00" [ref=e256]
+                      - button "周二 06:00" [ref=e257]
+                      - button "周二 07:00" [ref=e258]
+                      - button "周二 08:00" [ref=e259]
+                      - button "周二 09:00" [ref=e260]
+                      - button "周二 10:00" [ref=e261]
+                      - button "周二 11:00" [ref=e262]
+                      - button "周二 12:00" [ref=e263]
+                      - button "周二 13:00" [ref=e264]
+                      - button "周二 14:00" [ref=e265]
+                      - button "周二 15:00" [ref=e266]
+                      - button "周二 16:00" [ref=e267]
+                      - button "周二 17:00" [ref=e268]
+                      - button "周二 18:00" [ref=e269]
+                      - button "周二 19:00" [ref=e270]
+                      - button "周二 20:00" [ref=e271]
+                      - button "周二 21:00" [ref=e272]
+                      - button "周二 22:00" [ref=e273]
+                      - button "周二 23:00" [ref=e274]
+                    - generic [ref=e275]:
+                      - button "清空" [ref=e276] [cursor=pointer]
+                      - button "复制" [ref=e277] [cursor=pointer]
+                  - generic [ref=e278]:
+                    - generic [ref=e279]: 周三
+                    - generic [ref=e280]:
+                      - button "周三 00:00" [ref=e281]
+                      - button "周三 01:00" [ref=e282]
+                      - button "周三 02:00" [ref=e283]
+                      - button "周三 03:00" [ref=e284]
+                      - button "周三 04:00" [ref=e285]
+                      - button "周三 05:00" [ref=e286]
+                      - button "周三 06:00" [ref=e287]
+                      - button "周三 07:00" [ref=e288]
+                      - button "周三 08:00" [ref=e289]
+                      - button "周三 09:00" [ref=e290]
+                      - button "周三 10:00" [ref=e291]
+                      - button "周三 11:00" [ref=e292]
+                      - button "周三 12:00" [ref=e293]
+                      - button "周三 13:00" [ref=e294]
+                      - button "周三 14:00" [ref=e295]
+                      - button "周三 15:00" [ref=e296]
+                      - button "周三 16:00" [ref=e297]
+                      - button "周三 17:00" [ref=e298]
+                      - button "周三 18:00" [ref=e299]
+                      - button "周三 19:00" [ref=e300]
+                      - button "周三 20:00" [ref=e301]
+                      - button "周三 21:00" [ref=e302]
+                      - button "周三 22:00" [ref=e303]
+                      - button "周三 23:00" [ref=e304]
+                    - generic [ref=e305]:
+                      - button "清空" [ref=e306] [cursor=pointer]
+                      - button "复制" [ref=e307] [cursor=pointer]
+                  - generic [ref=e308]:
+                    - generic [ref=e309]: 周四
+                    - generic [ref=e310]:
+                      - button "周四 00:00" [ref=e311]
+                      - button "周四 01:00" [ref=e312]
+                      - button "周四 02:00" [ref=e313]
+                      - button "周四 03:00" [ref=e314]
+                      - button "周四 04:00" [ref=e315]
+                      - button "周四 05:00" [ref=e316]
+                      - button "周四 06:00" [ref=e317]
+                      - button "周四 07:00" [ref=e318]
+                      - button "周四 08:00" [ref=e319]
+                      - button "周四 09:00" [ref=e320]
+                      - button "周四 10:00" [ref=e321]
+                      - button "周四 11:00" [ref=e322]
+                      - button "周四 12:00" [ref=e323]
+                      - button "周四 13:00" [ref=e324]
+                      - button "周四 14:00" [ref=e325]
+                      - button "周四 15:00" [ref=e326]
+                      - button "周四 16:00" [ref=e327]
+                      - button "周四 17:00" [ref=e328]
+                      - button "周四 18:00" [ref=e329]
+                      - button "周四 19:00" [ref=e330]
+                      - button "周四 20:00" [ref=e331]
+                      - button "周四 21:00" [ref=e332]
+                      - button "周四 22:00" [ref=e333]
+                      - button "周四 23:00" [ref=e334]
+                    - generic [ref=e335]:
+                      - button "清空" [ref=e336] [cursor=pointer]
+                      - button "复制" [ref=e337] [cursor=pointer]
+                  - generic [ref=e338]:
+                    - generic [ref=e339]: 周五
+                    - generic [ref=e340]:
+                      - button "周五 00:00" [ref=e341]
+                      - button "周五 01:00" [ref=e342]
+                      - button "周五 02:00" [ref=e343]
+                      - button "周五 03:00" [ref=e344]
+                      - button "周五 04:00" [ref=e345]
+                      - button "周五 05:00" [ref=e346]
+                      - button "周五 06:00" [ref=e347]
+                      - button "周五 07:00" [ref=e348]
+                      - button "周五 08:00" [ref=e349]
+                      - button "周五 09:00" [ref=e350]
+                      - button "周五 10:00" [ref=e351]
+                      - button "周五 11:00" [ref=e352]
+                      - button "周五 12:00" [ref=e353]
+                      - button "周五 13:00" [ref=e354]
+                      - button "周五 14:00" [ref=e355]
+                      - button "周五 15:00" [ref=e356]
+                      - button "周五 16:00" [ref=e357]
+                      - button "周五 17:00" [ref=e358]
+                      - button "周五 18:00" [ref=e359]
+                      - button "周五 19:00" [ref=e360]
+                      - button "周五 20:00" [ref=e361]
+                      - button "周五 21:00" [ref=e362]
+                      - button "周五 22:00" [ref=e363]
+                      - button "周五 23:00" [ref=e364]
+                    - generic [ref=e365]:
+                      - button "清空" [ref=e366] [cursor=pointer]
+                      - button "复制" [ref=e367] [cursor=pointer]
+                  - generic [ref=e368]:
+                    - generic [ref=e369]: 周六
+                    - generic [ref=e370]:
+                      - button "周六 00:00" [ref=e371]
+                      - button "周六 01:00" [ref=e372]
+                      - button "周六 02:00" [ref=e373]
+                      - button "周六 03:00" [ref=e374]
+                      - button "周六 04:00" [ref=e375]
+                      - button "周六 05:00" [ref=e376]
+                      - button "周六 06:00" [ref=e377]
+                      - button "周六 07:00" [ref=e378]
+                      - button "周六 08:00" [ref=e379]
+                      - button "周六 09:00" [ref=e380]
+                      - button "周六 10:00" [ref=e381]
+                      - button "周六 11:00" [ref=e382]
+                      - button "周六 12:00" [ref=e383]
+                      - button "周六 13:00" [ref=e384]
+                      - button "周六 14:00" [ref=e385]
+                      - button "周六 15:00" [ref=e386]
+                      - button "周六 16:00" [ref=e387]
+                      - button "周六 17:00" [ref=e388]
+                      - button "周六 18:00" [ref=e389]
+                      - button "周六 19:00" [ref=e390]
+                      - button "周六 20:00" [ref=e391]
+                      - button "周六 21:00" [ref=e392]
+                      - button "周六 22:00" [ref=e393]
+                      - button "周六 23:00" [ref=e394]
+                    - generic [ref=e395]:
+                      - button "清空" [ref=e396] [cursor=pointer]
+                      - button "复制" [ref=e397] [cursor=pointer]
+                  - generic [ref=e398]:
+                    - generic [ref=e399]: 周日
+                    - generic [ref=e400]:
+                      - button "周日 00:00" [ref=e401]
+                      - button "周日 01:00" [ref=e402]
+                      - button "周日 02:00" [ref=e403]
+                      - button "周日 03:00" [ref=e404]
+                      - button "周日 04:00" [ref=e405]
+                      - button "周日 05:00" [ref=e406]
+                      - button "周日 06:00" [ref=e407]
+                      - button "周日 07:00" [ref=e408]
+                      - button "周日 08:00" [ref=e409]
+                      - button "周日 09:00" [ref=e410]
+                      - button "周日 10:00" [ref=e411]
+                      - button "周日 11:00" [ref=e412]
+                      - button "周日 12:00" [ref=e413]
+                      - button "周日 13:00" [ref=e414]
+                      - button "周日 14:00" [ref=e415]
+                      - button "周日 15:00" [ref=e416]
+                      - button "周日 16:00" [ref=e417]
+                      - button "周日 17:00" [ref=e418]
+                      - button "周日 18:00" [ref=e419]
+                      - button "周日 19:00" [ref=e420]
+                      - button "周日 20:00" [ref=e421]
+                      - button "周日 21:00" [ref=e422]
+                      - button "周日 22:00" [ref=e423]
+                      - button "周日 23:00" [ref=e424]
+                    - generic [ref=e425]:
+                      - button "清空" [ref=e426] [cursor=pointer]
+                      - button "复制" [ref=e427] [cursor=pointer]
+              - generic [ref=e428]:
+                - generic [ref=e429]: 时间范围
+                - generic [ref=e430]:
+                  - generic [ref=e431]:
+                    - button "按天" [ref=e432]
+                    - button "按周" [ref=e433]
+                  - paragraph [ref=e434]: 按天直接在图表点选
+        - generic [ref=e435]:
+          - generic [ref=e436]:
+            - generic [ref=e437]: 操作系统
+            - combobox [ref=e438]:
+              - generic [ref=e439]: 全部
+              - img [ref=e440]
+          - generic [ref=e442]:
+            - generic [ref=e443]: 设备
+            - combobox [ref=e444]:
+              - generic [ref=e445]: 桌面、移动、平板
+              - img [ref=e446]
+          - generic [ref=e448]:
+            - generic [ref=e449]: URL 后缀
+            - textbox [ref=e450]: "gad_campaignid={campaignid}"
+          - generic [ref=e451]:
+            - generic [ref=e452]: IP 地址排除
+            - textbox "每行一个 IP 或 CIDR" [ref=e453]
+        - generic [ref=e454]:
+          - generic [ref=e455]:
+            - paragraph [ref=e456]: 广告组 · 1
+            - button "新增广告组" [ref=e457] [cursor=pointer]:
+              - img [ref=e458]
+              - text: 新增广告组
+          - generic [ref=e460]:
+            - button "01 广告组 广告组 1 1 条广告 · all · geoTargetConstants/2124" [ref=e589]:
+              - generic [ref=e462]: "01"
+              - generic [ref=e463]:
+                - paragraph [ref=e464]: 广告组
+                - paragraph [ref=e465]: 广告组 1
+                - paragraph [ref=e466]: 1 条广告 · all · geoTargetConstants/2124
+              - img [ref=e467]
+            - button "删除广告组" [disabled]:
+              - img
+  - generic [ref=e647]:
+    - button "关闭弹窗" [ref=e648]
+    - dialog [ref=e649]:
+      - generic [ref=e650]:
+        - generic [ref=e651]:
+          - list "当前层级" [ref=e652]:
+            - listitem [ref=e653]:
+              - generic [ref=e654]: "广告系列:"
+              - generic "广告系列 1" [ref=e655]
+            - listitem [ref=e656]:
+              - img [ref=e657]
+              - generic [ref=e659]: "广告组:"
+              - generic "广告组 1" [ref=e660]
+            - listitem [ref=e661]:
+              - img [ref=e662]
+              - generic [ref=e664]: "广告:"
+              - generic "广告 1" [ref=e665]
+          - paragraph [ref=e666]: 编辑广告
+          - heading "广告 1" [level=2] [ref=e667]
+        - generic [ref=e668]:
+          - button "返回" [ref=e669] [cursor=pointer]
+          - button "关闭" [ref=e670] [cursor=pointer]
+      - generic [ref=e672]:
+        - generic [ref=e673]:
+          - generic [ref=e674]: 广告名称
+          - textbox [ref=e675]: 广告 1
+        - generic [ref=e676]:
+          - generic [ref=e677]: 商家名称
+          - textbox [ref=e678]: Apex
+        - generic [ref=e679]:
+          - generic [ref=e680]: 最终到达网址
+          - textbox [ref=e681]: https://example.com/landing
+        - generic [ref=e682]:
+          - generic [ref=e683]: 号召性用语文字
+          - button [expanded] [ref=e684]:
+            - img [ref=e685]
+        - generic [ref=e687]:
+          - generic [ref=e688]: 视频素材链接
+          - generic [ref=e690]:
+            - generic [ref=e691]:
+              - paragraph [ref=e692]: 最多 5 条 · watch / youtu.be 链接
+              - button "添加" [ref=e693] [cursor=pointer]:
+                - img [ref=e694]
+                - text: 添加
+            - list [ref=e695]:
+              - listitem [ref=e696]:
+                - generic [ref=e697]:
+                  - generic [ref=e698]: 视频 1
+                  - button "删除视频 1" [disabled]:
+                    - img
+                - generic [ref=e699]:
+                  - img "视频封面" [ref=e700]
+                  - generic [ref=e701]:
+                    - textbox "https://www.youtube.com/watch?v=..." [ref=e702]: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+                    - paragraph [ref=e703]:
+                      - text: 已识别视频 ID
+                      - code [ref=e704]: dQw4w9WgXcQ
+        - generic [ref=e705]:
+          - generic [ref=e706]: 徽标
+          - generic [ref=e707]:
+            - paragraph [ref=e709]: 0/5 张 · PNG / JPG / WebP
+            - generic [ref=e710] [cursor=pointer]:
+              - img [ref=e711]
+              - generic [ref=e712]: 上传徽标图片
+              - generic [ref=e713]: 点击选择本地图片
+              - button "上传徽标图片 点击选择本地图片" [ref=e714]
+        - generic [ref=e715]:
+          - generic [ref=e716]: 短标题
+          - generic [ref=e717]:
+            - generic [ref=e718]:
+              - paragraph [ref=e719]: 最多可添加 5 条
+              - button "添加" [ref=e720] [cursor=pointer]:
+                - img [ref=e721]
+                - text: 添加
+            - generic [ref=e722]:
+              - generic [ref=e723]:
+                - generic [ref=e724]:
+                  - textbox "输入短标题" [ref=e725]: Test Headline Updated
+                  - button "删除" [ref=e726] [cursor=pointer]:
+                    - img [ref=e727]
+                - paragraph [ref=e730]: 21/40
+              - generic [ref=e731]:
+                - generic [ref=e732]:
+                  - textbox "输入短标题" [ref=e733]: New Deals Today
+                  - button "删除" [ref=e734] [cursor=pointer]:
+                    - img [ref=e735]
+                - paragraph [ref=e738]: 15/40
+              - generic [ref=e739]:
+                - generic [ref=e740]:
+                  - textbox "输入短标题" [ref=e741]: Shop Securely
+                  - button "删除" [ref=e742] [cursor=pointer]:
+                    - img [ref=e743]
+                - paragraph [ref=e746]: 13/40
+        - generic [ref=e747]:
+          - generic [ref=e748]: 长标题
+          - generic [ref=e749]:
+            - generic [ref=e750]:
+              - paragraph [ref=e751]: 最多可添加 5 条
+              - button "添加" [ref=e752] [cursor=pointer]:
+                - img [ref=e753]
+                - text: 添加
+            - generic [ref=e755]:
+              - generic [ref=e756]:
+                - textbox "输入长标题" [ref=e757]: Discover better products on the official website
+                - button "删除" [disabled]:
+                  - img
+              - paragraph [ref=e758]: 48/90
+        - generic [ref=e759]:
+          - generic [ref=e760]: 广告内容描述
+          - generic [ref=e761]:
+            - generic [ref=e762]:
+              - paragraph [ref=e763]: 最多可添加 5 条
+              - button "添加" [ref=e764] [cursor=pointer]:
+                - img [ref=e765]
+                - text: 添加
+            - generic [ref=e766]:
+              - generic [ref=e767]:
+                - generic [ref=e768]:
+                  - textbox "输入描述" [ref=e769]: Browse new arrivals and complete checkout online.
+                  - button "删除" [ref=e770] [cursor=pointer]:
+                    - img [ref=e771]
+                - paragraph [ref=e774]: 49/90
+              - generic [ref=e775]:
+                - generic [ref=e776]:
+                  - textbox "输入描述" [ref=e777]: Trusted service
+                  - button "删除" [ref=e778] [cursor=pointer]:
+                    - img [ref=e779]
+                - paragraph [ref=e782]: 15/90
+              - generic [ref=e783]:
+                - generic [ref=e784]:
+                  - textbox "输入描述" [ref=e785]: fresh deals
+                  - button "删除" [ref=e786] [cursor=pointer]:
+                    - img [ref=e787]
+                - paragraph [ref=e790]: 11/90
+              - generic [ref=e791]:
+                - generic [ref=e792]:
+                  - textbox "输入描述" [ref=e793]: and fast checkout.
+                  - button "删除" [ref=e794] [cursor=pointer]:
+                    - img [ref=e795]
+                - paragraph [ref=e798]: 18/90
+  - dialog [ref=e800]:
+    - generic [ref=e801]:
+      - button "（自动）" [active] [ref=e802]:
+        - generic [ref=e803]: （自动）
+      - button "立即申请" [ref=e804]:
+        - generic [ref=e805]: 立即申请
+      - button "立即预订" [ref=e806]:
+        - generic [ref=e807]: 立即预订
+      - button "立即购买" [ref=e808]:
+        - generic [ref=e809]: 立即购买
+      - button "联系我们" [ref=e810]:
+        - generic [ref=e811]: 联系我们
+      - button "立即捐款" [ref=e812]:
+        - generic [ref=e813]: 立即捐款
+      - button "下载" [ref=e814]:
+        - generic [ref=e815]: 下载
+      - button "获取报价" [ref=e816]:
+        - generic [ref=e817]: 获取报价
+      - button "了解详情" [ref=e818]:
+        - generic [ref=e819]: 了解详情
+      - button "立即订购" [ref=e820]:
+        - generic [ref=e821]: 立即订购
+      - button "立即播放" [ref=e822]:
+        - generic [ref=e823]: 立即播放
+      - button "查看详细信息" [ref=e824]:
+        - generic [ref=e825]: 查看详细信息
+      - button "立即选购" [ref=e826]:
+        - generic [ref=e827]: 立即选购
+        - img [ref=e828]
+      - button "注册" [ref=e830]:
+        - generic [ref=e831]: 注册
+      - button "立即开始" [ref=e832]:
+        - generic [ref=e833]: 立即开始
+      - button "订阅" [ref=e834]:
+        - generic [ref=e835]: 订阅
+      - button "访问网站" [ref=e836]:
+        - generic [ref=e837]: 访问网站
+      - button "立即观看" [ref=e838]:
+        - generic [ref=e839]: 立即观看

@@ -1,0 +1,115 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e4]:
+      - link "Apex Nexus Admin" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img [ref=e7]
+        - generic [ref=e12]:
+          - paragraph [ref=e13]: Apex Nexus
+          - paragraph [ref=e14]: Admin
+      - navigation "主导航" [ref=e15]:
+        - link "工作台" [ref=e16] [cursor=pointer]:
+          - /url: /
+          - img [ref=e17]
+          - generic [ref=e28]: 工作台
+        - link "广告投放" [ref=e29] [cursor=pointer]:
+          - /url: /ads
+          - img [ref=e30]
+          - generic [ref=e33]: 广告投放
+        - link "账号中心" [ref=e34] [cursor=pointer]:
+          - /url: /accounts
+          - img [ref=e35]
+          - generic [ref=e39]: 账号中心
+        - link "素材中心" [ref=e40] [cursor=pointer]:
+          - /url: /assets
+          - img [ref=e41]
+          - generic [ref=e46]: 素材中心
+        - link "数据报表" [ref=e47] [cursor=pointer]:
+          - /url: /reports
+          - img [ref=e48]
+          - generic [ref=e50]: 数据报表
+        - link "系统设置" [ref=e51] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e52]
+          - generic [ref=e55]: 系统设置
+      - generic [ref=e56]:
+        - button "切换为暗色模式" [ref=e57] [cursor=pointer]:
+          - img [ref=e58]
+        - link "登录" [ref=e60] [cursor=pointer]:
+          - /url: /login
+    - generic [ref=e62]:
+      - generic [ref=e63]:
+        - generic [ref=e64]:
+          - generic [ref=e65]: 已加载 14 个已同步账号
+          - generic [ref=e66]: 最近同步：2026/6/2 22:26:07
+          - generic [ref=e67]: 1/4 Campaigns · 1 AdGroups · 1 Ads
+        - generic [ref=e68]:
+          - button "重新同步" [ref=e69] [cursor=pointer]
+          - button "新增 Campaign" [ref=e70] [cursor=pointer]:
+            - img [ref=e71]
+            - text: 新增 Campaign
+      - generic [ref=e72]:
+        - article [ref=e73]:
+          - button "01 DEMAND_GEN 广告系列 1 转化 · 尽可能提高转化 · 预算 20 内容概览 广告组 1 · US · 所有语言 广告 1 · Apex · example.com/landing 素材 1 视频 · 3 标题 · 0 徽标 定向 全部 / 桌面、移动、平板 投放 全天投放 转化目标 购买 AdGroup / Ad 1 组 · 1 条 广告组 1 1 ads 广告 1 3 headlines 结构 1 组 · 1 广告 账号 3580644047" [ref=e74]:
+            - generic [ref=e75]:
+              - generic [ref=e76]: "01"
+              - generic [ref=e77]: DEMAND_GEN
+            - paragraph [ref=e78]: 广告系列 1
+            - paragraph [ref=e79]: 转化 · 尽可能提高转化 · 预算 20
+            - generic [ref=e80]:
+              - paragraph [ref=e81]: 内容概览
+              - list [ref=e82]:
+                - listitem [ref=e83]: 广告组 1 · US · 所有语言
+                - listitem [ref=e84]: 广告 1 · Apex · example.com/landing
+                - listitem [ref=e85]: 素材 1 视频 · 3 标题 · 0 徽标
+                - listitem [ref=e86]: 定向 全部 / 桌面、移动、平板
+                - listitem [ref=e87]: 投放 全天投放
+                - listitem [ref=e88]: 转化目标 购买
+            - generic [ref=e89]:
+              - generic [ref=e90]:
+                - generic [ref=e91]: AdGroup / Ad
+                - generic [ref=e92]: 1 组 · 1 条
+              - generic [ref=e94]:
+                - generic [ref=e95]:
+                  - paragraph [ref=e96]: 广告组 1
+                  - generic [ref=e97]: 1 ads
+                - list [ref=e98]:
+                  - listitem [ref=e99]:
+                    - generic [ref=e101]: 广告 1
+                    - generic [ref=e102]: 3 headlines
+            - generic [ref=e103]:
+              - generic [ref=e104]:
+                - term [ref=e105]: 结构
+                - definition [ref=e106]: 1 组 · 1 广告
+              - generic [ref=e107]:
+                - term [ref=e108]: 账号
+                - definition [ref=e109]: "3580644047"
+          - generic [ref=e110]:
+            - button "设置 Campaign" [ref=e111] [cursor=pointer]:
+              - img [ref=e112]
+              - text: 设置 Campaign
+            - button "预览" [ref=e115] [cursor=pointer]:
+              - img [ref=e116]
+              - text: 预览
+            - button "删除广告系列" [disabled]:
+              - img
+        - button "新增广告系列" [ref=e119]:
+          - img [ref=e121]
+          - text: 新增广告系列
+        - button "新增广告系列" [ref=e122]:
+          - img [ref=e124]
+          - text: 新增广告系列
+        - button "新增广告系列" [ref=e125]:
+          - img [ref=e127]
+          - text: 新增广告系列
+      - generic [ref=e129]:
+        - generic [ref=e130]:
+          - paragraph [ref=e131]: 1 个广告系列 · 1 个广告组 · 1 条广告
+          - paragraph [ref=e132]: 提交后会创建草稿并直接推送 Google Ads API。
+        - button "创建并推送" [ref=e133] [cursor=pointer]:
+          - text: 创建并推送
+          - img [ref=e134]
+  - region "Notifications (F8)":
+    - list
+  - button "Open Next.js Dev Tools" [ref=e141] [cursor=pointer]:
+    - img [ref=e142]
