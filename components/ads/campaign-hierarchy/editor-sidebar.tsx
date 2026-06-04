@@ -181,7 +181,7 @@ export function EditorSidebar({
                       <div
                         key={ad.id}
                         className={cn(
-                          "relative flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left transition",
+                          "relative flex w-full items-center gap-1 rounded-xl text-left transition",
                           hasAdError
                             ? "bg-[var(--semantic-error)]/6 ring-1 ring-[var(--semantic-error)]/25"
                             : isAdActive
@@ -193,9 +193,9 @@ export function EditorSidebar({
                           <span className="absolute inset-y-1.5 left-1 w-1 rounded-full bg-[var(--ink)]/70" />
                         ) : null}
                         <button
-                          className="flex min-w-0 flex-1 items-center gap-2 text-left"
                           type="button"
                           onClick={() => onOpenAd?.(group.id, ad.id)}
+                          className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-2.5 text-left"
                         >
                           <span className={cn(
                             "h-1.5 w-1.5 shrink-0 rounded-full",
@@ -203,13 +203,13 @@ export function EditorSidebar({
                             isAdActive ? "ml-1" : "",
                           )} />
                           <span className={cn(
-                            "truncate text-xs font-medium",
+                            "min-w-0 flex-1 truncate text-xs font-medium",
                             hasAdError ? "text-[var(--semantic-error)]" : "text-[var(--ink)]",
                           )}>
                             {ad.name}
                           </span>
                         </button>
-                        <div className="flex shrink-0 items-center gap-0.5">
+                        <div className="flex shrink-0 items-center gap-0.5 pr-2">
                           {onDuplicateAd ? (
                             <Button
                               aria-label={`复制广告 ${ad.name}`}
