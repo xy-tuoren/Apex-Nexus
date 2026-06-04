@@ -3,7 +3,6 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -29,7 +28,6 @@ import {
   formatHour,
   joinLines,
   joinMultiline,
-  rangesFromHours,
   splitLines,
   splitMultiline,
   youtubeThumbnailUrl,

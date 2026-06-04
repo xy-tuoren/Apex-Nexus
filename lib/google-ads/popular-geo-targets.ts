@@ -48,5 +48,5 @@ export const POPULAR_COUNTRY_GEO_TARGETS: PopularCountryGeoTarget[] = [
 ];
 
 export const POPULAR_COUNTRY_GEO_TARGET_OPTIONS = POPULAR_COUNTRY_GEO_TARGETS.map(
-  ({ aliases: _aliases, ...target }) => target,
+  ({ aliases: _aliases, ...target }) => target, // eslint-disable-line @typescript-eslint/no-unused-vars
 );

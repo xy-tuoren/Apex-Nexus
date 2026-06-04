@@ -29,8 +29,6 @@ export function EditorSidebar({
   campaign,
   activeGroupId,
   activeAdId,
-  geoTargets: _geoTargets,
-  languageTargets: _languageTargets,
   onOpenGroup,
   onOpenAd,
   onAddGroup,
@@ -153,7 +151,7 @@ export function EditorSidebar({
                   ) : null}
                 </div>
                 <div className="space-y-1">
-                  {group.ads.map((ad, adIndex) => {
+                  {group.ads.map((ad) => {
                     const isAdActive = activeGroupId === group.id && activeAdId === ad.id;
 
                     return (

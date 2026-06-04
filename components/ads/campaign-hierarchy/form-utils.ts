@@ -2,8 +2,6 @@ import type { ComboboxOption } from "@/components/ui/combobox";
 import type { GoogleAdAccount } from "@/lib/types";
 import { POPULAR_COUNTRY_GEO_TARGETS } from "@/lib/google-ads/popular-geo-targets";
 import {
-  BIDDING_TYPE_OPTIONS,
-  CLICK_BIDDING_TYPE_OPTIONS,
   CONVERSION_CATEGORY_LABELS,
   DEVICE_OPTIONS,
   DEVICE_SELECTABLE_VALUES,

@@ -18,14 +18,17 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("light");
   const [mounted, setMounted] = useState(false);
 
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === "undefined") return "light";
+    return getStoredTheme();
+  });
+
   useEffect(() => {
-    const stored = getStoredTheme();
-    setThemeState(stored);
-    applyTheme(stored);
-    setMounted(true);
+    applyTheme(theme);
+    void Promise.resolve().then(() => setMounted(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
   }, []);
 
   const setTheme = (next: Theme) => {

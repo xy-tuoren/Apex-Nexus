@@ -83,6 +83,7 @@ function serializeMongoDocument<T>(document: unknown): T {
     return document as T;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { _id: _ignored, ...rest } = document as Record<string, unknown>;
   return rest as T;
 }
