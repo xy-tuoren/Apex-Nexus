@@ -662,6 +662,120 @@ export function buildLanguageTargetSelectOptions(
   return options;
 }
 
+// ── Validation ──────────────────────────────────────────────
+
+export type CampaignErrors = Partial<Record<
+  | "adAccountId"
+  | "campaignName"
+  | "conversionGoal"
+  | "budgetDaily"
+  | "targetCpa"
+  | "targetCpc"
+  | "os"
+  | "devices"
+  | "finalUrlSuffix"
+  | "trackingTemplate",
+  string
+>>;
+
+export function validateCampaign(campaign: CampaignForm): CampaignErrors {
+  const errors: CampaignErrors = {};
+
+  if (!campaign.adAccountId.trim()) errors.adAccountId = "请选择广告账户";
+  if (!campaign.campaignName.trim()) errors.campaignName = "请输入广告系列名称";
+
+  const budget = Number(campaign.budgetDaily);
+  if (!campaign.budgetDaily.trim() || !Number.isFinite(budget) || budget <= 0) {
+    errors.budgetDaily = "请输入有效预算";
+  }
+
+  if (campaign.campaignObjective === "CONVERSIONS") {
+    if (!campaign.conversionGoal.trim()) errors.conversionGoal = "请选择转化目标";
+    if (campaign.biddingType === "TARGET_CPA") {
+      const cpa = Number(campaign.targetCpa);
+      if (!campaign.targetCpa.trim() || !Number.isFinite(cpa) || cpa <= 0) {
+        errors.targetCpa = "请输入有效目标 CPA";
+      }
+    }
+  }
+
+  if (campaign.campaignObjective === "CLICKS" && campaign.clickBiddingType === "MAX_CPC") {
+    const cpc = Number(campaign.targetCpc);
+    if (!campaign.targetCpc.trim() || !Number.isFinite(cpc) || cpc <= 0) {
+      errors.targetCpc = "请输入有效目标 CPC";
+    }
+  }
+
+  if (campaign.os.length === 0) errors.os = "请选择至少一个操作系统";
+  if (campaign.devices.length === 0) errors.devices = "请选择至少一个设备";
+  if (!campaign.finalUrlSuffix.trim()) errors.finalUrlSuffix = "请输入 URL 后缀";
+
+  return errors;
+}
+
+export type AdGroupErrors = Partial<Record<"name" | "locations" | "language", string>>;
+
+export function validateAdGroup(group: AdGroupForm): AdGroupErrors {
+  const errors: AdGroupErrors = {};
+  if (!group.name.trim()) errors.name = "请输入广告组名称";
+  if (!group.locations.trim()) errors.locations = "请选择地理位置";
+  if (!group.language.trim()) errors.language = "请选择语言";
+  return errors;
+}
+
+export type AdErrors = Partial<Record<
+  | "name"
+  | "finalUrl"
+  | "businessName"
+  | "shortHeadlines"
+  | "longHeadlines"
+  | "descriptions"
+  | "videoLinks"
+  | "logos",
+  string
+>>;
+
+export function validateAd(ad: AdForm): AdErrors {
+  const errors: AdErrors = {};
+  if (!ad.name.trim()) errors.name = "请输入广告名称";
+  if (!ad.finalUrl.trim()) errors.finalUrl = "请输入最终到达网址";
+  if (!ad.businessName.trim()) errors.businessName = "请输入商家名称";
+  if (!splitLines(ad.shortHeadlines).length) errors.shortHeadlines = "请输入短标题";
+  if (!splitLines(ad.longHeadlines).length) errors.longHeadlines = "请输入长标题";
+  if (!splitLines(ad.descriptions).length) errors.descriptions = "请输入广告内容描述";
+  if (!normalizeVideoInputs(ad.videoLinks).length) errors.videoLinks = "请添加至少一个视频链接";
+  if (!splitMultiline(ad.logos).length) errors.logos = "请添加至少一个徽标";
+  return errors;
+}
+
+export const CAMPAIGN_ERROR_LABELS: Record<string, string> = {
+  adAccountId: "账户", campaignName: "名称", conversionGoal: "转化目标",
+  budgetDaily: "预算", targetCpa: "目标CPA", targetCpc: "目标CPC",
+  os: "操作系统", devices: "设备", finalUrlSuffix: "URL后缀",
+};
+
+export const AG_ERROR_LABELS: Record<string, string> = {
+  name: "名称", locations: "地理位置", language: "语言",
+};
+
+export const AD_ERROR_LABELS: Record<string, string> = {
+  name: "名称", finalUrl: "URL", businessName: "商家名",
+  shortHeadlines: "短标题", longHeadlines: "长标题", descriptions: "描述",
+  videoLinks: "视频", logos: "徽标",
+};
+
+export function errorFields(errors: Record<string, string | undefined>, labels: Record<string, string>) {
+  return Object.entries(errors)
+    .filter(([, v]) => v)
+    .map(([k]) => labels[k] ?? k);
+}
+
+export function hasErrors(errors: Record<string, string | undefined>) {
+  return Object.values(errors).some(Boolean);
+}
+
+// ── Schedule formatting ─────────────────────────────────────
+
 export function formatHour(hour: number) {
   return `${String(hour).padStart(2, "0")}:00`;
 }

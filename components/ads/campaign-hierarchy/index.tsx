@@ -34,6 +34,17 @@ import {
   splitMultiline,
   successMessageFromResult,
   summarizeOsDevice,
+  validateAd,
+  validateAdGroup,
+  validateCampaign,
+  hasErrors,
+  type AdErrors,
+  type AdGroupErrors,
+  type CampaignErrors,
+  AD_ERROR_LABELS,
+  AG_ERROR_LABELS,
+  CAMPAIGN_ERROR_LABELS,
+  errorFields,
 } from "@/components/ads/campaign-hierarchy/form-utils";
 import { CampaignEditorForm } from "@/components/ads/campaign-hierarchy/campaign-editor-form";
 import { AdGroupEditorForm } from "@/components/ads/campaign-hierarchy/adgroup-editor-form";
@@ -80,6 +91,80 @@ export function CampaignHierarchyEditor({
   const [isCampaignEditorOpen, setIsCampaignEditorOpen] = useState(false);
   const [editorFocus, setEditorFocus] = useState<EditorFocus | null>(null);
   const [previewCampaignId, setPreviewCampaignId] = useState<string | null>(null);
+  const [campaignErrors, setCampaignErrors] = useState<Record<string, CampaignErrors>>({});
+  const [adGroupErrors, setAdGroupErrors] = useState<Record<string, AdGroupErrors>>({});
+  const [adErrors, setAdErrors] = useState<Record<string, AdErrors>>({});
+
+  function validateAllDrafts(): boolean {
+    const campErrors: Record<string, CampaignErrors> = {};
+    const groupErrors: Record<string, AdGroupErrors> = {};
+    const adErrs: Record<string, AdErrors> = {};
+    let valid = true;
+
+    for (const campaign of campaigns) {
+      const ce = validateCampaign(campaign);
+      if (hasErrors(ce)) { campErrors[campaign.id] = ce; valid = false; }
+
+      for (const group of campaign.adGroups) {
+        const ge = validateAdGroup(group);
+        if (hasErrors(ge)) { groupErrors[`${campaign.id}:${group.id}`] = ge; valid = false; }
+
+        for (const ad of group.ads) {
+          const ae = validateAd(ad);
+          if (hasErrors(ae)) { adErrs[`${campaign.id}:${group.id}:${ad.id}`] = ae; valid = false; }
+        }
+      }
+    }
+
+    setCampaignErrors(campErrors);
+    setAdGroupErrors(groupErrors);
+    setAdErrors(adErrs);
+
+    if (!valid) {
+      // Build detailed toast message
+      const lines: string[] = [];
+
+      for (const campaign of campaigns) {
+        const ce = campErrors[campaign.id];
+        if (ce) {
+          const fields = errorFields(ce, CAMPAIGN_ERROR_LABELS);
+          if (fields.length) lines.push(`${campaign.campaignName}：${fields.join("、")}未填`);
+        }
+
+        for (const group of campaign.adGroups) {
+          const ge = groupErrors[`${campaign.id}:${group.id}`];
+          if (ge) {
+            const fields = errorFields(ge, AG_ERROR_LABELS);
+            if (fields.length) lines.push(`${group.name}：${fields.join("、")}未填`);
+          }
+
+          for (const ad of group.ads) {
+            const ae = adErrs[`${campaign.id}:${group.id}:${ad.id}`];
+            if (ae) {
+              const fields = errorFields(ae, AD_ERROR_LABELS);
+              if (fields.length) lines.push(`${ad.name}：${fields.join("、")}未填`);
+            }
+          }
+        }
+      }
+
+      notify({
+        tone: "error",
+        title: "表单校验未通过",
+        description: lines.length ? lines.join("\n") : "请检查所有必填项后再提交。",
+      });
+
+      // Expand first campaign with errors
+      const firstCampaignId = Object.keys(campErrors)[0];
+      if (firstCampaignId) {
+        setActiveCampaignId(firstCampaignId);
+        setIsCampaignEditorOpen(true);
+        setEditorFocus(null);
+      }
+    }
+
+    return valid;
+  }
 
   // Unique account IDs present in campaigns — max 4
   const accountIdsKey = useMemo(
@@ -175,6 +260,13 @@ export function CampaignHierarchyEditor({
     setCampaigns((current) =>
       current.map((c) => (c.id === campaignId ? { ...c, ...patch } : c)),
     );
+    // Clear campaign validation errors on edit
+    setCampaignErrors((prev) => {
+      if (!prev[campaignId]) return prev;
+      const next = { ...prev };
+      delete next[campaignId];
+      return next;
+    });
   }
 
   function updateCampaignAdGroup(campaignId: string, groupId: string, patch: Partial<AdGroupForm>) {
@@ -185,6 +277,14 @@ export function CampaignHierarchyEditor({
           : c,
       ),
     );
+    // Clear adgroup validation errors on edit
+    setAdGroupErrors((prev) => {
+      const key = `${campaignId}:${groupId}`;
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   }
 
   function updateCampaignAd(campaignId: string, groupId: string, adId: string, patch: Partial<AdForm>) {
@@ -202,6 +302,14 @@ export function CampaignHierarchyEditor({
           : c,
       ),
     );
+    // Clear ad validation errors on edit
+    setAdErrors((prev) => {
+      const key = `${campaignId}:${groupId}:${adId}`;
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   }
 
   function toggleAdGroupGender(campaignId: string, group: AdGroupForm, gender: string, checked: boolean) {
@@ -437,6 +545,11 @@ export function CampaignHierarchyEditor({
 
   // Submit
   async function submitDrafts() {
+    // Validate all drafts before submitting (toast shown inside validateAllDrafts)
+    if (!validateAllDrafts()) {
+      return;
+    }
+
     setIsSubmitting(true);
     setResult(null);
     try {
@@ -505,6 +618,29 @@ export function CampaignHierarchyEditor({
   const totalAdGroups = campaigns.reduce((t, c) => t + c.adGroups.length, 0);
   const totalAds = campaigns.reduce((t, c) => t + c.adGroups.reduce((gt, g) => gt + g.ads.length, 0), 0);
   const campaignSlots = Array.from({ length: 4 }, (_, i) => campaigns[i] ?? null);
+
+  // Derive per-campaign error maps for the sidebar
+  const activeCampaignGroupErrors = useMemo(() => {
+    if (!activeCampaign) return {};
+    const result: Record<string, AdGroupErrors> = {};
+    for (const [key, errs] of Object.entries(adGroupErrors)) {
+      if (key.startsWith(`${activeCampaign.id}:`)) {
+        result[key.slice(activeCampaign.id.length + 1)] = errs;
+      }
+    }
+    return result;
+  }, [activeCampaign, adGroupErrors]);
+
+  const activeCampaignAdErrors = useMemo(() => {
+    if (!activeCampaign) return {};
+    const result: Record<string, AdErrors> = {};
+    for (const [key, errs] of Object.entries(adErrors)) {
+      if (key.startsWith(`${activeCampaign.id}:`)) {
+        result[key.slice(activeCampaign.id.length + 1)] = errs;
+      }
+    }
+    return result;
+  }, [activeCampaign, adErrors]);
 
   function getResources(adAccountId: string) {
     return allResources[adAccountId] ?? null;
@@ -897,6 +1033,9 @@ export function CampaignHierarchyEditor({
             campaign={activeCampaign}
             adAccounts={adAccounts}
             syncState={syncState}
+            errors={campaignErrors[activeCampaign.id]}
+            groupErrors={activeCampaignGroupErrors}
+            adErrors={activeCampaignAdErrors}
             conversionGoals={getResources(activeCampaign.adAccountId)?.conversionGoals.data ?? []}
             conversionGoalState={getResources(activeCampaign.adAccountId)?.conversionGoals.status ?? "idle"}
             conversionGoalError={getResources(activeCampaign.adAccountId)?.conversionGoals.error ?? null}
@@ -932,6 +1071,9 @@ export function CampaignHierarchyEditor({
           <AdGroupEditorForm
             campaign={activeCampaign}
             group={activeEditorGroup}
+            errors={adGroupErrors[`${activeCampaign.id}:${activeEditorGroup.id}`]}
+            groupErrors={activeCampaignGroupErrors}
+            adErrors={activeCampaignAdErrors}
             geoTargets={getResources(activeCampaign.adAccountId)?.geoTargets.data ?? FALLBACK_GEO_TARGET_OPTIONS}
             geoTargetState={getResources(activeCampaign.adAccountId)?.geoTargets.status ?? "idle"}
             languageTargets={getResources(activeCampaign.adAccountId)?.languageTargets.data ?? FALLBACK_LANGUAGE_OPTIONS}
@@ -968,6 +1110,9 @@ export function CampaignHierarchyEditor({
             campaign={activeCampaign}
             group={activeEditorGroup}
             ad={activeEditorAd}
+            errors={adErrors[`${activeCampaign.id}:${activeEditorGroup.id}:${activeEditorAd.id}`]}
+            groupErrors={activeCampaignGroupErrors}
+            adErrors={activeCampaignAdErrors}
             geoTargets={getResources(activeCampaign.adAccountId)?.geoTargets.data ?? FALLBACK_GEO_TARGET_OPTIONS}
             languageTargets={getResources(activeCampaign.adAccountId)?.languageTargets.data ?? FALLBACK_LANGUAGE_OPTIONS}
             updateCampaignAd={updateCampaignAd}

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { SelectControl } from "@/components/ads/campaign-hierarchy/field-controls";
 import { AssetInputList, LogoUploadList, VideoLinkList } from "@/components/ads/campaign-hierarchy/field-controls";
 import { CTA_OPTIONS } from "@/components/ads/campaign-hierarchy/constants";
+import { type AdErrors, type AdGroupErrors } from "@/components/ads/campaign-hierarchy/form-utils";
 import type {
   AdForm,
   AdGroupForm,
@@ -13,10 +14,17 @@ import type {
   LanguageTargetOption,
 } from "@/components/ads/campaign-hierarchy/types";
 
+function inputErrorClass(error?: string) {
+  return error ? "border-[var(--semantic-error)] focus-visible:border-[var(--semantic-error)] focus-visible:ring-[var(--semantic-error)]/10" : "";
+}
+
 interface AdEditorFormProps {
   campaign: CampaignForm;
   group: AdGroupForm;
   ad: AdForm;
+  errors?: AdErrors;
+  groupErrors?: Record<string, AdGroupErrors>;
+  adErrors?: Record<string, AdErrors>;
   geoTargets: GeoTargetOption[];
   languageTargets: LanguageTargetOption[];
   // Mutation handlers
@@ -39,6 +47,9 @@ export function AdEditorForm({
   campaign,
   group,
   ad,
+  errors = {},
+  groupErrors = {},
+  adErrors = {},
   geoTargets,
   languageTargets,
   updateCampaignAd,
@@ -56,8 +67,10 @@ export function AdEditorForm({
         <EditorSidebar
           activeAdId={ad.id}
           activeGroupId={group.id}
+          adErrors={adErrors}
           campaign={campaign}
           geoTargets={geoTargets}
+          groupErrors={groupErrors}
           languageTargets={languageTargets}
           onAddAd={(groupId) => addAd(campaign.id, groupId)}
           onDuplicateAd={(groupId, adId) => duplicateAd(campaign.id, groupId, adId)}
@@ -71,19 +84,28 @@ export function AdEditorForm({
 
       <div className="grid gap-3 rounded-3xl border border-[var(--hairline)] bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)] sm:p-5">
         <div className="field">
-          <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">广告名称</label>
+          <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+            广告名称<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+          </label>
           <Input
-            className="min-w-0"
+            aria-invalid={Boolean(errors.name)}
+            className={inputErrorClass(errors.name)}
             value={ad.name}
             onChange={(event) =>
               updateCampaignAd(campaign.id, group.id, ad.id, { name: event.target.value })
             }
           />
+          {errors.name ? (
+            <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.name}</p>
+          ) : null}
         </div>
         <div className="field">
-          <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">商家名称</label>
+          <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+            商家名称<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+          </label>
           <Input
-            className="min-w-0"
+            aria-invalid={Boolean(errors.businessName)}
+            className={inputErrorClass(errors.businessName)}
             maxLength={25}
             value={ad.businessName}
             onChange={(event) =>
@@ -92,19 +114,30 @@ export function AdEditorForm({
               })
             }
           />
+          {errors.businessName ? (
+            <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.businessName}</p>
+          ) : null}
         </div>
         <div className="field">
-          <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">最终到达网址</label>
+          <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+            最终到达网址<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+          </label>
           <Input
-            className="min-w-0"
+            aria-invalid={Boolean(errors.finalUrl)}
+            className={inputErrorClass(errors.finalUrl)}
             value={ad.finalUrl}
             onChange={(event) =>
               updateCampaignAd(campaign.id, group.id, ad.id, { finalUrl: event.target.value })
             }
           />
+          {errors.finalUrl ? (
+            <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.finalUrl}</p>
+          ) : null}
         </div>
         <div className="field">
-          <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">号召性用语文字</label>
+          <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+            号召性用语文字<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+          </label>
           <SelectControl
             className="min-w-0 w-full"
             options={CTA_OPTIONS.map(([value, label]) => ({ value, label }))}
@@ -115,7 +148,9 @@ export function AdEditorForm({
           />
         </div>
         <div className="field">
-          <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">视频素材链接</label>
+          <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+            视频素材链接<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+          </label>
           <VideoLinkList
             key={`${ad.id}:videoLinks`}
             value={ad.videoLinks}
@@ -123,16 +158,26 @@ export function AdEditorForm({
               updateCampaignAd(campaign.id, group.id, ad.id, { videoLinks })
             }
           />
+          {errors.videoLinks ? (
+            <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.videoLinks}</p>
+          ) : null}
         </div>
         <div className="field">
-          <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">徽标</label>
+          <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+            徽标<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+          </label>
           <LogoUploadList
             value={ad.logos}
             onChange={(logos) => updateCampaignAd(campaign.id, group.id, ad.id, { logos })}
           />
+          {errors.logos ? (
+            <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.logos}</p>
+          ) : null}
         </div>
         <div className="field">
-          <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">短标题</label>
+          <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+            短标题<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+          </label>
           <AssetInputList
             key={`${ad.id}:shortHeadlines`}
             maxLength={40}
@@ -142,9 +187,14 @@ export function AdEditorForm({
               updateCampaignAd(campaign.id, group.id, ad.id, { shortHeadlines })
             }
           />
+          {errors.shortHeadlines ? (
+            <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.shortHeadlines}</p>
+          ) : null}
         </div>
         <div className="field">
-          <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">长标题</label>
+          <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+            长标题<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+          </label>
           <AssetInputList
             key={`${ad.id}:longHeadlines`}
             maxLength={90}
@@ -154,9 +204,14 @@ export function AdEditorForm({
               updateCampaignAd(campaign.id, group.id, ad.id, { longHeadlines })
             }
           />
+          {errors.longHeadlines ? (
+            <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.longHeadlines}</p>
+          ) : null}
         </div>
         <div className="field">
-          <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">广告内容描述</label>
+          <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+            广告内容描述<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+          </label>
           <AssetInputList
             key={`${ad.id}:descriptions`}
             maxLength={90}
@@ -166,6 +221,9 @@ export function AdEditorForm({
               updateCampaignAd(campaign.id, group.id, ad.id, { descriptions })
             }
           />
+          {errors.descriptions ? (
+            <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.descriptions}</p>
+          ) : null}
         </div>
       </div>
     </div>

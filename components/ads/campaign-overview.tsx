@@ -202,43 +202,47 @@ export function CampaignOverviewCard({
         </div>
       </div>
       <div className="flex items-center justify-between gap-2 border-t border-[var(--hairline)] bg-[var(--canvas-soft)] px-4 py-3">
-        <Button className="h-8 gap-1 px-2.5 text-xs" size="sm" type="button" onClick={onEdit}>
-          <Settings2 aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
-          设置 Campaign
-        </Button>
-        <Button className="h-8 gap-1 px-2.5 text-xs" size="sm" type="button" variant="outline" onClick={onPreview}>
-          <Eye aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
-          预览
-        </Button>
-        <Button
-          aria-label="复制广告系列"
-          className="h-8 w-8 px-0"
-          disabled={!canDuplicate}
-          size="sm"
-          title="复制广告系列"
-          type="button"
-          variant="ghost"
-          onClick={(event) => {
-            event.stopPropagation();
-            onDuplicate?.();
-          }}
-        >
-          <Copy aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
-        </Button>
-        <Button
-          aria-label="删除广告系列"
-          className="h-8 w-8 px-0"
-          disabled={!canRemove}
-          size="sm"
-          type="button"
-          variant="ghost"
-          onClick={(event) => {
-            event.stopPropagation();
-            onRemove();
-          }}
-        >
-          <Trash2 aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button className="h-8 gap-1 px-2.5 text-xs" size="sm" type="button" onClick={onEdit}>
+            <Settings2 aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+            设置 Campaign
+          </Button>
+          <Button className="h-8 gap-1 px-2.5 text-xs" size="sm" type="button" onClick={onPreview}>
+            <Eye aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+            预览
+          </Button>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            aria-label="复制广告系列"
+            className="h-8 w-8 px-0"
+            disabled={!canDuplicate}
+            size="sm"
+            title="复制广告系列"
+            type="button"
+            variant="ghost"
+            onClick={(event) => {
+              event.stopPropagation();
+              onDuplicate?.();
+            }}
+          >
+            <Copy aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </Button>
+          <Button
+            aria-label="删除广告系列"
+            className="h-8 w-8 px-0"
+            disabled={!canRemove}
+            size="sm"
+            type="button"
+            variant="ghost"
+            onClick={(event) => {
+              event.stopPropagation();
+              onRemove();
+            }}
+          >
+            <Trash2 aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </Button>
+        </div>
       </div>
     </article>
   );

@@ -9,6 +9,8 @@ import { GENDER_OPTIONS, AGE_OPTIONS } from "@/components/ads/campaign-hierarchy
 import {
   buildGeoTargetSelectOptions,
   buildLanguageTargetSelectOptions,
+  type AdErrors,
+  type AdGroupErrors,
 } from "@/components/ads/campaign-hierarchy/form-utils";
 import type {
   AdGroupForm,
@@ -18,9 +20,16 @@ import type {
 } from "@/components/ads/campaign-hierarchy/types";
 import type { ResourceStatus } from "@/hooks/useAccountResource";
 
+function inputErrorClass(error?: string) {
+  return error ? "border-[var(--semantic-error)] focus-visible:border-[var(--semantic-error)] focus-visible:ring-[var(--semantic-error)]/10" : "";
+}
+
 interface AdGroupEditorFormProps {
   campaign: CampaignForm;
   group: AdGroupForm;
+  errors?: AdGroupErrors;
+  groupErrors?: Record<string, AdGroupErrors>;
+  adErrors?: Record<string, AdErrors>;
   geoTargets: GeoTargetOption[];
   geoTargetState: ResourceStatus;
   languageTargets: LanguageTargetOption[];
@@ -41,6 +50,9 @@ interface AdGroupEditorFormProps {
 export function AdGroupEditorForm({
   campaign,
   group,
+  errors = {},
+  groupErrors = {},
+  adErrors = {},
   geoTargets,
   geoTargetState,
   languageTargets,
@@ -61,8 +73,10 @@ export function AdGroupEditorForm({
       <div className="xl:sticky xl:top-0 xl:self-start">
         <EditorSidebar
           activeGroupId={group.id}
+          adErrors={adErrors}
           campaign={campaign}
           geoTargets={geoTargets}
+          groupErrors={groupErrors}
           languageTargets={languageTargets}
           onAddAd={(groupId) => addAd(campaign.id, groupId)}
           onDuplicateAd={(groupId, adId) => duplicateAd(campaign.id, groupId, adId)}
@@ -77,17 +91,25 @@ export function AdGroupEditorForm({
       <div className="space-y-5 rounded-3xl border border-[var(--hairline)] bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)] sm:p-5">
         <div className="grid gap-3">
           <div className="field">
-            <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">广告组名称</label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+              广告组名称<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+            </label>
             <Input
-              className="min-w-0"
+              aria-invalid={Boolean(errors.name)}
+              className={inputErrorClass(errors.name)}
               value={group.name}
               onChange={(event) =>
                 updateCampaignAdGroup(campaign.id, group.id, { name: event.target.value })
               }
             />
+            {errors.name ? (
+              <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.name}</p>
+            ) : null}
           </div>
           <div className="field">
-            <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">地理位置</label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+              地理位置<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+            </label>
             <Combobox
               disabled={geoTargetState === "loading"}
               emptyText="没有匹配的国家/地区"
@@ -99,9 +121,14 @@ export function AdGroupEditorForm({
                 updateCampaignAdGroup(campaign.id, group.id, { locations })
               }
             />
+            {errors.locations ? (
+              <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.locations}</p>
+            ) : null}
           </div>
           <div className="field">
-            <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">语言</label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+              语言<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+            </label>
             <Combobox
               disabled={languageTargetState === "loading"}
               emptyText="没有匹配的语言"
@@ -113,6 +140,9 @@ export function AdGroupEditorForm({
                 updateCampaignAdGroup(campaign.id, group.id, { language })
               }
             />
+            {errors.language ? (
+              <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.language}</p>
+            ) : null}
           </div>
           <div className="grid gap-2">
             <Label>受众群体</Label>

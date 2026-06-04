@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Plus, Trash2 } from "lucide-react";
+import { AlertCircle, Copy, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type {
@@ -8,6 +8,7 @@ import type {
   GeoTargetOption,
   LanguageTargetOption,
 } from "@/components/ads/campaign-hierarchy/types";
+import type { AdGroupErrors, AdErrors } from "@/components/ads/campaign-hierarchy/form-utils";
 
 type EditorSidebarProps = {
   campaign: CampaignForm;
@@ -15,6 +16,8 @@ type EditorSidebarProps = {
   activeAdId?: string | null;
   geoTargets?: GeoTargetOption[];
   languageTargets?: LanguageTargetOption[];
+  groupErrors?: Record<string, AdGroupErrors>;
+  adErrors?: Record<string, AdErrors>;
   onOpenGroup?: (groupId: string) => void;
   onOpenAd?: (groupId: string, adId: string) => void;
   onAddGroup?: () => void;
@@ -29,6 +32,8 @@ export function EditorSidebar({
   campaign,
   activeGroupId,
   activeAdId,
+  groupErrors = {},
+  adErrors = {},
   onOpenGroup,
   onOpenAd,
   onAddGroup,
@@ -59,15 +64,19 @@ export function EditorSidebar({
         {campaign.adGroups.map((group, groupIndex) => {
           const isGroupActive = activeGroupId === group.id && !activeAdId;
           const hasActiveAd = activeGroupId === group.id && Boolean(activeAdId);
+          const ge = groupErrors[group.id];
+          const hasGroupError = ge && Object.values(ge).some(Boolean);
 
           return (
             <section
               key={group.id}
               className={cn(
                 "overflow-hidden rounded-2xl border transition",
-                isGroupActive || hasActiveAd
-                  ? "border-[var(--ink)]/40 bg-[var(--surface-card)] ring-1 ring-[var(--ink)]/12"
-                  : "border-[var(--hairline)] bg-[var(--surface-card)]",
+                hasGroupError
+                  ? "border-[var(--semantic-error)]/50 bg-[var(--surface-card)]"
+                  : isGroupActive || hasActiveAd
+                    ? "border-[var(--ink)]/40 bg-[var(--surface-card)] ring-1 ring-[var(--ink)]/12"
+                    : "border-[var(--hairline)] bg-[var(--surface-card)]",
               )}
             >
               <div
@@ -88,12 +97,24 @@ export function EditorSidebar({
                   type="button"
                   onClick={() => onOpenGroup?.(group.id)}
                 >
-                  <span className="module-index flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--hairline)] bg-[var(--surface-strong)] text-[10px] font-semibold text-[var(--ink)]">
-                    {String(groupIndex + 1).padStart(2, "0")}
+                  <span className={cn(
+                    "module-index flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold",
+                    hasGroupError
+                      ? "border-[var(--semantic-error)]/50 bg-[var(--semantic-error)]/8 text-[var(--semantic-error)]"
+                      : "border-[var(--hairline)] bg-[var(--surface-strong)] text-[var(--ink)]",
+                  )}>
+                    {hasGroupError ? (
+                      <AlertCircle className="h-3.5 w-3.5" strokeWidth={2} />
+                    ) : (
+                      String(groupIndex + 1).padStart(2, "0")
+                    )}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center justify-between gap-2">
-                      <span className="truncate text-sm font-semibold text-[var(--ink)]">
+                      <span className={cn(
+                        "truncate text-sm font-semibold",
+                        hasGroupError ? "text-[var(--semantic-error)]" : "text-[var(--ink)]",
+                      )}>
                         {group.name}
                       </span>
                       <span className="shrink-0 text-[11px] text-[var(--muted)]">
@@ -153,15 +174,19 @@ export function EditorSidebar({
                 <div className="space-y-1">
                   {group.ads.map((ad) => {
                     const isAdActive = activeGroupId === group.id && activeAdId === ad.id;
+                    const ae = adErrors[`${group.id}:${ad.id}`];
+                    const hasAdError = ae && Object.values(ae).some(Boolean);
 
                     return (
                       <div
                         key={ad.id}
                         className={cn(
                           "relative flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left transition",
-                          isAdActive
-                            ? "bg-[var(--surface-strong)] ring-1 ring-[var(--ink)]/12"
-                            : "hover:bg-[var(--surface-strong)]/70",
+                          hasAdError
+                            ? "bg-[var(--semantic-error)]/6 ring-1 ring-[var(--semantic-error)]/25"
+                            : isAdActive
+                              ? "bg-[var(--surface-strong)] ring-1 ring-[var(--ink)]/12"
+                              : "hover:bg-[var(--surface-strong)]/70",
                         )}
                       >
                         {isAdActive ? (
@@ -173,10 +198,14 @@ export function EditorSidebar({
                           onClick={() => onOpenAd?.(group.id, ad.id)}
                         >
                           <span className={cn(
-                            "h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--ads-dot)]",
+                            "h-1.5 w-1.5 shrink-0 rounded-full",
+                            hasAdError ? "bg-[var(--semantic-error)]" : "bg-[var(--ads-dot)]",
                             isAdActive ? "ml-1" : "",
                           )} />
-                          <span className="truncate text-xs font-medium text-[var(--ink)]">
+                          <span className={cn(
+                            "truncate text-xs font-medium",
+                            hasAdError ? "text-[var(--semantic-error)]" : "text-[var(--ink)]",
+                          )}>
                             {ad.name}
                           </span>
                         </button>

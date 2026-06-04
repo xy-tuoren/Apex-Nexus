@@ -9,7 +9,6 @@ import {
   BIDDING_TYPE_OPTIONS,
   CLICK_BIDDING_TYPE_OPTIONS,
   DEVICE_COMBOBOX_OPTIONS,
-  inputGridClassName,
   OBJECTIVE_OPTIONS,
   OS_COMBOBOX_OPTIONS,
 } from "@/components/ads/campaign-hierarchy/constants";
@@ -24,6 +23,9 @@ import {
   formatConversionGoalLabel,
   summarizeDevicesSelection,
   summarizeOsSelection,
+  type AdErrors,
+  type AdGroupErrors,
+  type CampaignErrors,
 } from "@/components/ads/campaign-hierarchy/form-utils";
 import type {
   BiddingType,
@@ -36,10 +38,20 @@ import type {
 import type { GoogleAdAccount } from "@/lib/types";
 import type { ResourceStatus } from "@/hooks/useAccountResource";
 
+function inputErrorClass(error?: string) {
+  return error ? "border-[var(--semantic-error)] focus-visible:border-[var(--semantic-error)] focus-visible:ring-[var(--semantic-error)]/10" : "";
+}
+
+const fluidFieldRow = "flex flex-wrap gap-3 [&>.field]:flex-1 [&>.field]:min-w-[220px]";
+
 interface CampaignEditorFormProps {
   campaign: CampaignForm;
   adAccounts: GoogleAdAccount[];
   syncState: "idle" | "loaded" | "loading" | "success" | "error";
+  // Validation
+  errors?: CampaignErrors;
+  groupErrors?: Record<string, AdGroupErrors>;
+  adErrors?: Record<string, AdErrors>;
   // Reference data
   conversionGoals: ConversionGoalPoint[];
   conversionGoalState: ResourceStatus;
@@ -63,6 +75,9 @@ export function CampaignEditorForm({
   campaign,
   adAccounts,
   syncState,
+  errors = {},
+  groupErrors = {},
+  adErrors = {},
   conversionGoals,
   conversionGoalState,
   conversionGoalError,
@@ -84,8 +99,10 @@ export function CampaignEditorForm({
       <div className="xl:sticky xl:top-0 xl:self-start">
         <EditorSidebar
           activeGroupId={null}
+          adErrors={adErrors}
           campaign={campaign}
           geoTargets={geoTargets}
+          groupErrors={groupErrors}
           languageTargets={languageTargets}
           onAddAd={(groupId) => openAdGroupEditor(campaign.id, groupId)}
           onAddGroup={() => addAdGroup(campaign.id)}
@@ -100,9 +117,11 @@ export function CampaignEditorForm({
 
       <div className="space-y-5 rounded-3xl border border-[var(--hairline)] bg-[var(--surface-card)] p-3 shadow-[var(--shadow-soft)] sm:p-5">
         <div className="space-y-4">
-          <div className={inputGridClassName}>
+          <div className={fluidFieldRow}>
             <div className="field">
-              <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">账户</label>
+              <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+                账户<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+              </label>
               <SelectControl
                 disabled={syncState === "loading" || adAccounts.length === 0}
                 options={adAccounts.map((account) => ({
@@ -115,22 +134,34 @@ export function CampaignEditorForm({
                   patchCampaign(campaign.id, { adAccountId, conversionGoal: "" });
                 }}
               />
+              {errors.adAccountId ? (
+                <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.adAccountId}</p>
+              ) : null}
             </div>
             <div className="field">
-              <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">广告系列名称</label>
+              <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+                广告系列名称<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+              </label>
               <Input
+                aria-invalid={Boolean(errors.campaignName)}
+                className={inputErrorClass(errors.campaignName)}
                 value={campaign.campaignName}
                 onChange={(event) =>
                   patchCampaign(campaign.id, { campaignName: event.target.value })
                 }
               />
+              {errors.campaignName ? (
+                <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.campaignName}</p>
+              ) : null}
             </div>
           </div>
         </div>
 
         <div className="mt-4 space-y-4">
           <div className="field">
-            <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">广告系列目标</label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+              广告系列目标<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+            </label>
             <SelectControl
               options={OBJECTIVE_OPTIONS}
               value={campaign.campaignObjective}
@@ -145,8 +176,10 @@ export function CampaignEditorForm({
 
           {campaign.campaignObjective === "CONVERSIONS" ? (
             <div className="field">
-              <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">转化目标</label>
-              <div className="space-y-3 rounded-xl border border-[var(--hairline)] bg-[var(--canvas-soft)] p-3">
+              <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+                转化目标<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+              </label>
+              <div className={errors.conversionGoal ? "space-y-3 rounded-xl border border-[var(--semantic-error)]/40 bg-[var(--canvas-soft)] p-3" : "space-y-3 rounded-xl border border-[var(--hairline)] bg-[var(--canvas-soft)] p-3"}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-medium text-[var(--ink)]">
                     {conversionGoalState === "success"
@@ -190,6 +223,9 @@ export function CampaignEditorForm({
                   />
                 )}
               </div>
+              {errors.conversionGoal ? (
+                <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.conversionGoal}</p>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -197,7 +233,9 @@ export function CampaignEditorForm({
         <div className="mt-4 space-y-4">
           {campaign.campaignObjective === "CONVERSIONS" ? (
             <div className="field">
-              <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">出价类型</label>
+              <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+                出价类型<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+              </label>
               <RadioGroup
                 className="flex flex-wrap items-center gap-x-5 gap-y-2"
                 value={campaign.biddingType}
@@ -219,7 +257,9 @@ export function CampaignEditorForm({
           ) : null}
           {campaign.campaignObjective === "CLICKS" ? (
             <div className="field">
-              <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">出价类型</label>
+              <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+                出价类型<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+              </label>
               <RadioGroup
                 className="flex flex-wrap items-center gap-x-5 gap-y-2"
                 value={campaign.clickBiddingType}
@@ -241,43 +281,60 @@ export function CampaignEditorForm({
               </RadioGroup>
             </div>
           ) : null}
-          <div className={inputGridClassName}>
+          <div className={fluidFieldRow}>
             <div className="field">
-              <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">预算</label>
+              <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+                预算<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+              </label>
               <NumberStepperControl
                 min={1}
                 step={1}
                 value={campaign.budgetDaily}
                 onChange={(budgetDaily) => patchCampaign(campaign.id, { budgetDaily })}
               />
+              {errors.budgetDaily ? (
+                <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.budgetDaily}</p>
+              ) : null}
             </div>
             {campaign.campaignObjective === "CONVERSIONS" &&
             campaign.biddingType === "TARGET_CPA" ? (
               <div className="field">
-                <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">目标 CPA</label>
+                <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+                  目标 CPA<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+                </label>
                 <NumberStepperControl
                   min={0.1}
                   step={0.1}
                   value={campaign.targetCpa}
                   onChange={(targetCpa) => patchCampaign(campaign.id, { targetCpa })}
                 />
+                {errors.targetCpa ? (
+                  <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.targetCpa}</p>
+                ) : null}
               </div>
             ) : null}
             {campaign.campaignObjective === "CLICKS" &&
             campaign.clickBiddingType === "MAX_CPC" ? (
               <div className="field">
-                <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">目标 CPC</label>
+                <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+                  目标 CPC<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+                </label>
                 <NumberStepperControl
                   min={0.01}
                   step={0.01}
                   value={campaign.targetCpc}
                   onChange={(targetCpc) => patchCampaign(campaign.id, { targetCpc })}
                 />
+                {errors.targetCpc ? (
+                  <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.targetCpc}</p>
+                ) : null}
               </div>
             ) : null}
           </div>
           <div className="field">
-            <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">投放时间</label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+              投放时间<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+            </label>
             <SchedulePicker
               value={campaign.adSchedule}
               onChange={(adSchedule) => patchCampaign(campaign.id, { adSchedule })}
@@ -285,9 +342,11 @@ export function CampaignEditorForm({
           </div>
         </div>
 
-        <div className={`mt-4 ${inputGridClassName}`}>
+        <div className={`mt-4 ${fluidFieldRow}`}>
           <div className="field">
-            <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">操作系统</label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+              操作系统<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+            </label>
             <MultiCombobox
               formatValue={summarizeOsSelection}
               options={OS_COMBOBOX_OPTIONS}
@@ -297,9 +356,14 @@ export function CampaignEditorForm({
               value={campaign.os}
               onChange={(os) => patchCampaign(campaign.id, { os })}
             />
+            {errors.os ? (
+              <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.os}</p>
+            ) : null}
           </div>
           <div className="field">
-            <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">设备</label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+              设备<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+            </label>
             <MultiCombobox
               formatValue={summarizeDevicesSelection}
               options={DEVICE_COMBOBOX_OPTIONS}
@@ -309,17 +373,27 @@ export function CampaignEditorForm({
               value={campaign.devices}
               onChange={(devices) => patchCampaign(campaign.id, { devices })}
             />
+            {errors.devices ? (
+              <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.devices}</p>
+            ) : null}
           </div>
           <div className="field">
-            <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">URL 后缀</label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+              URL 后缀<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+            </label>
             <Input
+              aria-invalid={Boolean(errors.finalUrlSuffix)}
+              className={inputErrorClass(errors.finalUrlSuffix)}
               value={campaign.finalUrlSuffix}
               onChange={(event) =>
                 patchCampaign(campaign.id, { finalUrlSuffix: event.target.value })
               }
             />
+            {errors.finalUrlSuffix ? (
+              <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.finalUrlSuffix}</p>
+            ) : null}
           </div>
-          <div className="field lg:col-span-2">
+          <div className="field flex-[2] min-w-[440px]">
             <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">IP 地址排除</label>
             <TextList
               placeholder="每行一个 IP 或 CIDR"

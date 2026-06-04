@@ -22,6 +22,11 @@ const AD_SCHEDULE_DAYS = [
   "SUNDAY",
 ];
 const DEVICE_TYPES = ["DESKTOP", "MOBILE", "TABLET", "CONNECTED_TV"];
+const DEMAND_GEN_VIDEO_ASSET_AUTOMATIONS_TO_DISABLE = [
+  "GENERATE_SHORTER_YOUTUBE_VIDEOS",
+  "GENERATE_VERTICAL_YOUTUBE_VIDEOS",
+  "GENERATE_LANDING_PAGE_PREVIEW",
+];
 
 async function imageAssetData(url: string, name: string) {
   const dataUrlMatch = url.match(/^data:[^;]+;base64,(.+)$/);
@@ -232,6 +237,13 @@ function campaignIpExclusionOperations(campaignResource: string, ipExclusions?: 
         },
       },
     },
+  }));
+}
+
+function optedOutDemandGenVideoAssetAutomationSettings() {
+  return DEMAND_GEN_VIDEO_ASSET_AUTOMATIONS_TO_DISABLE.map((assetAutomationType) => ({
+    assetAutomationType,
+    assetAutomationStatus: "OPTED_OUT",
   }));
 }
 
@@ -524,6 +536,7 @@ export async function buildDemandGenMutateOperations(
           create: {
             adGroup: adGroupResource,
             status: "PAUSED",
+            adGroupAdAssetAutomationSettings: optedOutDemandGenVideoAssetAutomationSettings(),
             ad: {
               name: ad.name,
               finalUrls: [ad.finalUrl],

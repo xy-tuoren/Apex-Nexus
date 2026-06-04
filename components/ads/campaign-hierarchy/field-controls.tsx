@@ -39,18 +39,29 @@ export function Field({
   label,
   children,
   hint,
+  error,
+  required = false,
   className = "",
 }: {
   label: string;
   children: ReactNode;
   hint?: string;
+  error?: string;
+  required?: boolean;
   className?: string;
 }) {
   return (
     <div className={`grid min-w-0 gap-1.5 ${className}`}>
-      <Label>{label}</Label>
+      <Label>
+        {label}
+        {required ? <span className="ml-0.5 text-[var(--semantic-error)]">*</span> : null}
+      </Label>
       {children}
-      {hint ? <p className="text-xs leading-relaxed text-[var(--muted)]">{hint}</p> : null}
+      {error ? (
+        <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{error}</p>
+      ) : hint ? (
+        <p className="text-xs leading-relaxed text-[var(--muted)]">{hint}</p>
+      ) : null}
     </div>
   );
 }
