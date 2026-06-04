@@ -82,7 +82,6 @@ export type AdGroupForm = {
   id: string;
   name: string;
   locations: string;
-  audienceSignals: string;
   language: string;
   genders: string[];
   ageRanges: string[];

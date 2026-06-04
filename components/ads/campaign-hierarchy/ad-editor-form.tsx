@@ -29,6 +29,8 @@ interface AdEditorFormProps {
   addAd: (campaignId: string, groupId: string) => void;
   duplicateAdGroup: (campaignId: string, groupId: string) => void;
   duplicateAd: (campaignId: string, groupId: string, adId: string) => void;
+  removeAdGroup: (campaignId: string, groupId: string) => void;
+  removeAd: (campaignId: string, groupId: string, adId: string) => void;
   openAdGroupEditor: (campaignId: string, groupId: string) => void;
   openAdEditor: (campaignId: string, groupId: string, adId: string) => void;
 }
@@ -43,6 +45,8 @@ export function AdEditorForm({
   addAd,
   duplicateAdGroup,
   duplicateAd,
+  removeAdGroup,
+  removeAd,
   openAdGroupEditor,
   openAdEditor,
 }: AdEditorFormProps) {
@@ -58,6 +62,8 @@ export function AdEditorForm({
           onAddAd={(groupId) => addAd(campaign.id, groupId)}
           onDuplicateAd={(groupId, adId) => duplicateAd(campaign.id, groupId, adId)}
           onDuplicateGroup={(groupId) => duplicateAdGroup(campaign.id, groupId)}
+          onRemoveAd={(groupId, adId) => removeAd(campaign.id, groupId, adId)}
+          onRemoveGroup={(groupId) => removeAdGroup(campaign.id, groupId)}
           onOpenAd={(groupId, adId) => openAdEditor(campaign.id, groupId, adId)}
           onOpenGroup={(groupId) => openAdGroupEditor(campaign.id, groupId)}
         />

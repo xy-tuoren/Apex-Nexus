@@ -566,10 +566,66 @@ export function CampaignHierarchyEditor({
       return null;
     }
 
+    const scheduleDays = [
+      "MONDAY",
+      "TUESDAY",
+      "WEDNESDAY",
+      "THURSDAY",
+      "FRIDAY",
+      "SATURDAY",
+      "SUNDAY",
+    ];
+    const deviceTypes = ["DESKTOP", "MOBILE", "TABLET", "CONNECTED_TV"];
+    const scheduleRanges = scheduleDays.flatMap((day) => {
+      const ranges: Array<{ day: string; start: number; end: number }> = [];
+      const hours = campaign.adSchedule[day] ?? [];
+      let start: number | null = null;
+      for (let hour = 0; hour <= 24; hour += 1) {
+        const enabled = hour < 24 ? hours[hour] === true : false;
+        if (enabled && start === null) {
+          start = hour;
+        }
+        if (!enabled && start !== null) {
+          ranges.push({ day, start, end: hour });
+          start = null;
+        }
+      }
+      return ranges;
+    });
+    const hasFullSchedule =
+      scheduleRanges.length === 7 &&
+      scheduleRanges.every((range) => range.start === 0 && range.end === 24);
+    const selectedDevices = new Set(campaign.devices.filter((device) => deviceTypes.includes(device)));
+    const excludedDevices =
+      selectedDevices.size > 0 && selectedDevices.size < deviceTypes.length
+        ? deviceTypes.filter((device) => !selectedDevices.has(device))
+        : [];
+    const operatingSystemVersions = campaign.os.filter((os) =>
+      os.startsWith("operatingSystemVersionConstants/"),
+    );
+
     const operations: Array<{ label: string; detail?: string }> = [
       { label: "广告系列预算", detail: campaign.budgetDaily },
       { label: "广告系列", detail: campaign.campaignName },
     ];
+    if (!hasFullSchedule) {
+      scheduleRanges.forEach((range) => {
+        operations.push({
+          label: "广告投放时间",
+          detail: `${range.day} ${String(range.start).padStart(2, "0")}:00-${String(range.end).padStart(2, "0")}:00`,
+        });
+      });
+    }
+    excludedDevices.forEach((device) => {
+      operations.push({ label: "设备排除", detail: device });
+    });
+    operatingSystemVersions.forEach((os) => {
+      operations.push({ label: "操作系统定向", detail: os });
+    });
+    splitLines(campaign.ipExclusions).forEach((ip) => {
+      operations.push({ label: "IP 排除", detail: ip });
+    });
+
     const allGenders = ["FEMALE", "MALE", "UNDETERMINED"];
     const ageBuckets = ["18", "25", "35", "45", "55", "65"];
 
@@ -852,6 +908,8 @@ export function CampaignHierarchyEditor({
             addAdGroup={addAdGroup}
             duplicateAdGroup={duplicateAdGroup}
             duplicateAd={duplicateAd}
+            removeAdGroup={removeAdGroup}
+            removeAd={removeAd}
             openAdGroupEditor={openAdGroupEditor}
             openAdEditor={openAdEditor}
           />
@@ -861,7 +919,10 @@ export function CampaignHierarchyEditor({
       {activeCampaign && activeEditorGroup && editorFocus?.level === "adgroup" ? (
         <HierarchyEditModal
           eyebrow="编辑广告组"
-          hierarchyTrail={[{ label: "广告系列", name: activeCampaign.campaignName }, { label: "广告组", name: activeEditorGroup.name }]}
+          hierarchyTrail={[
+            { label: "广告系列", name: activeCampaign.campaignName, onClick: returnToCampaignEditor },
+            { label: "广告组", name: activeEditorGroup.name },
+          ]}
           maxWidthClassName="max-w-6xl"
           title={activeEditorGroup.name}
           zIndexClassName="z-[60]"
@@ -881,6 +942,8 @@ export function CampaignHierarchyEditor({
             addAd={addAd}
             duplicateAdGroup={duplicateAdGroup}
             duplicateAd={duplicateAd}
+            removeAdGroup={removeAdGroup}
+            removeAd={removeAd}
             openAdGroupEditor={openAdGroupEditor}
             openAdEditor={openAdEditor}
           />
@@ -890,7 +953,11 @@ export function CampaignHierarchyEditor({
       {activeCampaign && activeEditorGroup && activeEditorAd && editorFocus?.level === "ad" ? (
         <HierarchyEditModal
           eyebrow="编辑广告"
-          hierarchyTrail={[{ label: "广告系列", name: activeCampaign.campaignName }, { label: "广告组", name: activeEditorGroup.name }, { label: "广告", name: activeEditorAd.name }]}
+          hierarchyTrail={[
+            { label: "广告系列", name: activeCampaign.campaignName, onClick: returnToCampaignEditor },
+            { label: "广告组", name: activeEditorGroup.name, onClick: () => setEditorFocus({ level: "adgroup", campaignId: activeCampaign.id, groupId: activeEditorGroup.id }) },
+            { label: "广告", name: activeEditorAd.name },
+          ]}
           maxWidthClassName="max-w-6xl"
           title={activeEditorAd.name}
           zIndexClassName="z-[70]"
@@ -907,6 +974,8 @@ export function CampaignHierarchyEditor({
             addAd={addAd}
             duplicateAdGroup={duplicateAdGroup}
             duplicateAd={duplicateAd}
+            removeAdGroup={removeAdGroup}
+            removeAd={removeAd}
             openAdGroupEditor={openAdGroupEditor}
             openAdEditor={openAdEditor}
           />

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 export type HierarchyTrailItem = {
   label: string;
   name: string;
+  onClick?: () => void;
 };
 
 let bodyScrollLockCount = 0;
@@ -58,21 +59,36 @@ export function HierarchyTrail({ items }: { items: HierarchyTrailItem[] }) {
       aria-label="当前层级"
       className="mb-2 flex flex-wrap items-center gap-x-1 gap-y-1 text-xs leading-snug"
     >
-      {items.map((item, index) => (
-        <li key={`${item.label}-${index}`} className="flex min-w-0 max-w-full items-center gap-1">
-          {index > 0 ? (
-            <ChevronRight
-              aria-hidden
-              className="h-3 w-3 shrink-0 text-[var(--muted)]"
-              strokeWidth={1.75}
-            />
-          ) : null}
-          <span className="shrink-0 text-[var(--muted)]">{item.label}:</span>
-          <span className="truncate font-medium text-[var(--ink)]" title={item.name}>
-            {item.name}
-          </span>
-        </li>
-      ))}
+      {items.map((item, index) => {
+        const isClickable = Boolean(item.onClick);
+
+        return (
+          <li key={`${item.label}-${index}`} className="flex min-w-0 max-w-full items-center gap-1">
+            {index > 0 ? (
+              <ChevronRight
+                aria-hidden
+                className="h-3 w-3 shrink-0 text-[var(--muted)]"
+                strokeWidth={1.75}
+              />
+            ) : null}
+            <span className="shrink-0 text-[var(--muted)]">{item.label}:</span>
+            {isClickable ? (
+              <button
+                type="button"
+                onClick={item.onClick}
+                className="truncate font-medium text-[var(--accent)] underline decoration-[var(--accent)]/30 underline-offset-2 transition-colors hover:text-[var(--accent-strong)]"
+                title={item.name}
+              >
+                {item.name}
+              </button>
+            ) : (
+              <span className="truncate font-medium text-[var(--ink)]" title={item.name}>
+                {item.name}
+              </span>
+            )}
+          </li>
+        );
+      })}
     </ol>
   );
 }

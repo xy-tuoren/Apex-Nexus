@@ -42,6 +42,7 @@ export type GoogleAdAccount = {
 
 export type GoogleConversionGoalPoint = {
   id: string;
+  resourceName?: string;
   category: string;
   origin: string;
   biddable: boolean;
@@ -115,7 +116,6 @@ export type AdGroupDraft = {
   id?: string;
   name: string;
   locations: string[];
-  audienceSignals: string[];
   language: string;
   demographics?: {
     genders: string[];
@@ -126,6 +126,8 @@ export type AdGroupDraft = {
   };
   ads: AdCreativeDraft[];
 };
+
+export type GoogleAdSchedule = Record<string, boolean[]>;
 
 export type CampaignDraft = {
   id: string;
@@ -154,8 +156,7 @@ export type CampaignDraft = {
   oss?: string[];
   device?: string;
   devices?: string[];
-  adSchedule?: string;
-  urlPrefix?: string;
+  adSchedule?: GoogleAdSchedule;
   trackingTemplate?: string;
   finalUrlSuffix?: string;
   ipExclusions?: string[];
@@ -164,8 +165,6 @@ export type CampaignDraft = {
     longHeadlines: string[];
     descriptions: string[];
     businessName: string;
-    marketingImages: string[];
-    squareMarketingImages: string[];
     logos: string[];
     youtubeVideos: string[];
   };

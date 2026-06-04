@@ -1,12 +1,8 @@
 "use client";
 
-import { Copy, Plus } from "lucide-react";
+import { Copy, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  summarizeAdCard,
-  summarizeAdGroupCard,
-} from "@/components/ads/campaign-hierarchy/form-utils";
 import type {
   CampaignForm,
   GeoTargetOption,
@@ -25,20 +21,24 @@ type EditorSidebarProps = {
   onAddAd?: (groupId: string) => void;
   onDuplicateGroup?: (groupId: string) => void;
   onDuplicateAd?: (groupId: string, adId: string) => void;
+  onRemoveGroup?: (groupId: string) => void;
+  onRemoveAd?: (groupId: string, adId: string) => void;
 };
 
 export function EditorSidebar({
   campaign,
   activeGroupId,
   activeAdId,
-  geoTargets,
-  languageTargets,
+  geoTargets: _geoTargets,
+  languageTargets: _languageTargets,
   onOpenGroup,
   onOpenAd,
   onAddGroup,
   onAddAd,
   onDuplicateGroup,
   onDuplicateAd,
+  onRemoveGroup,
+  onRemoveAd,
 }: EditorSidebarProps) {
   return (
     <aside className="rounded-[1.75rem] border border-[var(--hairline)] bg-[var(--canvas-soft)] p-3 shadow-[var(--shadow-soft)]">
@@ -61,9 +61,6 @@ export function EditorSidebar({
         {campaign.adGroups.map((group, groupIndex) => {
           const isGroupActive = activeGroupId === group.id && !activeAdId;
           const hasActiveAd = activeGroupId === group.id && Boolean(activeAdId);
-          const groupSummary = summarizeAdGroupCard(group, geoTargets, languageTargets)
-            .replace(" 条广告", " 广告")
-            .replace(" · ", " / ");
 
           return (
             <section
@@ -105,24 +102,36 @@ export function EditorSidebar({
                         {group.ads.length} 广告
                       </span>
                     </span>
-                    <span className="mt-0.5 block truncate text-[11px] leading-relaxed text-[var(--muted)]">
-                      {groupSummary}
-                    </span>
                   </span>
                 </button>
-                {onDuplicateGroup ? (
-                  <Button
-                    aria-label={`复制广告组 ${group.name}`}
-                    className="h-7 w-7 shrink-0 px-0"
-                    size="sm"
-                    title="复制广告组"
-                    type="button"
-                    variant="ghost"
-                    onClick={() => onDuplicateGroup(group.id)}
-                  >
-                    <Copy aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  </Button>
-                ) : null}
+                <div className="flex shrink-0 items-center gap-0.5">
+                  {onDuplicateGroup ? (
+                    <Button
+                      aria-label={`复制广告组 ${group.name}`}
+                      className="h-7 w-7 px-0"
+                      size="sm"
+                      title="复制广告组"
+                      type="button"
+                      variant="ghost"
+                      onClick={() => onDuplicateGroup(group.id)}
+                    >
+                      <Copy aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    </Button>
+                  ) : null}
+                  {onRemoveGroup && campaign.adGroups.length > 1 ? (
+                    <Button
+                      aria-label={`删除广告组 ${group.name}`}
+                      className="h-7 w-7 px-0 text-[var(--semantic-error)] hover:text-[var(--semantic-error)]"
+                      size="sm"
+                      title="删除广告组"
+                      type="button"
+                      variant="ghost"
+                      onClick={() => onRemoveGroup(group.id)}
+                    >
+                      <Trash2 aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    </Button>
+                  ) : null}
+                </div>
               </div>
 
               <div className="border-t border-[var(--hairline)] bg-[var(--canvas)]/45 px-3 py-2">
@@ -146,9 +155,6 @@ export function EditorSidebar({
                 <div className="space-y-1">
                   {group.ads.map((ad, adIndex) => {
                     const isAdActive = activeGroupId === group.id && activeAdId === ad.id;
-                    const adSummary = summarizeAdCard(ad)
-                      .replace(" 标题", " 标题")
-                      .replace(" · ", " / ");
 
                     return (
                       <div
@@ -172,30 +178,38 @@ export function EditorSidebar({
                             "h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--ads-dot)]",
                             isAdActive ? "ml-1" : "",
                           )} />
-                          <span className="min-w-0 flex-1">
-                            <span className="flex items-center gap-2">
-                              <span className="truncate text-xs font-medium text-[var(--ink)]">
-                                {`${adIndex + 1}. ${ad.name}`}
-                              </span>
-                              <span className="truncate text-[11px] text-[var(--muted)]">
-                                {adSummary}
-                              </span>
-                            </span>
+                          <span className="truncate text-xs font-medium text-[var(--ink)]">
+                            {ad.name}
                           </span>
                         </button>
-                        {onDuplicateAd ? (
-                          <Button
-                            aria-label={`复制广告 ${ad.name}`}
-                            className="h-6 w-6 shrink-0 px-0"
-                            size="sm"
-                            title="复制广告"
-                            type="button"
-                            variant="ghost"
-                            onClick={() => onDuplicateAd(group.id, ad.id)}
-                          >
-                            <Copy aria-hidden className="h-3 w-3" strokeWidth={1.75} />
-                          </Button>
-                        ) : null}
+                        <div className="flex shrink-0 items-center gap-0.5">
+                          {onDuplicateAd ? (
+                            <Button
+                              aria-label={`复制广告 ${ad.name}`}
+                              className="h-6 w-6 px-0"
+                              size="sm"
+                              title="复制广告"
+                              type="button"
+                              variant="ghost"
+                              onClick={() => onDuplicateAd(group.id, ad.id)}
+                            >
+                              <Copy aria-hidden className="h-3 w-3" strokeWidth={1.75} />
+                            </Button>
+                          ) : null}
+                          {onRemoveAd && group.ads.length > 1 ? (
+                            <Button
+                              aria-label={`删除广告 ${ad.name}`}
+                              className="h-6 w-6 px-0 text-[var(--semantic-error)] hover:text-[var(--semantic-error)]"
+                              size="sm"
+                              title="删除广告"
+                              type="button"
+                              variant="ghost"
+                              onClick={() => onRemoveAd(group.id, ad.id)}
+                            >
+                              <Trash2 aria-hidden className="h-3 w-3" strokeWidth={1.75} />
+                            </Button>
+                          ) : null}
+                        </div>
                       </div>
                     );
                   })}

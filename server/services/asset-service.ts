@@ -15,8 +15,6 @@ export function validateAssetBundle(
     longHeadlines: string[];
     descriptions: string[];
     businessName: string;
-    marketingImages: string[];
-    squareMarketingImages: string[];
     logos: string[];
     youtubeVideos: string[];
   },

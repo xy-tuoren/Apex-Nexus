@@ -26,8 +26,6 @@ export const assetValidationSchema = z.object({
     longHeadlines: z.array(z.string().min(1).max(90)).default([]),
     descriptions: z.array(z.string().min(1).max(90)).default([]),
     businessName: z.string().min(1).max(25),
-    marketingImages: z.array(z.string()).default([]),
-    squareMarketingImages: z.array(z.string()).default([]),
     logos: z.array(z.string()).default([]),
     youtubeVideos: z.array(z.string()).default([]),
   }),
@@ -50,7 +48,6 @@ export const adGroupDraftSchema = z.object({
   id: z.string().min(1).optional(),
   name: z.string().min(1).max(120),
   locations: z.array(z.string().min(1)).min(1),
-  audienceSignals: z.array(z.string().min(1)).default([]),
   language: z.string().min(2),
   demographics: z
     .object({
@@ -63,6 +60,8 @@ export const adGroupDraftSchema = z.object({
     .optional(),
   ads: z.array(adCreativeDraftSchema).min(1),
 });
+
+const adScheduleSchema = z.record(z.string(), z.array(z.boolean()).length(24));
 
 export const campaignDraftSchema = z.object({
   siteId: z.string().min(1).optional(),
@@ -101,8 +100,7 @@ export const campaignDraftSchema = z.object({
   oss: z.array(z.string().min(1)).default([]),
   device: z.string().min(1).default("all"),
   devices: z.array(z.string().min(1)).default([]),
-  adSchedule: z.string().max(240).optional(),
-  urlPrefix: z.string().max(500).optional(),
+  adSchedule: adScheduleSchema.optional(),
   trackingTemplate: z.string().max(500).optional(),
   finalUrlSuffix: z.string().max(500).optional(),
   ipExclusions: z.array(z.string().min(1)).default([]),

@@ -5,13 +5,23 @@ import {
   asset,
   campaign,
   campaignBudget,
-  campaignConversionGoal,
 } from "@/server/google-ads/resource-names";
 
 type MutateOperation = Record<string, unknown>;
 type DraftAdGroup = NonNullable<CampaignDraft["adGroups"]>[number];
 type DraftAd = DraftAdGroup["ads"][number];
 type ParsedConversionGoal = { category: string; origin: string };
+
+const AD_SCHEDULE_DAYS = [
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+  "SUNDAY",
+];
+const DEVICE_TYPES = ["DESKTOP", "MOBILE", "TABLET", "CONNECTED_TV"];
 
 async function imageAssetData(url: string, name: string) {
   const dataUrlMatch = url.match(/^data:[^;]+;base64,(.+)$/);
@@ -74,7 +84,7 @@ function campaignBidding(draft: CampaignDraft) {
       return { maximizeConversionValue: { targetRoas: draft.bidding.targetRoas } };
     case "TARGET_CPA":
       return {
-        maximizeConversions: {
+        targetCpa: {
           targetCpaMicros: draft.bidding.targetCpaMicros?.toString(),
         },
       };
@@ -110,20 +120,126 @@ function parseConversionGoal(value?: string): ParsedConversionGoal | null {
   };
 }
 
-function campaignIdFromResourceName(resourceName: string) {
-  const match = resourceName.match(/\/campaigns\/([^/]+)$/);
-  return match?.[1] ?? null;
+function adScheduleHourRanges(hours: boolean[] = []) {
+  const ranges: Array<{ startHour: number; endHour: number }> = [];
+  let rangeStart: number | null = null;
+
+  for (let hour = 0; hour <= 24; hour += 1) {
+    const enabled = hour < 24 ? hours[hour] === true : false;
+    if (enabled && rangeStart === null) {
+      rangeStart = hour;
+    }
+    if (!enabled && rangeStart !== null) {
+      ranges.push({ startHour: rangeStart, endHour: hour });
+      rangeStart = null;
+    }
+  }
+
+  return ranges;
+}
+
+function isFullAdSchedule(schedule?: CampaignDraft["adSchedule"]) {
+  if (!schedule) {
+    return true;
+  }
+
+  return AD_SCHEDULE_DAYS.every((day) => {
+    const hours = schedule[day] ?? [];
+    return hours.length === 24 && hours.every(Boolean);
+  });
+}
+
+function campaignAdScheduleOperations(
+  campaignResource: string,
+  schedule?: CampaignDraft["adSchedule"],
+) {
+  if (!schedule || isFullAdSchedule(schedule)) {
+    return [];
+  }
+
+  return AD_SCHEDULE_DAYS.flatMap((dayOfWeek) =>
+    adScheduleHourRanges(schedule[dayOfWeek]).map(({ startHour, endHour }) => ({
+      campaignCriterionOperation: {
+        create: {
+          campaign: campaignResource,
+          adSchedule: {
+            dayOfWeek,
+            startHour,
+            startMinute: "ZERO",
+            endHour,
+            endMinute: "ZERO",
+          },
+        },
+      },
+    })),
+  );
+}
+
+function campaignDeviceOperations(campaignResource: string, devices?: string[]) {
+  if (!devices || devices.length === 0) {
+    return [];
+  }
+
+  const selectedDevices = new Set(devices.filter((device) => DEVICE_TYPES.includes(device)));
+  if (selectedDevices.size === 0 || selectedDevices.size === DEVICE_TYPES.length) {
+    return [];
+  }
+
+  return DEVICE_TYPES.filter((device) => !selectedDevices.has(device)).map((device) => ({
+    campaignCriterionOperation: {
+      create: {
+        campaign: campaignResource,
+        bidModifier: 0,
+        device: {
+          type: device,
+        },
+      },
+    },
+  }));
+}
+
+function campaignOperatingSystemOperations(campaignResource: string, oss?: string[]) {
+  const operatingSystemVersions = Array.from(
+    new Set(
+      (oss ?? []).filter((os) => os.startsWith("operatingSystemVersionConstants/")),
+    ),
+  );
+
+  return operatingSystemVersions.map((operatingSystemVersion) => ({
+    campaignCriterionOperation: {
+      create: {
+        campaign: campaignResource,
+        operatingSystemVersion: {
+          operatingSystemVersionConstant: operatingSystemVersion,
+        },
+      },
+    },
+  }));
+}
+
+function campaignIpExclusionOperations(campaignResource: string, ipExclusions?: string[]) {
+  const ipAddresses = Array.from(
+    new Set((ipExclusions ?? []).map((ip) => ip.trim()).filter(Boolean)),
+  );
+
+  return ipAddresses.map((ipAddress) => ({
+    campaignCriterionOperation: {
+      create: {
+        campaign: campaignResource,
+        negative: true,
+        ipBlock: {
+          ipAddress,
+        },
+      },
+    },
+  }));
 }
 
 export function buildCampaignConversionGoalMutateOperations({
   draft,
-  adAccount,
-  campaignResourceName,
   conversionGoals,
 }: {
   draft: CampaignDraft;
-  adAccount: GoogleAdAccount;
-  campaignResourceName: string;
   conversionGoals: GoogleConversionGoalPoint[];
 }): MutateOperation[] {
   if (draft.campaignObjective !== "CONVERSIONS") {
@@ -131,40 +247,27 @@ export function buildCampaignConversionGoalMutateOperations({
   }
 
   const selectedGoal = parseConversionGoal(draft.conversionGoal);
-  const campaignId = campaignIdFromResourceName(campaignResourceName);
 
-  if (!selectedGoal || !campaignId) {
+  if (!selectedGoal) {
     return [];
   }
 
-  const goalsById = new Map(
-    conversionGoals.map((goal) => [`${goal.category}:${goal.origin}`, goal]),
+  const mutableGoals = conversionGoals.filter((goal) => goal.resourceName);
+  const selectedGoalExists = mutableGoals.some(
+    (goal) => goal.category === selectedGoal.category && goal.origin === selectedGoal.origin,
   );
-  if (!goalsById.has(`${selectedGoal.category}:${selectedGoal.origin}`)) {
-    goalsById.set(`${selectedGoal.category}:${selectedGoal.origin}`, {
-      id: `${selectedGoal.category}:${selectedGoal.origin}`,
-      category: selectedGoal.category,
-      origin: selectedGoal.origin,
-      biddable: true,
-      source: "form",
-      actionCount: 0,
-      actions: [],
-    });
+  if (!selectedGoalExists) {
+    return [];
   }
 
-  return Array.from(goalsById.values()).map((goal) => {
+  return mutableGoals.map((goal) => {
     const biddable =
       goal.category === selectedGoal.category && goal.origin === selectedGoal.origin;
 
     return {
       campaignConversionGoalOperation: {
         update: {
-          resourceName: campaignConversionGoal(
-            adAccount.customerId,
-            campaignId,
-            goal.category,
-            goal.origin,
-          ),
+          resourceName: goal.resourceName,
           biddable,
         },
         updateMask: "biddable",
@@ -177,7 +280,6 @@ function legacyAdGroup(draft: CampaignDraft): DraftAdGroup {
   return {
     name: draft.demandGen?.adGroupName ?? `${draft.name} Ad Group`,
     locations: draft.locations,
-    audienceSignals: [],
     language: draft.language,
     ads: [
       {
@@ -357,6 +459,10 @@ export async function buildDemandGenMutateOperations(
       },
     },
   });
+  operations.push(...campaignAdScheduleOperations(campaignResource, draft.adSchedule));
+  operations.push(...campaignDeviceOperations(campaignResource, draft.devices));
+  operations.push(...campaignOperatingSystemOperations(campaignResource, draft.oss));
+  operations.push(...campaignIpExclusionOperations(campaignResource, draft.ipExclusions));
 
   const addAssetsForAd = async (ad: DraftAd) => {
     const logoAssetRefs: string[] = [];

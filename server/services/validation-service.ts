@@ -17,8 +17,6 @@ function assetsFromAd(ad: AdCreativeDraft) {
     longHeadlines: ad.longHeadlines,
     descriptions: ad.descriptions,
     businessName: ad.businessName,
-    marketingImages: [],
-    squareMarketingImages: [],
     logos: ad.logos,
     youtubeVideos: ad.youtubeVideos,
   };

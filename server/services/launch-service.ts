@@ -13,7 +13,7 @@ import {
 } from "@/server/repositories/data-store";
 import { getLoginCustomerIdForAdAccount } from "@/server/services/account-service";
 import { buildDraftPreview } from "@/server/services/campaign-draft-service";
-import { listConversionGoalPoints } from "@/server/services/conversion-goal-service";
+import { listCampaignConversionGoalPoints } from "@/server/services/conversion-goal-service";
 import { validateLaunchEligibility } from "@/server/services/validation-service";
 
 type MutateOperationResponse = Record<string, { resourceName?: string } | undefined>;
@@ -125,26 +125,35 @@ export async function runLaunchJob(jobId: string) {
       draft.campaignObjective === "CONVERSIONS" &&
       Boolean(draft.conversionGoal);
     const conversionGoals = shouldLoadConversionGoals
-      ? await listConversionGoalPoints({
+      ? await listCampaignConversionGoalPoints({
         adAccountId: adAccount.id,
         customerId: adAccount.customerId,
         loginCustomerId: loginCustomerId ?? adAccount.customerId,
+        campaignResourceName,
       }).catch(() => [])
       : [];
     const conversionGoalMutateOperations = buildCampaignConversionGoalMutateOperations({
       draft,
-      adAccount,
-      campaignResourceName,
       conversionGoals,
     });
-    const conversionGoalGoogleAdsResponse =
-      conversionGoalMutateOperations.length > 0
-        ? await mutateGoogleAds({
+    let conversionGoalGoogleAdsResponse: unknown = null;
+    let conversionGoalGoogleAdsError: unknown = null;
+    if (conversionGoalMutateOperations.length > 0) {
+      try {
+        conversionGoalGoogleAdsResponse = await mutateGoogleAds({
           customerId: adAccount.customerId,
           loginCustomerId: loginCustomerId ?? adAccount.customerId,
           mutateOperations: conversionGoalMutateOperations,
-        })
-        : null;
+        });
+      } catch (error) {
+        conversionGoalGoogleAdsError = toGoogleAdsError(error);
+        await audit("campaign_conversion_goals.update_failed", job.id, {
+          draftId: draft.id,
+          campaignResourceName,
+          error: conversionGoalGoogleAdsError,
+        });
+      }
+    }
 
     googleAdsRequest = {
       createMutateOperations,
@@ -183,6 +192,7 @@ export async function runLaunchJob(jobId: string) {
       googleAdsResponse: {
         create: createGoogleAdsResponse,
         conversionGoals: conversionGoalGoogleAdsResponse,
+        conversionGoalError: conversionGoalGoogleAdsError,
       },
       updatedAt: timestamp(),
     });

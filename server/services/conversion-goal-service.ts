@@ -140,6 +140,66 @@ export async function listConversionGoalPoints({
   });
 }
 
+export async function listCampaignConversionGoalPoints({
+  adAccountId,
+  customerId,
+  loginCustomerId: requestedLoginCustomerId,
+  campaignResourceName,
+}: ConversionGoalLookup & { campaignResourceName: string }) {
+  const adAccount = await findById("google_ad_accounts", adAccountId);
+  const resolvedCustomerId =
+    normalizeCustomerId(adAccount?.customerId) ||
+    normalizeCustomerId(customerId) ||
+    normalizeCustomerId(adAccountId);
+
+  if (!resolvedCustomerId) {
+    throw new Error("缺少有效的 Google Ads customerId，请重新同步账号。");
+  }
+
+  const loginCustomerId =
+    normalizeCustomerId(requestedLoginCustomerId) ||
+    normalizeCustomerId(adAccount?.loginCustomerId) ||
+    normalizeCustomerId(adAccount ? await getLoginCustomerIdForAdAccount(adAccountId) : null);
+  if (!loginCustomerId) {
+    throw new Error("无法确定该投放账号的 login-customer-id。");
+  }
+
+  const escapedCampaignResourceName = campaignResourceName
+    .replaceAll("\\", "\\\\")
+    .replaceAll("'", "\\'");
+  const rows = await searchGoogleAdsLive(
+    resolvedCustomerId,
+    loginCustomerId,
+    [
+      "SELECT",
+      "campaign_conversion_goal.resource_name,",
+      "campaign_conversion_goal.campaign,",
+      "campaign_conversion_goal.category,",
+      "campaign_conversion_goal.origin,",
+      "campaign_conversion_goal.biddable",
+      "FROM campaign_conversion_goal",
+      `WHERE campaign_conversion_goal.campaign = '${escapedCampaignResourceName}'`,
+    ].join(" "),
+  );
+
+  return (rows as GoogleAdsRow[]).map((row) => {
+    const goal = row.campaignConversionGoal ?? {};
+    const category = readString(goal.category) || "UNSPECIFIED";
+    const origin = readString(goal.origin) || "UNSPECIFIED";
+
+    return {
+      id: goalKey(category, origin),
+      resourceName: readString(goal.resourceName),
+      category,
+      origin,
+      biddable: readBoolean(goal.biddable),
+      source: "campaign_conversion_goal",
+      actionCount: 0,
+      actions: [],
+    } satisfies ConversionGoalPoint;
+  });
+}
+
 function resolveMccCustomerId(mccAccount: GoogleMccAccount) {
   return normalizeCustomerId(mccAccount.customerId) || normalizeCustomerId(mccAccount.id);
 }
