@@ -181,22 +181,19 @@ export function CampaignHierarchyEditor({
     return ids.slice(0, MAX_ACCOUNTS);
   }, [accountIdsKey]);
 
-  // Call useAccountResources at TOP LEVEL for each unique account
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const resources0 = accountIds[0] ? useAccountResources(accountIds[0], adAccounts, mccAccounts) : null;
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const resources1 = accountIds[1] ? useAccountResources(accountIds[1], adAccounts, mccAccounts) : null;
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const resources2 = accountIds[2] ? useAccountResources(accountIds[2], adAccounts, mccAccounts) : null;
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const resources3 = accountIds[3] ? useAccountResources(accountIds[3], adAccounts, mccAccounts) : null;
+  // Always call all 4 hooks unconditionally to satisfy React rules-of-hooks.
+  // useAccountResources handles empty adAccountId internally with fallback data.
+  const resources0 = useAccountResources(accountIds[0] ?? "", adAccounts, mccAccounts);
+  const resources1 = useAccountResources(accountIds[1] ?? "", adAccounts, mccAccounts);
+  const resources2 = useAccountResources(accountIds[2] ?? "", adAccounts, mccAccounts);
+  const resources3 = useAccountResources(accountIds[3] ?? "", adAccounts, mccAccounts);
 
   const allResources = useMemo(() => {
     const map: Record<string, ReturnType<typeof useAccountResources>> = {};
-    if (accountIds[0]) map[accountIds[0]] = resources0!;
-    if (accountIds[1]) map[accountIds[1]] = resources1!;
-    if (accountIds[2]) map[accountIds[2]] = resources2!;
-    if (accountIds[3]) map[accountIds[3]] = resources3!;
+    if (accountIds[0]) map[accountIds[0]] = resources0;
+    if (accountIds[1]) map[accountIds[1]] = resources1;
+    if (accountIds[2]) map[accountIds[2]] = resources2;
+    if (accountIds[3]) map[accountIds[3]] = resources3;
     return map;
   }, [accountIds, resources0, resources1, resources2, resources3]);
 
