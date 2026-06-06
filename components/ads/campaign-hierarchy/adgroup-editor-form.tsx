@@ -1,14 +1,12 @@
 "use client";
 
 import { Checkbox } from "@/components/ui/checkbox";
-import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EditorSidebar } from "@/components/ads/campaign-hierarchy/editor-sidebar";
+import { TargetFields } from "@/components/ads/campaign-hierarchy/target-fields";
 import { GENDER_OPTIONS, AGE_OPTIONS } from "@/components/ads/campaign-hierarchy/constants";
 import {
-  buildGeoTargetSelectOptions,
-  buildLanguageTargetSelectOptions,
   type AdErrors,
   type AdGroupErrors,
 } from "@/components/ads/campaign-hierarchy/form-utils";
@@ -109,44 +107,22 @@ export function AdGroupEditorForm({
               <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.name}</p>
             ) : null}
           </div>
-          <div className="field">
-            <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
-              地理位置<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
-            </label>
-            <Combobox
-              disabled={geoTargetState === "loading"}
-              emptyText="没有匹配的国家/地区"
-              options={buildGeoTargetSelectOptions(geoTargets, group.locations)}
-              placeholder="选择国家/地区"
-              searchPlaceholder="搜索国家/地区或代称"
-              value={group.locations}
-              onChange={(locations) =>
-                updateCampaignAdGroup(campaign.id, group.id, { locations })
-              }
-            />
-            {errors.locations ? (
-              <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.locations}</p>
-            ) : null}
-          </div>
-          <div className="field">
-            <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
-              语言<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
-            </label>
-            <Combobox
-              disabled={languageTargetState === "loading"}
-              emptyText="没有匹配的语言"
-              options={buildLanguageTargetSelectOptions(languageTargets, group.language)}
-              placeholder="选择语言"
-              searchPlaceholder="搜索语言或代称"
-              value={group.language}
-              onChange={(language) =>
-                updateCampaignAdGroup(campaign.id, group.id, { language })
-              }
-            />
-            {errors.language ? (
-              <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.language}</p>
-            ) : null}
-          </div>
+          <TargetFields
+            geoTargetState={geoTargetState}
+            geoTargets={geoTargets}
+            languageTargetState={languageTargetState}
+            languageTargets={languageTargets}
+            languageError={errors.language}
+            languageValue={group.language}
+            locationError={errors.locations}
+            locationValue={group.locations}
+            onLanguageChange={(language) =>
+              updateCampaignAdGroup(campaign.id, group.id, { language })
+            }
+            onLocationChange={(locations) =>
+              updateCampaignAdGroup(campaign.id, group.id, { locations })
+            }
+          />
           <div className="grid gap-2">
             <Label>受众群体</Label>
             <div className="rounded-xl border border-[var(--hairline)] bg-[var(--canvas-soft)] p-3">

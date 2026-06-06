@@ -1,19 +1,19 @@
 "use client";
 
 import { Checkbox } from "@/components/ui/checkbox";
-import { Combobox, MultiCombobox } from "@/components/ui/combobox";
+import { MultiCombobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { TargetFields } from "@/components/ads/campaign-hierarchy/target-fields";
 import {
   AGE_OPTIONS,
   BIDDING_TYPE_OPTIONS,
   CLICK_BIDDING_TYPE_OPTIONS,
   CTA_OPTIONS,
   DEVICE_COMBOBOX_OPTIONS,
-  FALLBACK_GEO_TARGET_OPTIONS,
-  FALLBACK_LANGUAGE_OPTIONS,
   GENDER_OPTIONS,
   OBJECTIVE_OPTIONS,
   OS_COMBOBOX_OPTIONS,
@@ -28,8 +28,6 @@ import {
   TextList,
 } from "@/components/ads/campaign-hierarchy/field-controls";
 import {
-  buildGeoTargetSelectOptions,
-  buildLanguageTargetSelectOptions,
   formatConversionGoalLabel,
   formatStableDateTime,
   summarizeDevicesSelection,
@@ -40,7 +38,13 @@ import type {
   CampaignPresetAdPayload,
   CampaignPresetPayload,
 } from "@/lib/types";
-import type { BiddingType, ClickBiddingType, ConversionGoalPoint } from "@/components/ads/campaign-hierarchy/types";
+import type {
+  BiddingType,
+  ClickBiddingType,
+  ConversionGoalPoint,
+  GeoTargetOption,
+  LanguageTargetOption,
+} from "@/components/ads/campaign-hierarchy/types";
 import type { ResourceStatus } from "@/hooks/useAccountResource";
 
 type CampaignPresetEditorFormProps = {
@@ -49,6 +53,10 @@ type CampaignPresetEditorFormProps = {
   conversionGoalError: string | null;
   conversionGoalSyncedAt: string | null;
   description: string;
+  geoTargets: GeoTargetOption[];
+  geoTargetState: ResourceStatus;
+  languageTargets: LanguageTargetOption[];
+  languageTargetState: ResourceStatus;
   loadConversionGoals: () => void;
   name: string;
   payload: CampaignPresetPayload;
@@ -94,6 +102,10 @@ export function CampaignPresetEditorForm({
   conversionGoalError,
   conversionGoalSyncedAt,
   description,
+  geoTargets,
+  geoTargetState,
+  languageTargets,
+  languageTargetState,
   loadConversionGoals,
   name,
   payload,
@@ -157,6 +169,7 @@ export function CampaignPresetEditorForm({
                     variant="outline"
                     onClick={() => loadConversionGoals()}
                   >
+                    {conversionGoalState === "loading" ? <Spinner aria-hidden className="h-4 w-4" /> : null}
                     {conversionGoalState === "loading" ? "同步中..." : "同步目标"}
                   </Button>
                 </div>
@@ -297,26 +310,17 @@ export function CampaignPresetEditorForm({
       <section className="space-y-4 rounded-2xl border border-[var(--hairline)] bg-[var(--surface-card)] p-3">
         <h3 className="text-sm font-semibold text-[var(--ink)]">AdGroup 预设</h3>
         <div className={fieldRow}>
-          <Field label="地理位置" required>
-            <Combobox
-              emptyText="没有匹配的国家/地区"
-              options={buildGeoTargetSelectOptions(FALLBACK_GEO_TARGET_OPTIONS, group.locations)}
-              placeholder="选择国家/地区"
-              searchPlaceholder="搜索国家/地区或代称"
-              value={group.locations}
-              onChange={(locations) => updateGroup({ locations })}
-            />
-          </Field>
-          <Field label="语言" required>
-            <Combobox
-              emptyText="没有匹配的语言"
-              options={buildLanguageTargetSelectOptions(FALLBACK_LANGUAGE_OPTIONS, group.language)}
-              placeholder="选择语言"
-              searchPlaceholder="搜索语言或代称"
-              value={group.language}
-              onChange={(language) => updateGroup({ language })}
-            />
-          </Field>
+          <TargetFields
+            geoTargetState={geoTargetState}
+            geoTargets={geoTargets}
+            languageTargetState={languageTargetState}
+            languageTargets={languageTargets}
+            languageValue={group.language}
+            locationValue={group.locations}
+            mode="field"
+            onLanguageChange={(language) => updateGroup({ language })}
+            onLocationChange={(locations) => updateGroup({ locations })}
+          />
         </div>
 
         <div className="rounded-xl border border-[var(--hairline)] bg-[var(--canvas-soft)] p-3">

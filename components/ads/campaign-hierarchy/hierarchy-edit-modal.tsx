@@ -1,9 +1,15 @@
 "use client";
 
 import type { ReactNode } from "react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export type HierarchyTrailItem = {
   label: string;
@@ -63,7 +69,7 @@ export function HierarchyEditModal({
   onClose,
   onBack,
   zIndexClassName = "z-50",
-  maxWidthClassName = "max-w-6xl",
+  maxWidthClassName = "sm:max-w-6xl",
 }: {
   title: string;
   eyebrow: string;
@@ -75,45 +81,38 @@ export function HierarchyEditModal({
   maxWidthClassName?: string;
 }) {
   return (
-    <DialogPrimitive.Root open onOpenChange={(open) => !open && onClose()}>
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay
-          className={`fixed inset-0 bg-slate-950/35 backdrop-blur-sm ${zIndexClassName}`}
-        />
-        <DialogPrimitive.Content
-          className={`fixed left-1/2 top-1/2 max-h-[88vh] w-[calc(100%-1.5rem)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[2rem] border border-[var(--hairline)] bg-[var(--surface-card)] shadow-[0_24px_80px_rgba(15,23,42,0.24)] focus:outline-none sm:w-[calc(100%-3rem)] ${zIndexClassName} ${maxWidthClassName}`}
-        >
-          <div className="flex items-start justify-between gap-4 border-b border-[var(--hairline)] bg-[var(--canvas-soft)] px-5 py-4">
-            <div className="min-w-0 flex-1">
-              <HierarchyTrail items={hierarchyTrail ?? []} />
-              <DialogPrimitive.Title asChild>
-                <p className="text-caption-uppercase text-[var(--muted)]">{eyebrow}</p>
-              </DialogPrimitive.Title>
-              <h2 className="mt-1 truncate text-xl font-semibold tracking-[-0.02em] text-[var(--ink)]">
-                {title}
-              </h2>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {onBack ? (
-                <Button size="sm" type="button" variant="ghost" onClick={onBack}>
-                  返回
-                </Button>
-              ) : null}
-              <DialogPrimitive.Close asChild>
-                <Button size="sm" type="button" variant="outline">
-                  关闭
-                </Button>
-              </DialogPrimitive.Close>
-            </div>
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        className={`max-h-[88vh] w-[calc(100%-1.5rem)] gap-0 overflow-hidden rounded-[2rem] p-0 shadow-[0_24px_80px_rgba(15,23,42,0.24)] sm:w-[calc(100%-3rem)] ${zIndexClassName} ${maxWidthClassName}`}
+        showCloseButton={false}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-[var(--hairline)] bg-[var(--canvas-soft)] px-5 py-4">
+          <div className="min-w-0 flex-1">
+            <HierarchyTrail items={hierarchyTrail ?? []} />
+            <DialogTitle className="text-caption-uppercase text-[var(--muted)]">
+              {eyebrow}
+            </DialogTitle>
+            <h2 className="mt-1 truncate text-xl font-semibold tracking-[-0.02em] text-[var(--ink)]">
+              {title}
+            </h2>
           </div>
-          <div className="max-h-[calc(88vh-5rem)] overflow-auto p-4 sm:p-5">{children}</div>
+          <div className="flex shrink-0 items-center gap-2">
+            {onBack ? (
+              <Button size="sm" type="button" variant="ghost" onClick={onBack}>
+                返回
+              </Button>
+            ) : null}
+            <DialogClose render={<Button size="sm" type="button" variant="outline" />}>
+              关闭
+            </DialogClose>
+          </div>
+        </div>
+        <div className="max-h-[calc(88vh-5rem)] overflow-auto p-4 sm:p-5">{children}</div>
 
-          {/* Visually hidden description for accessibility */}
-          <DialogPrimitive.Description className="sr-only">
-            {title} — {eyebrow}
-          </DialogPrimitive.Description>
-        </DialogPrimitive.Content>
-      </DialogPrimitive.Portal>
-    </DialogPrimitive.Root>
+        <DialogDescription className="sr-only">
+          {title} — {eyebrow}
+        </DialogDescription>
+      </DialogContent>
+    </Dialog>
   );
 }

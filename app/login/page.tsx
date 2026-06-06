@@ -41,8 +41,8 @@ export default async function LoginPage({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild className="w-full">
-              <Link href={from && from.startsWith("/") ? from : "/"}>进入工作台</Link>
+            <Button className="w-full" render={<Link href={from && from.startsWith("/") ? from : "/"} />}>
+              进入工作台
             </Button>
           </CardContent>
         </Card>
@@ -108,8 +108,8 @@ export default async function LoginPage({
                 在 `.env.local` 中配置 `FEISHU_APP_ID`、`FEISHU_APP_SECRET`、`AUTH_SECRET`
                 后重启服务，即可启用飞书登录与路由保护。
               </p>
-              <Button asChild className="mt-4 w-full" variant="outline">
-                <Link href="/">暂不登录，进入工作台</Link>
+              <Button className="mt-4 w-full" render={<Link href="/" />} variant="outline">
+                暂不登录，进入工作台
               </Button>
             </div>
           )}

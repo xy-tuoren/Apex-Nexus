@@ -841,6 +841,32 @@ export function formatStableDateTime(value?: string | null) {
   ].join(" ");
 }
 
+export function formatStableDateTimeToMinute(value?: string | null) {
+  if (!value) {
+    return "";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const byType = new Map(parts.map((part) => [part.type, part.value]));
+
+  return [
+    [byType.get("year"), byType.get("month"), byType.get("day")].join("-"),
+    [byType.get("hour"), byType.get("minute")].join(":"),
+  ].join(" ");
+}
+
 export function createDefaultAd(index = 1): AdForm {
   return {
     id: `ad_${index}`,

@@ -104,8 +104,8 @@ export function AdminShell({
             <ThemeToggle />
             {user ? <UserMenu user={user} /> : null}
             {showLoginButton ? (
-              <Button asChild size="sm">
-                <Link href="/login">登录</Link>
+              <Button render={<Link href="/login" />} size="sm">
+                登录
               </Button>
             ) : null}
           </div>

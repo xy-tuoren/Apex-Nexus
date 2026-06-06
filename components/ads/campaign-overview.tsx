@@ -106,7 +106,7 @@ export function CampaignOverviewCard({
         </p>
         <div className="mt-2.5 flex flex-wrap gap-1.5">
           <Badge className="normal-case text-[10px] tracking-normal">{campaign.adGroupCount} 组 · {campaign.adCount} 广告</Badge>
-          <Badge className="max-w-full truncate normal-case text-[10px] tracking-normal text-[var(--body)]" title={campaign.accountName}>
+          <Badge className="max-w-full truncate normal-case text-[10px] tracking-normal text-white" title={campaign.accountName}>
             {campaign.accountId || "未选择账号"}
           </Badge>
         </div>

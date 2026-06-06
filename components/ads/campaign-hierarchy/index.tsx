@@ -7,56 +7,47 @@ import {
   Layers3,
   Plus,
   RefreshCw,
-  Save,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Drawer } from "@/components/ui/drawer";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Tag } from "@/components/ui/tag";
 import { useToast } from "@/components/ui/toast";
 import {
   CampaignOverviewAddTile,
   CampaignOverviewCard,
 } from "@/components/ads/campaign-overview";
+import { CampaignPreview } from "@/components/ads/campaign-hierarchy/campaign-preview";
 import { HierarchyEditModal } from "@/components/ads/campaign-hierarchy/hierarchy-edit-modal";
+import { PresetApplyDialog, PresetManager } from "@/components/ads/campaign-hierarchy/preset-manager";
+import {
+  buildPresetTableRows,
+  clonePresetPayload,
+  defaultPresetPayload,
+  type PresetEditorState,
+} from "@/components/ads/campaign-hierarchy/preset-utils";
 import {
   FALLBACK_GEO_TARGET_OPTIONS,
   FALLBACK_LANGUAGE_OPTIONS,
-  OBJECTIVE_OPTIONS,
 } from "@/components/ads/campaign-hierarchy/constants";
 import {
-  buildCampaignHighlights,
   buildCampaignOverviewMeta,
   buildDefaultCampaign,
   buildPayloadFromCampaign,
-  buildPresetPayloadFromCampaign,
   createDefaultAd,
   createDefaultAdGroup,
   applyPresetPayloadToCampaign,
   extractGoogleAdsErrors,
-  formatSchedule,
   formatStableDateTime,
   notificationMessageFromResult,
   splitLines,
   splitMultiline,
   successMessageFromResult,
-  summarizeOsDevice,
-  summarizeDevicesSelection,
-  summarizeOsSelection,
   validateAd,
   validateAdGroup,
   validateCampaign,
@@ -72,7 +63,6 @@ import {
 import { CampaignEditorForm } from "@/components/ads/campaign-hierarchy/campaign-editor-form";
 import { AdGroupEditorForm } from "@/components/ads/campaign-hierarchy/adgroup-editor-form";
 import { AdEditorForm } from "@/components/ads/campaign-hierarchy/ad-editor-form";
-import { CampaignPresetEditorForm } from "@/components/ads/campaign-hierarchy/campaign-preset-editor-form";
 import { useAccountResources } from "@/hooks/useAccountResource";
 import type {
   AdForm,
@@ -83,7 +73,6 @@ import type {
 } from "@/components/ads/campaign-hierarchy/types";
 import type {
   CampaignPreset,
-  CampaignPresetPayload,
   GoogleAdAccount,
   GoogleMccAccount,
   LaunchBatch,
@@ -91,74 +80,6 @@ import type {
 import type { CampaignHierarchyEditorProps } from "@/components/ads/campaign-hierarchy/types";
 
 const MAX_RESOURCE_ACCOUNTS = 4;
-
-type PresetTableRow = {
-  bidding: string;
-  budget: string;
-  id: string;
-  name: string;
-  scheduleTags: string[];
-  deviceTags: string[];
-  trackingTags: string[];
-  updatedAt: string;
-  description?: string;
-  objective: string;
-};
-
-function clonePresetPayload(payload: CampaignPresetPayload): CampaignPresetPayload {
-  return {
-    ...payload,
-    os: [...payload.os],
-    devices: [...payload.devices],
-    adSchedule: Object.fromEntries(
-      Object.entries(payload.adSchedule).map(([day, hours]) => [day, [...hours]]),
-    ),
-    adGroups: payload.adGroups.map((group) => ({
-      ...group,
-      genders: [...group.genders],
-      ageRanges: [...group.ageRanges],
-      ads: group.ads.map((ad) => ({ ...ad })),
-    })),
-  };
-}
-
-function defaultPresetPayload(): CampaignPresetPayload {
-  return buildPresetPayloadFromCampaign(buildDefaultCampaign(1));
-}
-
-function buildDeviceTags(os: string[], devices: string[]) {
-  return [summarizeOsSelection(os), summarizeDevicesSelection(devices)];
-}
-
-function buildScheduleTags(schedule: CampaignPresetPayload["adSchedule"]) {
-  const formatted = formatSchedule(schedule);
-  if (!formatted || formatted === "未设置") {
-    return ["未设置"];
-  }
-
-  if (formatted === "每天 00:00-24:00") {
-    return ["全天投放"];
-  }
-
-  const segments = formatted
-    .split(";")
-    .map((item) => item.trim())
-    .filter(Boolean);
-  const firstRange = segments[0]?.split("：")[1]?.trim();
-
-  return [segments.length > 0 ? `${segments.length}天投放` : "已设置", firstRange || "分时投放"];
-}
-
-function buildTrackingTags(payload: CampaignPresetPayload) {
-  const tags = [];
-  if (payload.finalUrlSuffix) {
-    tags.push(`Suffix 已设置`);
-  } else {
-    tags.push("Suffix 未设");
-  }
-  tags.push(`IP 排除 ${splitLines(payload.ipExclusions).length || 0} 条`);
-  return tags;
-}
 
 export function CampaignHierarchyEditor({
   initialAdAccounts,
@@ -188,14 +109,12 @@ export function CampaignHierarchyEditor({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [presets, setPresets] = useState<CampaignPreset[]>(initialPresets);
   const [launchBatches, setLaunchBatches] = useState<LaunchBatch[]>(initialLaunchBatches);
+  const [isPresetReloading, setIsPresetReloading] = useState(false);
+  const [isPresetSaving, setIsPresetSaving] = useState(false);
+  const [deletingPresetIds, setDeletingPresetIds] = useState<Set<string>>(() => new Set());
+  const [isLaunchBatchReloading, setIsLaunchBatchReloading] = useState(false);
   const [presetDialog, setPresetDialog] = useState<null | "apply" | "manage">(null);
-  const [presetEditor, setPresetEditor] = useState<null | {
-    description: string;
-    id?: string;
-    mode: "create" | "edit";
-    name: string;
-    payload: CampaignPresetPayload;
-  }>(null);
+  const [presetEditor, setPresetEditor] = useState<PresetEditorState | null>(null);
   const idCounterRef = useRef(2);
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
   const [isCampaignEditorOpen, setIsCampaignEditorOpen] = useState(false);
@@ -313,19 +232,37 @@ export function CampaignHierarchyEditor({
     [launchBatches],
   );
 
-  const reloadPresets = useCallback(async () => {
-    const response = await fetch("/api/campaign-presets");
-    const json = (await response.json()) as ApiResult;
-    if (json.success && Array.isArray(json.data)) {
-      setPresets(json.data as CampaignPreset[]);
+  const reloadPresets = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setIsPresetReloading(true);
+    }
+    try {
+      const response = await fetch("/api/campaign-presets");
+      const json = (await response.json()) as ApiResult;
+      if (json.success && Array.isArray(json.data)) {
+        setPresets(json.data as CampaignPreset[]);
+      }
+    } finally {
+      if (showLoading) {
+        setIsPresetReloading(false);
+      }
     }
   }, []);
 
-  const reloadLaunchBatches = useCallback(async () => {
-    const response = await fetch("/api/launch-batches");
-    const json = (await response.json()) as ApiResult;
-    if (json.success && Array.isArray(json.data)) {
-      setLaunchBatches(json.data as LaunchBatch[]);
+  const reloadLaunchBatches = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setIsLaunchBatchReloading(true);
+    }
+    try {
+      const response = await fetch("/api/launch-batches");
+      const json = (await response.json()) as ApiResult;
+      if (json.success && Array.isArray(json.data)) {
+        setLaunchBatches(json.data as LaunchBatch[]);
+      }
+    } finally {
+      if (showLoading) {
+        setIsLaunchBatchReloading(false);
+      }
     }
   }, []);
 
@@ -334,7 +271,7 @@ export function CampaignHierarchyEditor({
       return;
     }
     const interval = window.setInterval(() => {
-      void reloadLaunchBatches();
+      void reloadLaunchBatches(false);
     }, 2000);
     return () => window.clearInterval(interval);
   }, [hasRunningBatches, reloadLaunchBatches]);
@@ -712,71 +649,62 @@ export function CampaignHierarchyEditor({
     }
 
     const isEditing = presetEditor.mode === "edit" && presetEditor.id;
-    const response = await fetch(
-      isEditing ? `/api/campaign-presets/${presetEditor.id}` : "/api/campaign-presets",
-      {
-        method: isEditing ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: presetEditor.name.trim(),
-          description: presetEditor.description.trim(),
-          payload: presetEditor.payload,
-        }),
-      },
-    );
-    const json = (await response.json()) as ApiResult;
-    if (!json.success) {
-      notify({ tone: "error", title: json.error?.code ?? "预设保存失败", description: json.error?.message ?? "请稍后重试。" });
-      return;
-    }
+    setIsPresetSaving(true);
+    try {
+      const response = await fetch(
+        isEditing ? `/api/campaign-presets/${presetEditor.id}` : "/api/campaign-presets",
+        {
+          method: isEditing ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: presetEditor.name.trim(),
+            description: presetEditor.description.trim(),
+            payload: presetEditor.payload,
+          }),
+        },
+      );
+      const json = (await response.json()) as ApiResult;
+      if (!json.success) {
+        notify({ tone: "error", title: json.error?.code ?? "预设保存失败", description: json.error?.message ?? "请稍后重试。" });
+        return;
+      }
 
-    await reloadPresets();
-    notify({
-      tone: "success",
-      title: isEditing ? "预设已更新" : "预设已创建",
-      description: `「${presetEditor.name.trim()}」已保存。`,
-    });
-    setPresetEditor(null);
+      await reloadPresets(false);
+      notify({
+        tone: "success",
+        title: isEditing ? "预设已更新" : "预设已创建",
+        description: `「${presetEditor.name.trim()}」已保存。`,
+      });
+      setPresetEditor(null);
+    } finally {
+      setIsPresetSaving(false);
+    }
   }
 
   const deletePreset = useCallback(async (presetId: string) => {
-    const response = await fetch(`/api/campaign-presets/${presetId}`, { method: "DELETE" });
-    const json = (await response.json()) as ApiResult;
-    if (!json.success) {
-      notify({ tone: "error", title: json.error?.code ?? "预设删除失败", description: json.error?.message ?? "请稍后重试。" });
-      return;
-    }
+    setDeletingPresetIds((current) => new Set(current).add(presetId));
+    try {
+      const response = await fetch(`/api/campaign-presets/${presetId}`, { method: "DELETE" });
+      const json = (await response.json()) as ApiResult;
+      if (!json.success) {
+        notify({ tone: "error", title: json.error?.code ?? "预设删除失败", description: json.error?.message ?? "请稍后重试。" });
+        return;
+      }
 
-    await reloadPresets();
-    notify({ tone: "success", title: "预设已删除" });
+      await reloadPresets(false);
+      notify({ tone: "success", title: "预设已删除" });
+    } finally {
+      setDeletingPresetIds((current) => {
+        const next = new Set(current);
+        next.delete(presetId);
+        return next;
+      });
+    }
   }, [notify, reloadPresets]);
 
-  const presetTableRows = useMemo<PresetTableRow[]>(
-    () =>
-      presets.map((preset) => {
-        const bidding =
-          preset.payload.campaignObjective === "CONVERSIONS"
-            ? preset.payload.biddingType === "TARGET_CPA"
-              ? `目标 CPA ${preset.payload.targetCpa || "未填写"}`
-              : "尽可能提高转化"
-            : preset.payload.clickBiddingType === "MAX_CPC"
-              ? `目标 CPC ${preset.payload.targetCpc || "未填写"}`
-              : "尽可能提高点击";
-
-        return {
-          id: preset.id,
-          name: preset.name,
-          description: preset.description,
-          objective: preset.payload.campaignObjective,
-          bidding,
-          budget: preset.payload.budgetDaily || "未填写",
-          deviceTags: buildDeviceTags(preset.payload.os, preset.payload.devices),
-          scheduleTags: buildScheduleTags(preset.payload.adSchedule),
-          trackingTags: buildTrackingTags(preset.payload),
-          updatedAt: formatStableDateTime(preset.updatedAt),
-        };
-      }),
-    [presets],
+  const presetTableRows = useMemo(
+    () => buildPresetTableRows(presets, resources0.geoTargets.data),
+    [presets, resources0.geoTargets.data],
   );
 
   // Sync
@@ -886,57 +814,6 @@ export function CampaignHierarchyEditor({
 
   function getResources(adAccountId: string) {
     return allResources[adAccountId] ?? null;
-  }
-
-  function renderCampaignPreview(campaign: CampaignForm) {
-    const account = adAccounts.find((a) => a.id === campaign.adAccountId);
-    const r = getResources(campaign.adAccountId);
-    const highlights = buildCampaignHighlights(campaign, r?.geoTargets.data, r?.languageTargets.data);
-    return (
-      <div className="grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
-        <section className="rounded-3xl border border-[var(--hairline)] bg-[var(--canvas-soft)] p-4">
-          <p className="text-caption-uppercase text-[var(--muted)]">Campaign Snapshot</p>
-          <h3 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-[var(--ink)]">{campaign.campaignName}</h3>
-          <div className="mt-4 grid gap-2 text-sm text-[var(--body)]">
-            <p>账号：{account ? `${account.name} · ${account.customerId}` : "未选择"}</p>
-            <p>目标：{OBJECTIVE_OPTIONS.find((o: { value: string }) => o.value === campaign.campaignObjective)?.label}</p>
-            <p>预算：{campaign.budgetDaily} / day</p>
-            <p>出价：{campaign.campaignObjective === "CLICKS" ? campaign.clickBiddingType : campaign.biddingType}</p>
-            <p>设备：{summarizeOsDevice(campaign.os, campaign.devices)}</p>
-            <p>时间：{formatSchedule(campaign.adSchedule)}</p>
-          </div>
-          <div className="mt-5 rounded-2xl border border-[var(--hairline)] bg-[var(--surface-card)] p-3">
-            <p className="text-xs font-semibold text-[var(--ink)]">投放摘要</p>
-            <ul className="mt-2 space-y-1 text-xs leading-relaxed text-[var(--body)]">
-              {highlights.map((line: string, index: number) => <li key={`${line}-${index}`}>{line}</li>)}
-            </ul>
-          </div>
-        </section>
-        <section className="space-y-3">
-          {campaign.adGroups.map((group, groupIndex) => (
-            <div key={group.id} className="rounded-3xl border border-[var(--hairline)] bg-[var(--surface-card)] p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-caption-uppercase text-[var(--muted)]">AdGroup {String(groupIndex + 1).padStart(2, "0")}</p>
-                  <h4 className="mt-1 text-lg font-semibold tracking-[-0.02em] text-[var(--ink)]">{group.name}</h4>
-                </div>
-                <Badge className="normal-case tracking-normal">{group.ads.length} Ads</Badge>
-              </div>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                {group.ads.map((ad, adIndex) => (
-                  <div key={ad.id} className="rounded-2xl border border-[var(--hairline)] bg-[var(--canvas-soft)] p-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">Ad {String(adIndex + 1).padStart(2, "0")}</p>
-                    <p className="mt-1 text-sm font-semibold text-[var(--ink)]">{ad.name}</p>
-                    <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--body)]">{splitLines(ad.shortHeadlines).slice(0, 2).join(" / ")}</p>
-                    <p className="mt-2 truncate text-[11px] text-[var(--muted)]">{ad.finalUrl}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </section>
-      </div>
-    );
   }
 
   function operationLabelForCampaign(campaign: CampaignForm, operationIndex: number | null) {
@@ -1207,9 +1084,13 @@ export function CampaignHierarchyEditor({
             <p className="text-caption-uppercase text-[var(--muted)]">Launch Jobs</p>
             <h2 className="mt-1 text-lg font-semibold tracking-[-0.02em] text-[var(--ink)]">创建任务</h2>
           </div>
-          <Button size="sm" type="button" variant="outline" onClick={() => void reloadLaunchBatches()}>
-            <RefreshCw aria-hidden className="h-4 w-4" strokeWidth={1.75} />
-            刷新
+          <Button disabled={isLaunchBatchReloading} size="sm" type="button" variant="outline" onClick={() => void reloadLaunchBatches()}>
+            {isLaunchBatchReloading ? (
+              <Spinner aria-hidden className="h-4 w-4" />
+            ) : (
+              <RefreshCw aria-hidden className="h-4 w-4" strokeWidth={1.75} />
+            )}
+            {isLaunchBatchReloading ? "刷新中..." : "刷新"}
           </Button>
         </div>
         <div className="mt-4 space-y-3">
@@ -1266,220 +1147,6 @@ export function CampaignHierarchyEditor({
     );
   }
 
-  function renderPresetDialog() {
-    if (!presetDialog || presetDialog === "manage") return null;
-
-    return (
-      <HierarchyEditModal
-        eyebrow="投放预设"
-        maxWidthClassName="max-w-4xl"
-        title="选择预设"
-        onClose={() => setPresetDialog(null)}
-      >
-        <div className="grid gap-3">
-          {presets.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-[var(--hairline)] bg-[var(--canvas-soft)] px-4 py-6 text-sm text-[var(--muted)]">暂无预设。</p>
-          ) : presets.map((preset) => (
-            <div key={preset.id} className="rounded-2xl border border-[var(--hairline)] bg-[var(--surface-card)] p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-base font-semibold text-[var(--ink)]">{preset.name}</p>
-                  {preset.description ? <p className="mt-1 text-sm text-[var(--muted)]">{preset.description}</p> : null}
-                  <p className="mt-2 text-xs text-[var(--muted)]">
-                    {preset.payload.campaignObjective} · {summarizeOsDevice(preset.payload.os, preset.payload.devices)} · 更新于 {formatStableDateTime(preset.updatedAt)}
-                  </p>
-                </div>
-                <Button size="sm" type="button" onClick={() => applyPresetToCampaign(preset)}>
-                  套用
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </HierarchyEditModal>
-    );
-  }
-
-  function renderPresetManager() {
-    return (
-      <Drawer
-        eyebrow="投放预设"
-        open={presetDialog === "manage"}
-        title={presetEditor ? (presetEditor.mode === "create" ? "添加预设" : "编辑预设") : "管理预设"}
-        widthClassName="w-[80vw] sm:max-w-none"
-        zIndexClassName="z-[80]"
-        onClose={closePresetManager}
-      >
-        {presetEditor ? (
-          <div className="flex h-full min-h-0 flex-col">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--hairline)] bg-[var(--canvas-soft)] px-6 py-4">
-              <Button size="sm" type="button" variant="outline" onClick={() => setPresetEditor(null)}>
-                返回列表
-              </Button>
-              <div className="flex items-center gap-2">
-                <Button size="sm" type="button" variant="outline" onClick={() => setPresetEditor(null)}>
-                  取消
-                </Button>
-                <Button size="sm" type="button" onClick={() => void savePresetEditor()}>
-                  <Save aria-hidden className="h-4 w-4" strokeWidth={1.75} />
-                  保存预设
-                </Button>
-              </div>
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto px-6 py-5">
-              <CampaignPresetEditorForm
-                conversionGoals={resources0.conversionGoals.data}
-                conversionGoalError={resources0.conversionGoals.error}
-                conversionGoalState={resources0.conversionGoals.status}
-                conversionGoalSyncedAt={resources0.conversionGoals.syncedAt}
-                description={presetEditor.description}
-                loadConversionGoals={() => resources0.conversionGoals.reload()}
-                name={presetEditor.name}
-                payload={presetEditor.payload}
-                onDescriptionChange={(description) =>
-                  setPresetEditor((current) => current ? { ...current, description } : current)
-                }
-                onNameChange={(name) =>
-                  setPresetEditor((current) => current ? { ...current, name } : current)
-                }
-                onPayloadChange={(payload) =>
-                  setPresetEditor((current) => current ? { ...current, payload } : current)
-                }
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="flex h-full min-h-0 flex-col">
-          {/* Toolbar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--hairline)] bg-[var(--canvas-soft)] px-6 py-4">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-[var(--ink)]">
-                {presets.length} 套预设
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button size="sm" type="button" variant="outline" onClick={() => void reloadPresets()}>
-                刷新列表
-              </Button>
-              <Button size="sm" type="button" onClick={openPresetCreateEditor}>
-                <Plus aria-hidden className="h-4 w-4" strokeWidth={1.75} />
-                添加预设
-              </Button>
-            </div>
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-auto px-6 py-5">
-            {presets.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-[var(--hairline)] bg-[var(--canvas-soft)] px-4 py-16">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--hairline)] bg-[var(--surface-card)]">
-                  <Layers3 aria-hidden className="h-6 w-6 text-[var(--muted)]" strokeWidth={1.5} />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-medium text-[var(--ink)]">暂无预设</p>
-                  <p className="mt-1 text-xs text-[var(--muted)]">点击「添加预设」创建第一套可复用配置。</p>
-                </div>
-              </div>
-            ) : (
-              <div className="overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--surface-card)]">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-b border-[var(--hairline)] bg-[var(--canvas-soft)] hover:bg-[var(--canvas-soft)]">
-                      <TableHead className="py-3.5 font-semibold text-[var(--ink)]">预设名称</TableHead>
-                      <TableHead className="py-3.5 font-semibold text-[var(--ink)]">目标 / 出价</TableHead>
-                      <TableHead className="py-3.5 font-semibold text-[var(--ink)]">预算</TableHead>
-                      <TableHead className="py-3.5 font-semibold text-[var(--ink)]">设备</TableHead>
-                      <TableHead className="py-3.5 font-semibold text-[var(--ink)]">投放时间</TableHead>
-                      <TableHead className="py-3.5 font-semibold text-[var(--ink)]">跟踪配置</TableHead>
-                      <TableHead className="py-3.5 font-semibold text-[var(--ink)]">最近更新</TableHead>
-                      <TableHead className="py-3.5 text-right font-semibold text-[var(--ink)]">操作</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {presetTableRows.map((row) => {
-                      const preset = presets.find((item) => item.id === row.id);
-                      return (
-                        <TableRow key={row.id} className="border-b border-[var(--hairline)] transition-colors hover:bg-[var(--canvas-soft)]/60">
-                          <TableCell className="py-3.5">
-                            <div className="min-w-0 max-w-[280px]">
-                              <p className="truncate text-sm font-semibold text-[var(--ink)]">{row.name}</p>
-                              {row.description ? (
-                                <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--muted)]">
-                                  {row.description}
-                                </p>
-                              ) : null}
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-3.5">
-                            <div className="flex flex-col gap-1.5">
-                              <Tag className="w-fit" tone="neutral">{row.objective}</Tag>
-                              <span className="text-xs text-[var(--muted)]">{row.bidding}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-3.5">
-                            <Tag className="w-fit" tone="green">{row.budget}</Tag>
-                          </TableCell>
-                          <TableCell className="py-3.5">
-                            <div className="flex max-w-[160px] flex-wrap gap-1.5">
-                              {row.deviceTags.map((tag) => (
-                                <Tag key={tag} className="max-w-full truncate" tone="blue">
-                                  {tag}
-                                </Tag>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-3.5">
-                            <div className="flex max-w-[160px] flex-wrap gap-1.5">
-                              {row.scheduleTags.map((tag) => (
-                                <Tag key={tag} className="max-w-full truncate" tone="amber">
-                                  {tag}
-                                </Tag>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-3.5">
-                            <div className="flex max-w-[160px] flex-wrap gap-1.5">
-                              {row.trackingTags.map((tag) => (
-                                <Tag key={tag} className="max-w-full truncate" tone="rose">
-                                  {tag}
-                                </Tag>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-3.5 text-xs text-[var(--muted)]">
-                            {row.updatedAt}
-                          </TableCell>
-                          <TableCell className="py-3.5">
-                            {preset ? (
-                              <div className="flex justify-end gap-2">
-                                <Button size="sm" type="button" variant="outline" onClick={() => openPresetEditEditor(preset)}>
-                                  编辑
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  type="button"
-                                  variant="ghost"
-                                  className="text-[var(--semantic-error)] hover:bg-[var(--semantic-error)]/8 hover:text-[var(--semantic-error)]"
-                                  onClick={() => void deletePreset(preset.id)}
-                                >
-                                  删除
-                                </Button>
-                              </div>
-                            ) : null}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </div>
-        </div>
-        )}
-      </Drawer>
-    );
-  }
-
   return (
     <div className="ads-launch-stage space-y-5 py-5">
       <Tabs
@@ -1503,7 +1170,10 @@ export function CampaignHierarchyEditor({
             </TabsList>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button disabled={syncState === "loading"} size="sm" type="button" variant="outline" onClick={() => void syncGoogleAccounts()}>重新同步</Button>
+            <Button disabled={syncState === "loading"} size="sm" type="button" variant="outline" onClick={() => void syncGoogleAccounts()}>
+              {syncState === "loading" ? <Spinner aria-hidden className="h-4 w-4" /> : null}
+              {syncState === "loading" ? "同步中..." : "重新同步"}
+            </Button>
             <Button size="sm" type="button" variant="outline" onClick={openPresetManager}>
               管理预设
             </Button>
@@ -1512,8 +1182,9 @@ export function CampaignHierarchyEditor({
               新增 Campaign
             </Button>
             <Button disabled={isSubmitting || !campaigns.some((c) => c.adAccountId)} size="sm" type="button" onClick={() => void submitDrafts()}>
+              {isSubmitting ? <Spinner aria-hidden className="h-4 w-4" /> : null}
               {isSubmitting ? "提交中..." : "提交后台创建"}
-              <ChevronRight aria-hidden className="h-4 w-4" strokeWidth={1.75} />
+              {!isSubmitting ? <ChevronRight aria-hidden className="h-4 w-4" strokeWidth={1.75} /> : null}
             </Button>
           </div>
         </div>
@@ -1608,7 +1279,7 @@ export function CampaignHierarchyEditor({
             { label: "广告系列", name: activeCampaign.campaignName, onClick: returnToCampaignEditor },
             { label: "广告组", name: activeEditorGroup.name },
           ]}
-          maxWidthClassName="max-w-6xl"
+          maxWidthClassName="sm:max-w-6xl"
           title={activeEditorGroup.name}
           zIndexClassName="z-[60]"
           onBack={returnToCampaignEditor}
@@ -1647,7 +1318,7 @@ export function CampaignHierarchyEditor({
             { label: "广告组", name: activeEditorGroup.name, onClick: () => setEditorFocus({ level: "adgroup", campaignId: activeCampaign.id, groupId: activeEditorGroup.id }) },
             { label: "广告", name: activeEditorAd.name },
           ]}
-          maxWidthClassName="max-w-6xl"
+          maxWidthClassName="sm:max-w-6xl"
           title={activeEditorAd.name}
           zIndexClassName="z-[70]"
           onBack={() => setEditorFocus({ level: "adgroup", campaignId: activeCampaign.id, groupId: activeEditorGroup.id })}
@@ -1682,12 +1353,38 @@ export function CampaignHierarchyEditor({
           title={previewCampaign.campaignName}
           onClose={() => setPreviewCampaignId(null)}
         >
-          {renderCampaignPreview(previewCampaign)}
+          <CampaignPreview
+            account={adAccounts.find((account) => account.id === previewCampaign.adAccountId)}
+            campaign={previewCampaign}
+            geoTargets={getResources(previewCampaign.adAccountId)?.geoTargets.data ?? FALLBACK_GEO_TARGET_OPTIONS}
+            languageTargets={getResources(previewCampaign.adAccountId)?.languageTargets.data ?? FALLBACK_LANGUAGE_OPTIONS}
+          />
         </HierarchyEditModal>
       ) : null}
 
-      {renderPresetManager()}
-      {renderPresetDialog()}
+      <PresetManager
+        deletingPresetIds={deletingPresetIds}
+        isReloading={isPresetReloading}
+        isSaving={isPresetSaving}
+        open={presetDialog === "manage"}
+        presetEditor={presetEditor}
+        presetTableRows={presetTableRows}
+        presets={presets}
+        resources={resources0}
+        onClose={closePresetManager}
+        onCreate={openPresetCreateEditor}
+        onDelete={(presetId) => void deletePreset(presetId)}
+        onEdit={openPresetEditEditor}
+        onPresetEditorChange={setPresetEditor}
+        onReload={() => void reloadPresets()}
+        onSave={() => void savePresetEditor()}
+      />
+      <PresetApplyDialog
+        open={presetDialog === "apply"}
+        presets={presets}
+        onApply={applyPresetToCampaign}
+        onClose={() => setPresetDialog(null)}
+      />
     </div>
   );
 }

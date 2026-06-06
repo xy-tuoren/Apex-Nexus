@@ -1,4 +1,4 @@
-## 代码原则
+## 原则
 
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
@@ -94,9 +94,9 @@ Skills 统一维护在 `.agents/skills/`（跨 Cursor、Claude Code 等工具的
 
 ## UI 组件
 
-当前项目采用 **shadcn/ui 风格的组件体系**：
+当前项目采用 **shadcn/ui 组件体系**：
 
-- 底层交互原语使用 `@radix-ui/*`
+- 共享组件源码通过 shadcn CLI 下载到项目中维护，当前 shadcn v4 组件底层以 `@base-ui/react`、`cmdk`、`vaul`、`sonner` 等为主；不要直接新增 `@radix-ui/*` 作为项目依赖，除非先说明原因并获得确认。
 - 样式使用 Tailwind CSS + `class-variance-authority`
 - 共享 UI 组件统一放在 `components/ui/`
 - 业务页面只组合共享组件和业务数据，不在页面内从零实现通用交互控件
@@ -104,10 +104,14 @@ Skills 统一维护在 `.agents/skills/`（跨 Cursor、Claude Code 等工具的
 构建或修改交互/UI 时，按以下顺序决策：
 
 1. **先用 `components/ui`** — Button、Input、Textarea、Select、Checkbox、RadioGroup、Dialog、Sheet、Drawer、Table、Tabs、Tooltip、Separator、ScrollArea、Toast、Badge、Tag 等已有组件必须优先复用。
-2. **缺组件先补共享层** — 如果需要新的通用 UI 能力，先按 shadcn/ui 风格在 `components/ui/` 新增组件；需要无障碍/焦点/键盘交互时使用 Radix 原语，不要从零手写。
+2. **缺组件先用 shadcn CLI 下载** — 如果 `components/ui` 没有需要的通用组件，先查 shadcn 是否提供，并使用 CLI 把组件源码下载进项目，例如：
+   - 单个组件：`npx shadcn@latest add <component-name> -y`
+   - 多个组件：`npx shadcn@latest add command popover calendar -y`
+   - 覆盖修复已有组件：`npx shadcn@latest add <component-name> -y --overwrite`
+   下载后再按项目视觉规范做小范围样式调整。不要在业务目录临时手写 Drawer、Table、Select、Combobox、Upload、Toast、Tooltip、Popover 等通用控件。
 3. **业务组件只做组合** — `app/`、`components/ads/` 等业务目录不要内联完整通用控件实现，也不要复制粘贴一大段临时 Tailwind 样式来模拟已有组件。
 4. **表格使用 `components/ui/table`** — 后台列表优先使用 `Table` 系列组件；需要排序、筛选、分页时在业务层组合状态，不要随意引入新的表格库。
-5. **按钮和标签保持一致** — 操作用 `Button`，状态/属性用 `Badge` 或 `Tag`；不要在业务页面临时发明 pill、chip、icon button 的样式。
+5. **只有 shadcn 没有时才自建共享组件** — 确认 shadcn registry 没有对应组件后，才允许在 `components/ui/` 新增共享组件；新增时必须复用现有 `Button/Input/Popover/Dialog/Sheet/Table/Badge` 等基础组件，并保持 API、尺寸、圆角、颜色、焦点态与已有组件一致。
 
 ## Google Ads API
 

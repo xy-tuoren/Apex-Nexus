@@ -73,11 +73,9 @@ export default async function HomePage() {
                   </span>
                 </div>
               </div>
-              <Button asChild className="mt-5 w-full sm:w-auto">
-                <Link href="/ads">
+              <Button className="mt-5 w-full sm:w-auto" render={<Link href="/ads" />}>
                   进入广告投放
                   <ChevronRight aria-hidden className="h-4 w-4" strokeWidth={1.75} />
-                </Link>
               </Button>
             </div>
           </div>
@@ -117,8 +115,8 @@ export default async function HomePage() {
                   </p>
                 </div>
               </div>
-              <Button asChild variant="outline">
-                <Link href="/ads">打开投放页</Link>
+              <Button render={<Link href="/ads" />} variant="outline">
+                打开投放页
               </Button>
             </div>
           </Card>

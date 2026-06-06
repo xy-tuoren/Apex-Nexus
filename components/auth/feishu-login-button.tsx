@@ -12,8 +12,8 @@ export function FeishuLoginButton({ from = "/", className }: FeishuLoginButtonPr
       : "/api/auth/feishu";
 
   return (
-    <Button asChild className={className}>
-      <a href={href}>使用飞书账号登录</a>
+    <Button className={className} render={<a href={href} />}>
+      使用飞书账号登录
     </Button>
   );
 }

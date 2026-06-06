@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { MultiCombobox } from "@/components/ui/combobox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -196,6 +197,7 @@ export function CampaignEditorForm({
                     variant="outline"
                     onClick={() => loadConversionGoals()}
                   >
+                    {conversionGoalState === "loading" ? <Spinner aria-hidden className="h-4 w-4" /> : null}
                     {conversionGoalState === "loading" ? "同步中..." : "同步目标"}
                   </Button>
                 </div>

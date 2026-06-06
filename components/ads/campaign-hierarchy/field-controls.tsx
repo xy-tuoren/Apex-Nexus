@@ -12,16 +12,10 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import { ChevronDown, Plus, Trash2, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { SCHEDULE_DAYS, SCHEDULE_HOURS } from "@/components/ads/campaign-hierarchy/constants";
 import {
@@ -88,21 +82,16 @@ export function SelectControl({
   placeholder?: string;
   className?: string;
 }) {
-  const selectedLabel = options.find((option) => option.value === value)?.label;
-
   return (
-    <Select disabled={disabled} value={value} onValueChange={onChange}>
-      <SelectTrigger className={className}>
-        <SelectValue placeholder={placeholder} selectedLabel={selectedLabel} />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((option) => (
-          <SelectItem key={option.value} disabled={option.disabled} value={option.value}>
-            {option.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <Combobox
+      className={className}
+      disabled={disabled}
+      options={options}
+      placeholder={placeholder}
+      searchPlaceholder={placeholder ? `搜索${placeholder}` : "搜索"}
+      value={value}
+      onChange={onChange}
+    />
   );
 }
 
