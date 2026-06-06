@@ -21,6 +21,7 @@ import {
 import {
   defaultBiddingForObjective,
   formatConversionGoalLabel,
+  formatStableDateTime,
   summarizeDevicesSelection,
   summarizeOsSelection,
   type AdErrors,
@@ -184,7 +185,7 @@ export function CampaignEditorForm({
                   <p className="text-sm font-medium text-[var(--ink)]">
                     {conversionGoalState === "success"
                       ? conversionGoalSyncedAt
-                        ? `已同步 ${conversionGoals.length} 个目标 · ${new Date(conversionGoalSyncedAt).toLocaleString()}`
+                        ? `已同步 ${conversionGoals.length} 个目标 · ${formatStableDateTime(conversionGoalSyncedAt)}`
                         : "尚未同步转化目标"
                       : campaign.conversionGoal || "待选择"}
                   </p>

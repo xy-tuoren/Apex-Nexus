@@ -1,7 +1,9 @@
 import type {
   AdvertisingType,
+  CampaignPreset,
   GoogleAdAccount,
   GoogleMccAccount,
+  LaunchBatch,
 } from "@/lib/types";
 
 export type ApiResult = {
@@ -20,6 +22,8 @@ export type CampaignHierarchyEditorProps = {
   accountSyncError?: string | null;
   accountsSyncedAt?: string | null;
   initialMccAccounts?: GoogleMccAccount[];
+  initialPresets?: CampaignPreset[];
+  initialLaunchBatches?: LaunchBatch[];
 };
 
 export type SyncPayload = {
@@ -108,7 +112,6 @@ export type CampaignForm = {
   os: string[];
   devices: string[];
   adSchedule: ScheduleGridValue;
-  trackingTemplate: string;
   finalUrlSuffix: string;
   ipExclusions: string;
   adGroups: AdGroupForm[];

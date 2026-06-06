@@ -101,7 +101,6 @@ export const campaignDraftSchema = z.object({
   device: z.string().min(1).default("all"),
   devices: z.array(z.string().min(1)).default([]),
   adSchedule: adScheduleSchema.optional(),
-  trackingTemplate: z.string().max(500).optional(),
   finalUrlSuffix: z.string().max(500).optional(),
   ipExclusions: z.array(z.string().min(1)).default([]),
   assets: assetValidationSchema.shape.assets,
@@ -113,9 +112,64 @@ export const campaignDraftSchema = z.object({
   adGroups: z.array(adGroupDraftSchema).min(1).optional(),
 });
 
+export const campaignPresetAdPayloadSchema = z.object({
+  logos: z.string().default(""),
+  shortHeadlines: z.string().default(""),
+  longHeadlines: z.string().default(""),
+  descriptions: z.string().default(""),
+  callToAction: z.string().min(1).max(40),
+  businessName: z.string().max(25).default(""),
+});
+
+export const campaignPresetAdGroupPayloadSchema = z.object({
+  locations: z.string().min(1),
+  language: z.string().min(1),
+  genders: z.array(z.string().min(1)).default([]),
+  ageRanges: z.array(z.string().min(1)).default([]),
+  includeUnknownAge: z.boolean(),
+  ads: z.array(campaignPresetAdPayloadSchema).min(1),
+});
+
+export const campaignPresetPayloadSchema = z.object({
+  advertisingType: advertisingTypeSchema,
+  campaignObjective: z.string().min(1).max(80),
+  conversionGoal: z.string().max(160).default(""),
+  biddingType: z.enum(["TARGET_CPA", "MAXIMIZE_CONVERSIONS"]),
+  clickBiddingType: z.enum(["MAXIMIZE_CLICKS", "MAX_CPC"]),
+  targetCpa: z.string().default(""),
+  targetCpc: z.string().default(""),
+  budgetDaily: z.string().default(""),
+  os: z.array(z.string().min(1)).default([]),
+  devices: z.array(z.string().min(1)).default([]),
+  adSchedule: adScheduleSchema,
+  finalUrlSuffix: z.string().default(""),
+  ipExclusions: z.string().default(""),
+  adGroups: z.array(campaignPresetAdGroupPayloadSchema).min(1),
+});
+
+export const campaignPresetCreateSchema = z.object({
+  name: z.string().min(1).max(120),
+  description: z.string().max(500).optional(),
+  payload: campaignPresetPayloadSchema,
+});
+
+export const campaignPresetUpdateSchema = z.object({
+  name: z.string().min(1).max(120).optional(),
+  description: z.string().max(500).optional(),
+  payload: campaignPresetPayloadSchema.optional(),
+});
+
 export const launchJobSchema = z.object({
   draftId: z.string().min(1),
   idempotencyKey: idempotencyKeySchema,
+});
+
+export const launchBatchCreateSchema = z.object({
+  campaigns: z.array(z.object({
+    clientCampaignId: z.string().min(1),
+    campaignName: z.string().min(1).max(120),
+    payload: campaignDraftSchema,
+  })).min(1),
 });
 
 export const campaignActionSchema = z.object({
@@ -128,4 +182,7 @@ export const budgetUpdateSchema = z.object({
 });
 
 export type CampaignDraftInput = z.infer<typeof campaignDraftSchema>;
+export type CampaignPresetCreateInput = z.infer<typeof campaignPresetCreateSchema>;
+export type CampaignPresetUpdateInput = z.infer<typeof campaignPresetUpdateSchema>;
+export type LaunchBatchCreateInput = z.infer<typeof launchBatchCreateSchema>;
 export type AssetInput = z.infer<typeof assetPayloadSchema>;

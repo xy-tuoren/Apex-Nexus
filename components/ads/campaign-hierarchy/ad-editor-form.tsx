@@ -41,6 +41,7 @@ interface AdEditorFormProps {
   removeAd: (campaignId: string, groupId: string, adId: string) => void;
   openAdGroupEditor: (campaignId: string, groupId: string) => void;
   openAdEditor: (campaignId: string, groupId: string, adId: string) => void;
+  onOpenCampaign?: () => void;
 }
 
 export function AdEditorForm({
@@ -60,6 +61,7 @@ export function AdEditorForm({
   removeAd,
   openAdGroupEditor,
   openAdEditor,
+  onOpenCampaign,
 }: AdEditorFormProps) {
   return (
     <div className="grid gap-4 xl:grid-cols-[19rem_minmax(0,1fr)]">
@@ -75,6 +77,7 @@ export function AdEditorForm({
           onAddAd={(groupId) => addAd(campaign.id, groupId)}
           onDuplicateAd={(groupId, adId) => duplicateAd(campaign.id, groupId, adId)}
           onDuplicateGroup={(groupId) => duplicateAdGroup(campaign.id, groupId)}
+          onOpenCampaign={onOpenCampaign}
           onRemoveAd={(groupId, adId) => removeAd(campaign.id, groupId, adId)}
           onRemoveGroup={(groupId) => removeAdGroup(campaign.id, groupId)}
           onOpenAd={(groupId, adId) => openAdEditor(campaign.id, groupId, adId)}

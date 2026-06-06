@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useLayoutEffect, useState } from "react";
 import {
   applyTheme,
   getStoredTheme,
@@ -25,7 +25,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return getStoredTheme();
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     applyTheme(theme);
     void Promise.resolve().then(() => setMounted(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount

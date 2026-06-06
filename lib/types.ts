@@ -3,6 +3,12 @@ export type AdvertisingType = "DEMAND_GEN";
 export type CampaignStatus = "DRAFT" | "PAUSED" | "ENABLED" | "REMOVED";
 
 export type LaunchJobStatus = "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED";
+export type LaunchBatchStatus =
+  | "QUEUED"
+  | "RUNNING"
+  | "SUCCEEDED"
+  | "PARTIAL_FAILED"
+  | "FAILED";
 
 export type GoogleAccountKind = "DATA_MCC" | "OPERATION_MCC" | "AD_ACCOUNT";
 
@@ -129,6 +135,51 @@ export type AdGroupDraft = {
 
 export type GoogleAdSchedule = Record<string, boolean[]>;
 
+export type CampaignPresetAdPayload = {
+  logos: string;
+  shortHeadlines: string;
+  longHeadlines: string;
+  descriptions: string;
+  callToAction: string;
+  businessName: string;
+};
+
+export type CampaignPresetAdGroupPayload = {
+  locations: string;
+  language: string;
+  genders: string[];
+  ageRanges: string[];
+  includeUnknownAge: boolean;
+  ads: CampaignPresetAdPayload[];
+};
+
+export type CampaignPresetPayload = {
+  advertisingType: AdvertisingType;
+  campaignObjective: string;
+  conversionGoal: string;
+  biddingType: "TARGET_CPA" | "MAXIMIZE_CONVERSIONS";
+  clickBiddingType: "MAXIMIZE_CLICKS" | "MAX_CPC";
+  targetCpa: string;
+  targetCpc: string;
+  budgetDaily: string;
+  os: string[];
+  devices: string[];
+  adSchedule: GoogleAdSchedule;
+  finalUrlSuffix: string;
+  ipExclusions: string;
+  adGroups: CampaignPresetAdGroupPayload[];
+};
+
+export type CampaignPreset = {
+  id: string;
+  name: string;
+  description?: string;
+  scope: "GLOBAL";
+  payload: CampaignPresetPayload;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type CampaignDraft = {
   id: string;
   siteId?: string;
@@ -157,7 +208,6 @@ export type CampaignDraft = {
   device?: string;
   devices?: string[];
   adSchedule?: GoogleAdSchedule;
-  trackingTemplate?: string;
   finalUrlSuffix?: string;
   ipExclusions?: string[];
   assets: {
@@ -201,6 +251,28 @@ export type LaunchJob = {
   result?: GoogleCampaignBinding;
   googleAdsRequest?: unknown;
   googleAdsResponse?: unknown;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LaunchBatchItem = {
+  id: string;
+  clientCampaignId: string;
+  campaignName: string;
+  adAccountId: string;
+  draftId: string;
+  jobId: string;
+  status: LaunchJobStatus;
+  error?: ApiError;
+  result?: GoogleCampaignBinding;
+  submittedAt: string;
+  updatedAt: string;
+};
+
+export type LaunchBatch = {
+  id: string;
+  status: LaunchBatchStatus;
+  items: LaunchBatchItem[];
   createdAt: string;
   updatedAt: string;
 };

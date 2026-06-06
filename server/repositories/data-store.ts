@@ -3,12 +3,14 @@ import { getMongoDb } from "@/lib/db/mongodb";
 import type {
   CampaignDraft,
   CampaignMetricsDaily,
+  CampaignPreset,
   CreativeAsset,
   GoogleAdAccount,
   GoogleCampaignBinding,
   GoogleConversionGoalSet,
   GoogleMccAccount,
   LaunchJob,
+  LaunchBatch,
   Site,
   SiteAdAccount,
   DraftValidationResult,
@@ -21,9 +23,11 @@ type Collections = {
   sites: Site[];
   site_ad_accounts: SiteAdAccount[];
   assets: CreativeAsset[];
+  campaign_presets: CampaignPreset[];
   campaign_drafts: CampaignDraft[];
   google_campaign_bindings: GoogleCampaignBinding[];
   launch_jobs: LaunchJob[];
+  launch_batches: LaunchBatch[];
   draft_validation_results: DraftValidationResult[];
   campaign_metrics_daily: CampaignMetricsDaily[];
   api_idempotency_keys: {
@@ -63,9 +67,11 @@ const seed: Collections = {
   ],
   site_ad_accounts: [],
   assets: [],
+  campaign_presets: [],
   campaign_drafts: [],
   google_campaign_bindings: [],
   launch_jobs: [],
+  launch_batches: [],
   draft_validation_results: [],
   campaign_metrics_daily: [],
   api_idempotency_keys: [],

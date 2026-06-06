@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Copy, Plus, Trash2 } from "lucide-react";
+import { AlertCircle, ChevronRight, Copy, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type {
@@ -18,6 +18,7 @@ type EditorSidebarProps = {
   languageTargets?: LanguageTargetOption[];
   groupErrors?: Record<string, AdGroupErrors>;
   adErrors?: Record<string, AdErrors>;
+  onOpenCampaign?: () => void;
   onOpenGroup?: (groupId: string) => void;
   onOpenAd?: (groupId: string, adId: string) => void;
   onAddGroup?: () => void;
@@ -34,6 +35,7 @@ export function EditorSidebar({
   activeAdId,
   groupErrors = {},
   adErrors = {},
+  onOpenCampaign,
   onOpenGroup,
   onOpenAd,
   onAddGroup,
@@ -44,11 +46,11 @@ export function EditorSidebar({
   onRemoveAd,
 }: EditorSidebarProps) {
   return (
-    <aside className="rounded-[1.75rem] border border-[var(--hairline)] bg-[var(--canvas-soft)] p-3 shadow-[var(--shadow-soft)]">
-      <div className="flex items-center justify-between gap-2 border-b border-[var(--hairline)] px-1 pb-3">
+    <aside className="rounded-[1.75rem] border border-[var(--hairline)] bg-[var(--canvas-soft)] p-2.5 shadow-[var(--shadow-soft)]">
+      <div className="flex items-center justify-between gap-2 border-b border-[var(--hairline)] px-1 pb-2.5">
         <div>
           <p className="text-caption-uppercase text-[var(--muted)]">导航</p>
-          <p className="mt-1 text-sm font-semibold text-[var(--ink)]">
+          <p className="mt-0.5 text-[13px] font-semibold text-[var(--ink)]">
             {campaign.adGroups.length} 个广告组
           </p>
         </div>
@@ -60,7 +62,41 @@ export function EditorSidebar({
         ) : null}
       </div>
 
-      <div className="mt-3 space-y-2">
+      {onOpenCampaign ? (
+        <div className="mt-2">
+          <div
+            className={cn(
+              "overflow-hidden rounded-2xl border transition",
+              !activeGroupId && !activeAdId
+                ? "border-[var(--ink)]/40 bg-[var(--surface-card)] ring-1 ring-[var(--ink)]/12"
+                : "border-[var(--hairline)] bg-[var(--surface-card)]",
+            )}
+          >
+            <button
+              type="button"
+              onClick={onOpenCampaign}
+              className={cn(
+                "relative flex w-full items-center gap-2 px-3 py-1.5 text-left transition",
+                !activeGroupId && !activeAdId
+                  ? "bg-[var(--surface-strong)]"
+                  : "hover:bg-[var(--surface-strong)]",
+              )}
+            >
+              {(!activeGroupId && !activeAdId) ? (
+                <span className="absolute inset-y-1.5 left-1 w-1 rounded-full bg-[var(--ink)]/70" />
+              ) : null}
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--hairline)] bg-[var(--surface-strong)] text-[10px] font-semibold text-[var(--muted)]">
+                C
+              </span>
+              <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[var(--ink)]">
+                {campaign.campaignName || "广告系列"}
+              </span>
+              <ChevronRight className="h-3 w-3 shrink-0 text-[var(--muted-soft)]" strokeWidth={1.5} />
+            </button>
+          </div>
+        </div>
+      ) : null}
+      <div className="mt-1.5 space-y-1.5">
         {campaign.adGroups.map((group, groupIndex) => {
           const isGroupActive = activeGroupId === group.id && !activeAdId;
           const hasActiveAd = activeGroupId === group.id && Boolean(activeAdId);
@@ -81,7 +117,7 @@ export function EditorSidebar({
             >
               <div
                 className={cn(
-                  "relative flex items-center gap-2.5 px-3 py-2.5 transition",
+                  "relative flex items-center gap-2 px-3 py-2 transition",
                   isGroupActive
                     ? "bg-[var(--surface-strong)]"
                     : onOpenGroup
@@ -90,15 +126,15 @@ export function EditorSidebar({
                 )}
               >
                 {(isGroupActive || hasActiveAd) ? (
-                  <span className="absolute inset-y-2 left-1 w-1 rounded-full bg-[var(--ink)]/70" />
+                  <span className="absolute inset-y-1.5 left-1 w-1 rounded-full bg-[var(--ink)]/70" />
                 ) : null}
                 <button
-                  className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                  className="flex min-w-0 flex-1 items-center gap-2 text-left"
                   type="button"
                   onClick={() => onOpenGroup?.(group.id)}
                 >
                   <span className={cn(
-                    "module-index flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold",
+                    "module-index flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold",
                     hasGroupError
                       ? "border-[var(--semantic-error)]/50 bg-[var(--semantic-error)]/8 text-[var(--semantic-error)]"
                       : "border-[var(--hairline)] bg-[var(--surface-strong)] text-[var(--ink)]",
@@ -153,25 +189,25 @@ export function EditorSidebar({
                 </div>
               </div>
 
-              <div className="border-t border-[var(--hairline)] bg-[var(--canvas)]/45 px-3 py-2">
-                <div className="mb-1.5 flex items-center justify-between gap-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
+              <div className="border-t border-[var(--hairline)] bg-[var(--canvas)]/45 px-3 py-1.5">
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
                     广告 · {group.ads.length}
                   </p>
                   {onAddAd ? (
                     <Button
-                      className="h-7 gap-1 px-2 text-xs"
+                      className="h-6 gap-1 px-1.5 text-[10px]"
                       size="sm"
                       type="button"
                       variant="ghost"
                       onClick={() => onAddAd(group.id)}
                     >
-                      <Plus aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      <Plus aria-hidden className="h-3 w-3" strokeWidth={1.75} />
                       新增
                     </Button>
                   ) : null}
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   {group.ads.map((ad) => {
                     const isAdActive = activeGroupId === group.id && activeAdId === ad.id;
                     const ae = adErrors[`${group.id}:${ad.id}`];
@@ -190,12 +226,12 @@ export function EditorSidebar({
                         )}
                       >
                         {isAdActive ? (
-                          <span className="absolute inset-y-1.5 left-1 w-1 rounded-full bg-[var(--ink)]/70" />
+                          <span className="absolute inset-y-1 left-1 w-1 rounded-full bg-[var(--ink)]/70" />
                         ) : null}
                         <button
                           type="button"
                           onClick={() => onOpenAd?.(group.id, ad.id)}
-                          className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-2.5 text-left"
+                          className="flex min-w-0 flex-1 items-center gap-1.5 py-1 pl-2.5 text-left"
                         >
                           <span className={cn(
                             "h-1.5 w-1.5 shrink-0 rounded-full",

@@ -6,11 +6,15 @@ import {
   listAllAdAccounts,
   listMccAccounts,
 } from "@/server/services/account-service";
+import { listCampaignPresets } from "@/server/services/campaign-preset-service";
+import { listLaunchBatches } from "@/server/services/launch-service";
 
 export default async function AdsLaunchPage() {
-  const [adAccounts, mccAccounts] = await Promise.all([
+  const [adAccounts, mccAccounts, presets, launchBatches] = await Promise.all([
     listAllAdAccounts(),
     listMccAccounts(),
+    listCampaignPresets(),
+    listLaunchBatches(),
   ]);
   const accountsSyncedAt =
     mccAccounts
@@ -29,6 +33,8 @@ export default async function AdsLaunchPage() {
           initialAdAccounts={adAccounts}
           accountsSyncedAt={accountsSyncedAt}
           initialMccAccounts={mccAccounts}
+          initialPresets={presets}
+          initialLaunchBatches={launchBatches}
         />
       </div>
     </AdminShell>

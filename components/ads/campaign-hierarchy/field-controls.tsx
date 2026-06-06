@@ -12,6 +12,7 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import { ChevronDown, Plus, Trash2, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ImageUpload } from "@/components/ui/image-upload";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -354,98 +355,13 @@ export function LogoUploadList({
 }) {
   const items = splitMultiline(value).slice(0, maxItems);
 
-  async function addFiles(files: FileList | null) {
-    if (!files?.length) {
-      return;
-    }
-
-    const remaining = Math.max(maxItems - items.length, 0);
-    const selectedFiles = Array.from(files)
-      .filter((file) => file.type.startsWith("image/"))
-      .slice(0, remaining);
-    const dataUrls = await Promise.all(selectedFiles.map(fileToLogoDataUrl));
-    onChange(joinMultiline([...items, ...dataUrls]));
-  }
-
-  function removeItem(index: number) {
-    onChange(joinMultiline(items.filter((_, itemIndex) => itemIndex !== index)));
-  }
-
-  const canUploadMore = items.length < maxItems;
-
   return (
-    <div className="min-w-0 overflow-hidden rounded-xl border border-[var(--hairline)] bg-[var(--surface-card)]">
-      <div className="border-b border-[var(--hairline)] px-3 py-2.5">
-        <p className="text-xs text-[var(--muted)]">
-          {items.length}/{maxItems} 张 · PNG / JPG / WebP
-        </p>
-      </div>
-
-      {items.length === 0 && canUploadMore ? (
-        <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 p-6 text-center transition hover:bg-[var(--surface-strong)]">
-          <Plus aria-hidden className="h-5 w-5 text-[var(--ink)]" strokeWidth={1.75} />
-          <span className="text-sm font-medium text-[var(--ink)]">上传徽标图片</span>
-          <span className="text-xs text-[var(--muted)]">点击选择本地图片</span>
-          <input
-            accept="image/*"
-            className="sr-only"
-            multiple
-            type="file"
-            onChange={(event) => {
-              void addFiles(event.target.files);
-              event.currentTarget.value = "";
-            }}
-          />
-        </label>
-      ) : (
-        <div className="flex flex-wrap gap-3 p-3">
-          {items.map((item, index) => (
-            <div
-              key={index}
-              className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-[var(--hairline)] bg-[var(--surface-strong)]"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                alt={`徽标 ${index + 1}`}
-                className="h-full w-full object-contain p-1.5"
-                src={item}
-              />
-              <button
-                aria-label={`删除徽标 ${index + 1}`}
-                className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full border border-[var(--hairline)] bg-[var(--canvas)]/95 opacity-0 shadow-sm transition hover:bg-[var(--surface-card)] group-hover:opacity-100 group-focus-within:opacity-100"
-                type="button"
-                onClick={() => removeItem(index)}
-              >
-                <Trash2 aria-hidden className="h-3 w-3 text-[var(--ink)]" strokeWidth={1.75} />
-              </button>
-            </div>
-          ))}
-
-          {canUploadMore ? (
-            <label className="flex h-20 w-20 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-[var(--hairline-strong)] bg-[var(--surface-strong)] transition hover:border-[var(--ink)]/30 hover:bg-[var(--surface-card)]">
-              <Plus aria-hidden className="h-4 w-4 text-[var(--ink)]" strokeWidth={1.75} />
-              <span className="text-[10px] text-[var(--muted)]">上传</span>
-              <input
-                accept="image/*"
-                className="sr-only"
-                multiple
-                type="file"
-                onChange={(event) => {
-                  void addFiles(event.target.files);
-                  event.currentTarget.value = "";
-                }}
-              />
-            </label>
-          ) : null}
-        </div>
-      )}
-
-      {!canUploadMore && items.length > 0 ? (
-        <p className="border-t border-[var(--hairline)] px-3 py-2 text-center text-xs text-[var(--muted)]">
-          已达上限 {maxItems} 张
-        </p>
-      ) : null}
-    </div>
+    <ImageUpload
+      maxItems={maxItems}
+      transformFile={fileToLogoDataUrl}
+      value={items}
+      onChange={(nextItems) => onChange(joinMultiline(nextItems))}
+    />
   );
 }
 

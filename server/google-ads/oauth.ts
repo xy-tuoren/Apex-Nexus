@@ -19,7 +19,8 @@ export async function getAccessToken() {
   });
 
   if (!response.ok) {
-    throw new Error(`OAuth refresh failed: ${response.status}`);
+    const body = await response.text();
+    throw new Error(`OAuth refresh failed: ${response.status} — ${body}`);
   }
 
   const payload = (await response.json()) as { access_token: string };

@@ -465,7 +465,6 @@ export async function buildDemandGenMutateOperations(
         status: "PAUSED",
         campaignBudget: budgetResource,
         ...campaignBidding(draft),
-        ...(draft.trackingTemplate ? { trackingUrlTemplate: draft.trackingTemplate } : {}),
         ...(draft.finalUrlSuffix ? { finalUrlSuffix: draft.finalUrlSuffix } : {}),
         containsEuPoliticalAdvertising: "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
       },

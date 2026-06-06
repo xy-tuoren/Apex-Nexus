@@ -1,5 +1,6 @@
 import type { ComboboxOption } from "@/components/ui/combobox";
 import type { GoogleAdAccount } from "@/lib/types";
+import type { CampaignPresetPayload } from "@/lib/types";
 import { POPULAR_COUNTRY_GEO_TARGETS } from "@/lib/google-ads/popular-geo-targets";
 import {
   CONVERSION_CATEGORY_LABELS,
@@ -537,25 +538,29 @@ export function fileToLogoDataUrl(file: File) {
     image.onload = () => {
       URL.revokeObjectURL(objectUrl);
 
-      const size = 512;
-      const canvas = document.createElement("canvas");
-      canvas.width = size;
-      canvas.height = size;
-      const context = canvas.getContext("2d");
+      try {
+        const size = 512;
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const context = canvas.getContext("2d");
 
-      if (!context) {
-        reject(new Error("无法处理徽标图片。"));
-        return;
+        if (!context || image.naturalWidth <= 0 || image.naturalHeight <= 0) {
+          reject(new Error("无法处理徽标图片。"));
+          return;
+        }
+
+        context.clearRect(0, 0, size, size);
+        const scale = Math.min(size / image.naturalWidth, size / image.naturalHeight);
+        const width = Math.max(1, Math.round(image.naturalWidth * scale));
+        const height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const x = Math.round((size - width) / 2);
+        const y = Math.round((size - height) / 2);
+        context.drawImage(image, x, y, width, height);
+        resolve(canvas.toDataURL("image/png"));
+      } catch {
+        reject(new Error("无法处理徽标图片。请使用 PNG、JPG 或 WebP。"));
       }
-
-      context.clearRect(0, 0, size, size);
-      const scale = Math.min(size / image.naturalWidth, size / image.naturalHeight);
-      const width = Math.max(1, Math.round(image.naturalWidth * scale));
-      const height = Math.max(1, Math.round(image.naturalHeight * scale));
-      const x = Math.round((size - width) / 2);
-      const y = Math.round((size - height) / 2);
-      context.drawImage(image, x, y, width, height);
-      resolve(canvas.toDataURL("image/png"));
     };
 
     image.onerror = () => {
@@ -673,8 +678,7 @@ export type CampaignErrors = Partial<Record<
   | "targetCpc"
   | "os"
   | "devices"
-  | "finalUrlSuffix"
-  | "trackingTemplate",
+  | "finalUrlSuffix",
   string
 >>;
 
@@ -810,10 +814,37 @@ export function formatSchedule(schedule: ScheduleGridValue) {
   }).join("；");
 }
 
+export function formatStableDateTime(value?: string | null) {
+  if (!value) {
+    return "";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const byType = new Map(parts.map((part) => [part.type, part.value]));
+
+  return [
+    [byType.get("year"), byType.get("month"), byType.get("day")].join("-"),
+    [byType.get("hour"), byType.get("minute"), byType.get("second")].join(":"),
+  ].join(" ");
+}
+
 export function createDefaultAd(index = 1): AdForm {
   return {
     id: `ad_${index}`,
-    name: `广告 ${index}`,
+    name: `ad${index}`,
     finalUrl: "",
     videoLinks: "",
     logos: "",
@@ -828,7 +859,7 @@ export function createDefaultAd(index = 1): AdForm {
 export function createDefaultAdGroup(index = 1): AdGroupForm {
   return {
     id: `adg_${index}`,
-    name: `广告组 ${index}`,
+    name: `adgroup${index}`,
     locations: "geoTargetConstants/2840",
     language: "all",
     genders: ["FEMALE", "MALE", "UNDETERMINED"],
@@ -843,7 +874,7 @@ export function buildDefaultCampaign(index: number, account?: GoogleAdAccount): 
     id: `cmp_${index}`,
     adAccountId: account?.id ?? "",
     advertisingType: "DEMAND_GEN",
-    campaignName: `广告系列 ${index}`,
+    campaignName: "",
     campaignObjective: "CONVERSIONS",
     conversionGoal: "PURCHASE",
     biddingType: "TARGET_CPA",
@@ -854,10 +885,97 @@ export function buildDefaultCampaign(index: number, account?: GoogleAdAccount): 
     os: [...DEFAULT_OS_SELECTION],
     devices: [...DEFAULT_DEVICES_SELECTION],
     adSchedule: buildDefaultSchedule(),
-    trackingTemplate: "",
     finalUrlSuffix: "gad_campaignid={campaignid}",
     ipExclusions: "",
     adGroups: [createDefaultAdGroup(1)],
+  };
+}
+
+export function buildPresetPayloadFromCampaign(campaign: CampaignForm): CampaignPresetPayload {
+  return {
+    advertisingType: campaign.advertisingType,
+    campaignObjective: campaign.campaignObjective,
+    conversionGoal: campaign.conversionGoal,
+    biddingType: campaign.biddingType,
+    clickBiddingType: campaign.clickBiddingType,
+    targetCpa: campaign.targetCpa,
+    targetCpc: campaign.targetCpc,
+    budgetDaily: campaign.budgetDaily,
+    os: [...campaign.os],
+    devices: [...campaign.devices],
+    adSchedule: Object.fromEntries(
+      Object.entries(campaign.adSchedule).map(([day, hours]) => [day, [...hours]]),
+    ),
+    finalUrlSuffix: campaign.finalUrlSuffix,
+    ipExclusions: campaign.ipExclusions,
+    adGroups: campaign.adGroups.map((group) => ({
+      locations: group.locations,
+      language: group.language,
+      genders: [...group.genders],
+      ageRanges: [...group.ageRanges],
+      includeUnknownAge: group.includeUnknownAge,
+      ads: group.ads.map((ad) => ({
+        logos: ad.logos,
+        shortHeadlines: ad.shortHeadlines,
+        longHeadlines: ad.longHeadlines,
+        descriptions: ad.descriptions,
+        callToAction: ad.callToAction,
+        businessName: ad.businessName,
+      })),
+    })),
+  };
+}
+
+export function applyPresetPayloadToCampaign(
+  campaign: CampaignForm,
+  payload: CampaignPresetPayload,
+  nextId: () => string,
+): CampaignForm {
+  return {
+    ...campaign,
+    advertisingType: payload.advertisingType,
+    campaignObjective: payload.campaignObjective,
+    conversionGoal: payload.conversionGoal,
+    biddingType: payload.biddingType,
+    clickBiddingType: payload.clickBiddingType,
+    targetCpa: payload.targetCpa,
+    targetCpc: payload.targetCpc,
+    budgetDaily: payload.budgetDaily,
+    os: [...payload.os],
+    devices: [...payload.devices],
+    adSchedule: Object.fromEntries(
+      Object.entries(payload.adSchedule).map(([day, hours]) => [day, [...hours]]),
+    ),
+    finalUrlSuffix: payload.finalUrlSuffix,
+    ipExclusions: payload.ipExclusions,
+    adGroups: payload.adGroups.map((groupPreset, groupIndex) => {
+      const currentGroup = campaign.adGroups[groupIndex];
+      const groupId = currentGroup?.id ?? `adg_${nextId()}`;
+      return {
+        id: groupId,
+        name: currentGroup?.name ?? `adgroup${groupIndex + 1}`,
+        locations: groupPreset.locations,
+        language: groupPreset.language,
+        genders: [...groupPreset.genders],
+        ageRanges: [...groupPreset.ageRanges],
+        includeUnknownAge: groupPreset.includeUnknownAge,
+        ads: groupPreset.ads.map((adPreset, adIndex) => {
+          const currentAd = currentGroup?.ads[adIndex];
+          return {
+            id: currentAd?.id ?? `${groupId}_ad_${nextId()}`,
+            name: currentAd?.name ?? `ad${adIndex + 1}`,
+            finalUrl: currentAd?.finalUrl ?? "",
+            videoLinks: currentAd?.videoLinks ?? "",
+            logos: adPreset.logos,
+            shortHeadlines: adPreset.shortHeadlines,
+            longHeadlines: adPreset.longHeadlines,
+            descriptions: adPreset.descriptions,
+            callToAction: adPreset.callToAction,
+            businessName: adPreset.businessName,
+          };
+        }),
+      };
+    }),
   };
 }
 
@@ -912,7 +1030,6 @@ export function buildPayloadFromCampaign(campaign: CampaignForm, firstAdFallback
     device: devicePayload.device,
     devices: devicePayload.devices,
     adSchedule: campaign.adSchedule,
-    trackingTemplate: campaign.trackingTemplate || undefined,
     finalUrlSuffix: campaign.finalUrlSuffix,
     ipExclusions: splitLines(campaign.ipExclusions),
     assets: {

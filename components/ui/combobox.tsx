@@ -22,6 +22,7 @@ type ComboboxProps = {
   disabled?: boolean;
   className?: string;
   onSearchChange?: (query: string) => void;
+  portalled?: boolean;
 };
 
 export function Combobox({
@@ -34,6 +35,7 @@ export function Combobox({
   disabled,
   className,
   onSearchChange,
+  portalled = false,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
@@ -52,6 +54,66 @@ export function Combobox({
       return haystack.includes(normalizedQuery);
     });
   }, [normalizedQuery, options]);
+
+  const popoverContent = (
+    <PopoverPrimitive.Content
+      align="start"
+      className="pointer-events-auto z-[1000] w-[var(--radix-popover-trigger-width)] rounded-lg border border-[var(--hairline)] bg-[var(--surface-card)] shadow-[0_16px_40px_rgba(0,0,0,0.12)]"
+      collisionPadding={8}
+      sideOffset={6}
+    >
+      <div className="flex h-11 items-center gap-2 rounded-t-lg border-b border-[var(--hairline)] px-3 overflow-hidden">
+        <Search aria-hidden className="h-4 w-4 shrink-0 text-[var(--muted)]" strokeWidth={1.75} />
+        <input
+          className="h-full min-w-0 flex-1 bg-transparent text-sm text-[var(--ink)] outline-none placeholder:text-[var(--muted-soft)]"
+          placeholder={searchPlaceholder}
+          value={query}
+          onChange={(event) => {
+            const nextQuery = event.target.value;
+            setQuery(nextQuery);
+            onSearchChange?.(nextQuery);
+          }}
+        />
+      </div>
+      <div
+        id={listboxId}
+        className="max-h-64 overflow-hidden overflow-y-auto rounded-b-lg p-1"
+        role="listbox"
+        onTouchMoveCapture={(event) => event.stopPropagation()}
+        onWheelCapture={(event) => event.stopPropagation()}
+      >
+        {filteredOptions.length ? (
+          filteredOptions.map((option) => {
+            const selectedOption = option.value === value;
+
+            return (
+              <button
+                key={option.value}
+                className={cn(
+                  "flex h-9 w-full items-center gap-2 rounded-md px-3 text-left text-sm text-[var(--ink)] transition-colors duration-150 hover:bg-[var(--surface-strong)] disabled:cursor-not-allowed disabled:opacity-45",
+                  selectedOption && "bg-[var(--surface-strong)]",
+                )}
+                disabled={option.disabled}
+                type="button"
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                  setQuery("");
+                }}
+              >
+                <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                {selectedOption ? (
+                  <Check aria-hidden className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                ) : null}
+              </button>
+            );
+          })
+        ) : (
+          <div className="px-3 py-6 text-center text-sm text-[var(--muted)]">{emptyText}</div>
+        )}
+      </div>
+    </PopoverPrimitive.Content>
+  );
 
   return (
     <PopoverPrimitive.Root
@@ -83,58 +145,7 @@ export function Combobox({
           <ChevronDown aria-hidden className="h-4 w-4 shrink-0 text-[var(--body)]" strokeWidth={1.75} />
         </button>
       </PopoverPrimitive.Trigger>
-      <PopoverPrimitive.Portal>
-        <PopoverPrimitive.Content
-          align="start"
-          className="z-[1000] w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-lg border border-[var(--hairline)] bg-[var(--surface-card)] shadow-[0_16px_40px_rgba(0,0,0,0.12)]"
-          sideOffset={6}
-        >
-          <div className="flex h-11 items-center gap-2 border-b border-[var(--hairline)] px-3">
-            <Search aria-hidden className="h-4 w-4 shrink-0 text-[var(--muted)]" strokeWidth={1.75} />
-            <input
-              className="h-full min-w-0 flex-1 bg-transparent text-sm text-[var(--ink)] outline-none placeholder:text-[var(--muted-soft)]"
-              placeholder={searchPlaceholder}
-              value={query}
-              onChange={(event) => {
-                const nextQuery = event.target.value;
-                setQuery(nextQuery);
-                onSearchChange?.(nextQuery);
-              }}
-            />
-          </div>
-          <div id={listboxId} className="max-h-64 overflow-y-auto p-1" role="listbox">
-            {filteredOptions.length ? (
-              filteredOptions.map((option) => {
-                const selectedOption = option.value === value;
-
-                return (
-                  <button
-                    key={option.value}
-                    className={cn(
-                      "flex h-9 w-full items-center gap-2 rounded-md px-3 text-left text-sm text-[var(--ink)] transition-colors duration-150 hover:bg-[var(--surface-strong)] disabled:cursor-not-allowed disabled:opacity-45",
-                      selectedOption && "bg-[var(--surface-strong)]",
-                    )}
-                    disabled={option.disabled}
-                    type="button"
-                    onClick={() => {
-                      onChange(option.value);
-                      setOpen(false);
-                      setQuery("");
-                    }}
-                  >
-                    <span className="min-w-0 flex-1 truncate">{option.label}</span>
-                    {selectedOption ? (
-                      <Check aria-hidden className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-                    ) : null}
-                  </button>
-                );
-              })
-            ) : (
-              <div className="px-3 py-6 text-center text-sm text-[var(--muted)]">{emptyText}</div>
-            )}
-          </div>
-        </PopoverPrimitive.Content>
-      </PopoverPrimitive.Portal>
+      {portalled ? <PopoverPrimitive.Portal>{popoverContent}</PopoverPrimitive.Portal> : popoverContent}
     </PopoverPrimitive.Root>
   );
 }
@@ -151,6 +162,7 @@ type MultiComboboxProps = {
   formatValue?: (value: string[]) => string;
   /** 置顶「全选」行；点击在「全选 / 清空」之间切换 */
   selectAllLabel?: string;
+  portalled?: boolean;
 };
 
 export function MultiCombobox({
@@ -164,6 +176,7 @@ export function MultiCombobox({
   className,
   formatValue,
   selectAllLabel,
+  portalled = false,
 }: MultiComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
@@ -213,6 +226,78 @@ export function MultiCombobox({
     onChange(allSelected ? [] : [...selectableValues]);
   }
 
+  const popoverContent = (
+    <PopoverPrimitive.Content
+      align="start"
+      className="pointer-events-auto z-[1000] w-[var(--radix-popover-trigger-width)] rounded-lg border border-[var(--hairline)] bg-[var(--surface-card)] shadow-[0_16px_40px_rgba(0,0,0,0.12)]"
+      collisionPadding={8}
+      sideOffset={6}
+    >
+      <div className="flex h-11 items-center gap-2 rounded-t-lg border-b border-[var(--hairline)] px-3 overflow-hidden">
+        <Search aria-hidden className="h-4 w-4 shrink-0 text-[var(--muted)]" strokeWidth={1.75} />
+        <input
+          className="h-full min-w-0 flex-1 bg-transparent text-sm text-[var(--ink)] outline-none placeholder:text-[var(--muted-soft)]"
+          placeholder={searchPlaceholder}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+      </div>
+      <div
+        id={listboxId}
+        aria-multiselectable="true"
+        className="max-h-64 overflow-hidden overflow-y-auto rounded-b-lg p-1"
+        role="listbox"
+        onTouchMoveCapture={(event) => event.stopPropagation()}
+        onWheelCapture={(event) => event.stopPropagation()}
+      >
+        {selectAllLabel ? (
+          <button
+            aria-selected={allSelected}
+            className={cn(
+              "mb-1 flex h-9 w-full items-center gap-2 rounded-md border-b border-[var(--hairline)] px-3 text-left text-sm font-medium text-[var(--ink)] transition-colors duration-150 hover:bg-[var(--surface-strong)]",
+              allSelected && "bg-[var(--surface-strong)]",
+            )}
+            role="option"
+            type="button"
+            onClick={toggleSelectAll}
+          >
+            <span className="min-w-0 flex-1 truncate">{selectAllLabel}</span>
+            {allSelected ? (
+              <Check aria-hidden className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+            ) : null}
+          </button>
+        ) : null}
+        {filteredOptions.length ? (
+          filteredOptions.map((option) => {
+            const selectedOption = value.includes(option.value);
+
+            return (
+              <button
+                key={option.value}
+                aria-selected={selectedOption}
+                className={cn(
+                  "flex h-9 w-full items-center gap-2 rounded-md px-3 text-left text-sm text-[var(--ink)] transition-colors duration-150 hover:bg-[var(--surface-strong)] disabled:cursor-not-allowed disabled:opacity-45",
+                  selectedOption && "bg-[var(--surface-strong)]",
+                )}
+                disabled={option.disabled}
+                role="option"
+                type="button"
+                onClick={() => toggleOption(option.value)}
+              >
+                <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                {selectedOption ? (
+                  <Check aria-hidden className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                ) : null}
+              </button>
+            );
+          })
+        ) : (
+          <div className="px-3 py-6 text-center text-sm text-[var(--muted)]">{emptyText}</div>
+        )}
+      </div>
+    </PopoverPrimitive.Content>
+  );
+
   return (
     <PopoverPrimitive.Root
       modal={false}
@@ -248,74 +333,7 @@ export function MultiCombobox({
           <ChevronDown aria-hidden className="h-4 w-4 shrink-0 text-[var(--body)]" strokeWidth={1.75} />
         </button>
       </PopoverPrimitive.Trigger>
-      <PopoverPrimitive.Portal>
-        <PopoverPrimitive.Content
-          align="start"
-          className="z-[1000] w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-lg border border-[var(--hairline)] bg-[var(--surface-card)] shadow-[0_16px_40px_rgba(0,0,0,0.12)]"
-          sideOffset={6}
-        >
-          <div className="flex h-11 items-center gap-2 border-b border-[var(--hairline)] px-3">
-            <Search aria-hidden className="h-4 w-4 shrink-0 text-[var(--muted)]" strokeWidth={1.75} />
-            <input
-              className="h-full min-w-0 flex-1 bg-transparent text-sm text-[var(--ink)] outline-none placeholder:text-[var(--muted-soft)]"
-              placeholder={searchPlaceholder}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </div>
-          <div
-            id={listboxId}
-            aria-multiselectable="true"
-            className="max-h-64 overflow-y-auto p-1"
-            role="listbox"
-          >
-            {selectAllLabel ? (
-              <button
-                aria-selected={allSelected}
-                className={cn(
-                  "mb-1 flex h-9 w-full items-center gap-2 rounded-md border-b border-[var(--hairline)] px-3 text-left text-sm font-medium text-[var(--ink)] transition-colors duration-150 hover:bg-[var(--surface-strong)]",
-                  allSelected && "bg-[var(--surface-strong)]",
-                )}
-                role="option"
-                type="button"
-                onClick={toggleSelectAll}
-              >
-                <span className="min-w-0 flex-1 truncate">{selectAllLabel}</span>
-                {allSelected ? (
-                  <Check aria-hidden className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-                ) : null}
-              </button>
-            ) : null}
-            {filteredOptions.length ? (
-              filteredOptions.map((option) => {
-                const selectedOption = value.includes(option.value);
-
-                return (
-                  <button
-                    key={option.value}
-                    aria-selected={selectedOption}
-                    className={cn(
-                      "flex h-9 w-full items-center gap-2 rounded-md px-3 text-left text-sm text-[var(--ink)] transition-colors duration-150 hover:bg-[var(--surface-strong)] disabled:cursor-not-allowed disabled:opacity-45",
-                      selectedOption && "bg-[var(--surface-strong)]",
-                    )}
-                    disabled={option.disabled}
-                    role="option"
-                    type="button"
-                    onClick={() => toggleOption(option.value)}
-                  >
-                    <span className="min-w-0 flex-1 truncate">{option.label}</span>
-                    {selectedOption ? (
-                      <Check aria-hidden className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-                    ) : null}
-                  </button>
-                );
-              })
-            ) : (
-              <div className="px-3 py-6 text-center text-sm text-[var(--muted)]">{emptyText}</div>
-            )}
-          </div>
-        </PopoverPrimitive.Content>
-      </PopoverPrimitive.Portal>
+      {portalled ? <PopoverPrimitive.Portal>{popoverContent}</PopoverPrimitive.Portal> : popoverContent}
     </PopoverPrimitive.Root>
   );
 }

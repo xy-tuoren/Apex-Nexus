@@ -1,4 +1,5 @@
-import type { GoogleCampaignBinding, LaunchJob } from "@/lib/types";
+import type { ApiError, GoogleCampaignBinding, LaunchBatch, LaunchJob } from "@/lib/types";
+import type { CampaignDraftInput, LaunchBatchCreateInput } from "@/lib/schemas/campaign";
 import { mutateGoogleAds } from "@/server/google-ads/client";
 import { toGoogleAdsError } from "@/server/google-ads/errors";
 import { buildCampaignConversionGoalMutateOperations } from "@/server/google-ads/mutate-builder";
@@ -13,6 +14,7 @@ import {
 } from "@/server/repositories/data-store";
 import { getLoginCustomerIdForAdAccount } from "@/server/services/account-service";
 import { buildDraftPreview } from "@/server/services/campaign-draft-service";
+import { createCampaignDraft } from "@/server/services/campaign-draft-service";
 import { listCampaignConversionGoalPoints } from "@/server/services/conversion-goal-service";
 import { validateLaunchEligibility } from "@/server/services/validation-service";
 
@@ -54,6 +56,14 @@ function resourceNamesFromMutateResponse(
 }
 
 export async function createLaunchJob(draftId: string, idempotencyKey: string) {
+  const job = await createQueuedLaunchJob(draftId, idempotencyKey);
+  if (job.status !== "QUEUED") {
+    return job;
+  }
+  return runLaunchJob(job.id);
+}
+
+export async function createQueuedLaunchJob(draftId: string, idempotencyKey: string) {
   const existingJobs = await listCollection("launch_jobs");
   const existing = existingJobs.find((job) => job.idempotencyKey === idempotencyKey);
   if (existing) {
@@ -77,7 +87,7 @@ export async function createLaunchJob(draftId: string, idempotencyKey: string) {
   await insertOne("launch_jobs", job);
   await audit("launch_job.create", job.id, { draftId, idempotencyKey });
 
-  return runLaunchJob(job.id);
+  return job;
 }
 
 export async function runLaunchJob(jobId: string) {
@@ -224,6 +234,125 @@ export async function getLaunchJob(id: string) {
 
 export async function listLaunchJobs() {
   return listCollection("launch_jobs");
+}
+
+function summarizeBatchStatus(items: LaunchBatch["items"]): LaunchBatch["status"] {
+  if (items.some((item) => item.status === "RUNNING")) {
+    return "RUNNING";
+  }
+  if (items.some((item) => item.status === "QUEUED")) {
+    return "QUEUED";
+  }
+  const succeeded = items.filter((item) => item.status === "SUCCEEDED").length;
+  const failed = items.filter((item) => item.status === "FAILED").length;
+  if (succeeded > 0 && failed > 0) {
+    return "PARTIAL_FAILED";
+  }
+  if (failed > 0) {
+    return "FAILED";
+  }
+  return "SUCCEEDED";
+}
+
+async function updateLaunchBatchItems(
+  batchId: string,
+  patchItems: (items: LaunchBatch["items"]) => LaunchBatch["items"],
+) {
+  const batch = await findById("launch_batches", batchId);
+  if (!batch) {
+    return null;
+  }
+  const items = patchItems(batch.items);
+  return updateById("launch_batches", batchId, {
+    items,
+    status: summarizeBatchStatus(items),
+    updatedAt: timestamp(),
+  });
+}
+
+export async function createLaunchBatch(input: LaunchBatchCreateInput) {
+  const items: LaunchBatch["items"] = [];
+  const now = timestamp();
+
+  for (const campaign of input.campaigns) {
+    const draft = await createCampaignDraft(campaign.payload as CampaignDraftInput);
+    const job = await createQueuedLaunchJob(
+      draft.id,
+      `launch:${draft.id}:${Date.now()}`,
+    );
+    items.push({
+      id: newId("batch_item"),
+      clientCampaignId: campaign.clientCampaignId,
+      campaignName: campaign.campaignName,
+      adAccountId: campaign.payload.adAccountId,
+      draftId: draft.id,
+      jobId: job.id,
+      status: job.status,
+      submittedAt: now,
+      updatedAt: now,
+    });
+  }
+
+  const batch: LaunchBatch = {
+    id: newId("batch"),
+    status: "QUEUED",
+    items,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await insertOne("launch_batches", batch);
+  await audit("launch_batch.create", batch.id, {
+    count: items.length,
+  });
+
+  return batch;
+}
+
+export async function runLaunchBatch(batchId: string) {
+  const batch = await findById("launch_batches", batchId);
+  if (!batch) {
+    return null;
+  }
+
+  const runningAt = timestamp();
+  await updateById("launch_batches", batchId, {
+    status: "RUNNING",
+    items: batch.items.map((item) => ({
+      ...item,
+      status: "RUNNING" as const,
+      updatedAt: runningAt,
+    })),
+    updatedAt: runningAt,
+  });
+
+  await Promise.allSettled(batch.items.map((item) => runLaunchJob(item.jobId)));
+
+  const jobs = await listCollection("launch_jobs");
+  const jobsById = new Map(jobs.map((job) => [job.id, job]));
+  const updatedAt = timestamp();
+
+  return updateLaunchBatchItems(batchId, (items) =>
+    items.map((item) => {
+      const job = jobsById.get(item.jobId);
+      return {
+        ...item,
+        status: job?.status ?? "FAILED",
+        error: job?.error as ApiError | undefined,
+        result: job?.result,
+        updatedAt,
+      };
+    }),
+  );
+}
+
+export async function getLaunchBatch(id: string) {
+  return findById("launch_batches", id);
+}
+
+export async function listLaunchBatches() {
+  const batches = await listCollection("launch_batches");
+  return batches.toSorted((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function updateCampaignStatus(id: string, status: "ENABLED" | "PAUSED") {
