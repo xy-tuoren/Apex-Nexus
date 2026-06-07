@@ -29,6 +29,7 @@ type PresetManagerProps = {
   totalPresets: number;
   search: string;
   deletingPresetIds?: Set<string>;
+  selectedPresetIds?: Set<string>;
   isReloading?: boolean;
   isSaving?: boolean;
   onClose: () => void;
@@ -36,9 +37,12 @@ type PresetManagerProps = {
   onCreate?: () => void;
   onEdit?: (preset: CampaignPreset) => void;
   onDelete?: (presetId: string) => void;
+  onCreateCampaignsFromSelected?: () => void;
   onSave?: () => void;
   onApply?: (preset: CampaignPreset) => void;
   onPageChange: (page: number) => void;
+  onToggleAllSelected?: (checked: boolean) => void;
+  onTogglePresetSelected?: (presetId: string, checked: boolean) => void;
   onSearchChange: (search: string) => void;
   onPresetEditorChange?: (updater: (current: PresetEditorState | null) => PresetEditorState | null) => void;
 };
@@ -57,6 +61,7 @@ export function PresetManager({
   totalPresets,
   search,
   deletingPresetIds,
+  selectedPresetIds = new Set<string>(),
   isReloading = false,
   isSaving = false,
   onClose,
@@ -64,14 +69,18 @@ export function PresetManager({
   onCreate,
   onEdit,
   onDelete,
+  onCreateCampaignsFromSelected,
   onSave,
   onApply,
   onPageChange,
+  onToggleAllSelected,
+  onTogglePresetSelected,
   onSearchChange,
   onPresetEditorChange,
 }: PresetManagerProps) {
   const isManage = mode === "manage";
   const totalPages = Math.max(1, Math.ceil(totalPresets / PAGE_SIZE));
+  const selectedVisibleCount = presets.filter((preset) => selectedPresetIds.has(preset.id)).length;
 
   return (
     <Drawer
@@ -166,10 +175,21 @@ export function PresetManager({
                 {isReloading ? "刷新中..." : "刷新列表"}
               </Button>
               {isManage ? (
-                <Button size="sm" type="button" onClick={onCreate}>
-                  <Plus aria-hidden className="h-4 w-4" strokeWidth={1.75} />
-                  添加预设
-                </Button>
+                <>
+                  <Button
+                    disabled={selectedVisibleCount === 0}
+                    size="sm"
+                    type="button"
+                    onClick={() => void onCreateCampaignsFromSelected?.()}
+                  >
+                    <Plus aria-hidden className="h-4 w-4" strokeWidth={1.75} />
+                    创建 Campaign
+                  </Button>
+                  <Button size="sm" type="button" onClick={onCreate}>
+                    <Plus aria-hidden className="h-4 w-4" strokeWidth={1.75} />
+                    添加预设
+                  </Button>
+                </>
               ) : null}
             </div>
           </div>
@@ -199,10 +219,13 @@ export function PresetManager({
                 <PresetTable
                   deletingPresetIds={deletingPresetIds}
                   rows={presetTableRows}
+                  selectedPresetIds={selectedPresetIds}
                   presets={presets}
                   onEdit={isManage ? onEdit : undefined}
                   onDelete={isManage ? onDelete : undefined}
                   onRowClick={!isManage ? (preset) => onApply?.(preset) : undefined}
+                  onToggleAllSelected={isManage ? onToggleAllSelected : undefined}
+                  onTogglePresetSelected={isManage ? onTogglePresetSelected : undefined}
                 />
                 {totalPages > 1 ? (
                   <div className="flex items-center justify-center gap-2 border-t border-[var(--hairline)] px-6 py-3">

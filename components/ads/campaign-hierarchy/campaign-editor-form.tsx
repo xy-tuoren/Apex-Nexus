@@ -26,6 +26,7 @@ import {
 import {
   defaultBiddingForObjective,
   formatConversionGoalLabel,
+  formatSiteLabel,
   formatStableDateTime,
   summarizeDevicesSelection,
   summarizeOsSelection,
@@ -135,7 +136,7 @@ export function CampaignEditorForm({
               <SelectControl
                 options={sites.map((site) => ({
                   value: site.id,
-                  label: `${site.name} · ${site.domain}`,
+                  label: formatSiteLabel(site),
                 }))}
                 placeholder="请选择站点"
                 value={campaign.siteId}

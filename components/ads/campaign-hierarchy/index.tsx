@@ -22,8 +22,15 @@ import { useToast } from "@/components/ui/toast";
 import {
   CampaignOverviewAddTile,
   CampaignOverviewCard,
+  CampaignOverviewTable,
+  CampaignViewToggle,
 } from "@/components/ads/campaign-overview";
 import { CampaignPreview } from "@/components/ads/campaign-hierarchy/campaign-preview";
+import {
+  CampaignSyncDialog,
+  DEFAULT_CAMPAIGN_SYNC_FIELDS,
+  type CampaignSyncField,
+} from "@/components/ads/campaign-hierarchy/campaign-sync-dialog";
 import { HierarchyEditModal } from "@/components/ads/campaign-hierarchy/hierarchy-edit-modal";
 import { PresetManager } from "@/components/ads/campaign-hierarchy/preset-manager";
 import { SiteBindingManager } from "@/components/ads/campaign-hierarchy/site-binding-manager";
@@ -46,6 +53,7 @@ import {
   applyPresetPayloadToCampaign,
   extractGoogleAdsErrors,
   formatStableDateTime,
+  generateDefaultCampaignName,
   notificationMessageFromResult,
   splitLines,
   splitMultiline,
@@ -93,6 +101,7 @@ export function CampaignHierarchyEditor({
   initialPresets = [],
   initialLaunchBatches = [],
   initialSites = [],
+  initialCampaignName,
 }: CampaignHierarchyEditorProps) {
   const { notify } = useToast();
   const [adAccounts, setAdAccounts] = useState<GoogleAdAccount[]>(initialAdAccounts);
@@ -106,14 +115,14 @@ export function CampaignHierarchyEditor({
   const [syncError, setSyncError] = useState<string | null>(initialSyncError);
   const [syncedAt, setSyncedAt] = useState<string | null>(initialSyncedAt);
 
-  const initialCampaignIdRef = useRef(`cmp_1_${Date.now()}`);
+  const initialCampaignIdRef = useRef("cmp_1_initial");
   const [campaigns, setCampaigns] = useState<CampaignForm[]>(() => {
     const initialSite = initialSites[0];
     const initialAccount = initialSite
       ? initialAdAccounts.find((account) => account.operationMccId === initialSite.operationMccId)
       : undefined;
     const initial = {
-      ...buildDefaultCampaign(1, initialAccount),
+      ...buildDefaultCampaign(1, initialAccount, initialCampaignName),
       id: initialCampaignIdRef.current,
       siteId: initialSite?.id ?? "",
     };
@@ -135,11 +144,19 @@ export function CampaignHierarchyEditor({
   const [isLaunchBatchReloading, setIsLaunchBatchReloading] = useState(false);
   const [presetDialog, setPresetDialog] = useState<null | "apply" | "manage">(null);
   const [presetEditor, setPresetEditor] = useState<PresetEditorState | null>(null);
+  const [selectedManagedPresetIds, setSelectedManagedPresetIds] = useState<Set<string>>(() => new Set());
+  const [campaignViewMode, setCampaignViewMode] = useState<"grid" | "list">("grid");
+  const [campaignSyncSourceId, setCampaignSyncSourceId] = useState<string | null>(null);
+  const [campaignSyncTargetIds, setCampaignSyncTargetIds] = useState<Set<string>>(() => new Set());
+  const [campaignSyncFields, setCampaignSyncFields] = useState<Set<CampaignSyncField>>(
+    () => new Set(DEFAULT_CAMPAIGN_SYNC_FIELDS),
+  );
   const [isSiteBindingOpen, setIsSiteBindingOpen] = useState(false);
   const [newSite, setNewSite] = useState("");
   const [newSiteOperationMccId, setNewSiteOperationMccId] = useState("");
   const [isSiteSaving, setIsSiteSaving] = useState(false);
   const [savingSiteIds, setSavingSiteIds] = useState<Set<string>>(() => new Set());
+  const [deletingSiteIds, setDeletingSiteIds] = useState<Set<string>>(() => new Set());
   const idCounterRef = useRef(2);
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
   const [isCampaignEditorOpen, setIsCampaignEditorOpen] = useState(false);
@@ -328,11 +345,6 @@ export function CampaignHierarchyEditor({
     setEditorFocus(null);
   }
 
-  function closeFocusedEditor() {
-    setEditorFocus(null);
-    setIsCampaignEditorOpen(true);
-  }
-
   function returnToCampaignEditor() {
     if (!activeCampaignId) {
       return;
@@ -392,6 +404,19 @@ export function CampaignHierarchyEditor({
       id,
       siteId: site?.id ?? "",
     };
+  }
+
+  function resetCampaignWorkspace() {
+    const nextCampaignId = `cmp_1_${Date.now()}`;
+    idCounterRef.current = 2;
+    setCampaigns([buildCampaignWithDefaults(1, nextCampaignId)]);
+    setCampaignErrors({});
+    setAdGroupErrors({});
+    setAdErrors({});
+    setActiveCampaignId(null);
+    setIsCampaignEditorOpen(false);
+    setEditorFocus(null);
+    setPreviewCampaignId(null);
   }
 
   function updateCampaignAdGroup(campaignId: string, groupId: string, patch: Partial<AdGroupForm>) {
@@ -454,6 +479,9 @@ export function CampaignHierarchyEditor({
   function openCampaignDetail(campaignId: string) {
     const campaign = campaigns.find((c) => c.id === campaignId);
     if (!campaign) return;
+    if (!campaign.campaignName.trim()) {
+      patchCampaign(campaignId, { campaignName: generateDefaultCampaignName() });
+    }
     if (campaign.siteId && !campaign.adAccountId) {
       const account = firstAccountForSite(campaign.siteId);
       if (account) {
@@ -512,19 +540,17 @@ export function CampaignHierarchyEditor({
     const nextCampaign: CampaignForm = {
       ...source,
       id: nextCampaignId,
-      campaignName: `${source.campaignName} 复制`,
+      campaignName: generateDefaultCampaignName(),
       adGroups: source.adGroups.map((group, groupIndex) => {
         const nextGroupId = `adg_${groupIndex + 1}_${idCounterRef.current++}`;
         return {
           ...group,
           id: nextGroupId,
-          name: `${group.name} 复制`,
           genders: [...group.genders],
           ageRanges: [...group.ageRanges],
           ads: group.ads.map((ad, adIndex) => ({
             ...ad,
             id: `${nextGroupId}_ad_${adIndex + 1}_${idCounterRef.current++}`,
-            name: `${ad.name} 复制`,
           })),
         };
       }),
@@ -544,9 +570,139 @@ export function CampaignHierarchyEditor({
         ...current.slice(sourceIndex + 1),
       ];
     });
-    setActiveCampaignId(nextCampaignId);
-    setIsCampaignEditorOpen(true);
-    setEditorFocus(null);
+  }
+
+  function openCampaignSync(campaignId: string) {
+    setCampaignSyncSourceId(campaignId);
+    setCampaignSyncTargetIds(new Set());
+    setCampaignSyncFields(new Set(DEFAULT_CAMPAIGN_SYNC_FIELDS));
+  }
+
+  function closeCampaignSync() {
+    setCampaignSyncSourceId(null);
+    setCampaignSyncTargetIds(new Set());
+    setCampaignSyncFields(new Set(DEFAULT_CAMPAIGN_SYNC_FIELDS));
+  }
+
+  function toggleCampaignSyncField(field: CampaignSyncField, checked: boolean) {
+    setCampaignSyncFields((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(field);
+      } else {
+        next.delete(field);
+      }
+      return next;
+    });
+  }
+
+  function toggleCampaignSyncTarget(campaignId: string, checked: boolean) {
+    setCampaignSyncTargetIds((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(campaignId);
+      } else {
+        next.delete(campaignId);
+      }
+      return next;
+    });
+  }
+
+  function syncAdFields(sourceAd: AdForm, targetAd: AdForm, fields: Set<CampaignSyncField>): AdForm {
+    return {
+      ...targetAd,
+      name: fields.has("adName") ? sourceAd.name : targetAd.name,
+      finalUrl: fields.has("finalUrl") ? sourceAd.finalUrl : targetAd.finalUrl,
+      videoLinks: fields.has("videoLinks") ? sourceAd.videoLinks : targetAd.videoLinks,
+      logos: fields.has("logos") ? sourceAd.logos : targetAd.logos,
+      shortHeadlines: fields.has("shortHeadlines") ? sourceAd.shortHeadlines : targetAd.shortHeadlines,
+      longHeadlines: fields.has("longHeadlines") ? sourceAd.longHeadlines : targetAd.longHeadlines,
+      descriptions: fields.has("descriptions") ? sourceAd.descriptions : targetAd.descriptions,
+      businessName: fields.has("businessName") ? sourceAd.businessName : targetAd.businessName,
+      callToAction: fields.has("callToAction") ? sourceAd.callToAction : targetAd.callToAction,
+    };
+  }
+
+  function syncAdGroupFields(sourceGroup: AdGroupForm, targetGroup: AdGroupForm, fields: Set<CampaignSyncField>): AdGroupForm {
+    const shouldSyncAdFields = [
+      "adName",
+      "finalUrl",
+      "videoLinks",
+      "logos",
+      "shortHeadlines",
+      "longHeadlines",
+      "descriptions",
+      "businessName",
+      "callToAction",
+    ].some((field) => fields.has(field as CampaignSyncField));
+
+    return {
+      ...targetGroup,
+      name: fields.has("adGroupName") ? sourceGroup.name : targetGroup.name,
+      locations: fields.has("locations") ? sourceGroup.locations : targetGroup.locations,
+      language: fields.has("language") ? sourceGroup.language : targetGroup.language,
+      genders: fields.has("genders") ? [...sourceGroup.genders] : targetGroup.genders,
+      ageRanges: fields.has("ageRanges") ? [...sourceGroup.ageRanges] : targetGroup.ageRanges,
+      includeUnknownAge: fields.has("ageRanges")
+        ? sourceGroup.includeUnknownAge
+        : targetGroup.includeUnknownAge,
+      ads: shouldSyncAdFields
+        ? targetGroup.ads.map((targetAd, adIndex) => {
+          const sourceAd = sourceGroup.ads[adIndex];
+          return sourceAd ? syncAdFields(sourceAd, targetAd, fields) : targetAd;
+        })
+        : targetGroup.ads,
+    };
+  }
+
+  function syncCampaignFields(source: CampaignForm, target: CampaignForm, fields: Set<CampaignSyncField>): CampaignForm {
+    return {
+      ...target,
+      siteId: fields.has("siteId") ? source.siteId : target.siteId,
+      adAccountId: fields.has("adAccountId") ? source.adAccountId : target.adAccountId,
+      campaignName: fields.has("campaignName") ? source.campaignName : target.campaignName,
+      advertisingType: fields.has("advertisingType") ? source.advertisingType : target.advertisingType,
+      campaignObjective: fields.has("campaignObjective") ? source.campaignObjective : target.campaignObjective,
+      conversionGoal: fields.has("conversionGoal") ? source.conversionGoal : target.conversionGoal,
+      biddingType: fields.has("biddingType") ? source.biddingType : target.biddingType,
+      clickBiddingType: fields.has("clickBiddingType") ? source.clickBiddingType : target.clickBiddingType,
+      targetCpa: fields.has("targetCpa") ? source.targetCpa : target.targetCpa,
+      targetCpc: fields.has("targetCpc") ? source.targetCpc : target.targetCpc,
+      budgetDaily: fields.has("budgetDaily") ? source.budgetDaily : target.budgetDaily,
+      os: fields.has("os") ? [...source.os] : target.os,
+      devices: fields.has("devices") ? [...source.devices] : target.devices,
+      adSchedule: fields.has("adSchedule")
+        ? Object.fromEntries(Object.entries(source.adSchedule).map(([day, values]) => [day, [...values]]))
+        : target.adSchedule,
+      finalUrlSuffix: fields.has("finalUrlSuffix") ? source.finalUrlSuffix : target.finalUrlSuffix,
+      ipExclusions: fields.has("ipExclusions") ? source.ipExclusions : target.ipExclusions,
+      campaignNameSuffix: fields.has("campaignNameSuffix") ? source.campaignNameSuffix : target.campaignNameSuffix,
+      adGroups: target.adGroups.map((targetGroup, groupIndex) => {
+        const sourceGroup = source.adGroups[groupIndex];
+        return sourceGroup ? syncAdGroupFields(sourceGroup, targetGroup, fields) : targetGroup;
+      }),
+    };
+  }
+
+  function applyCampaignSync() {
+    const source = campaigns.find((campaign) => campaign.id === campaignSyncSourceId);
+    const targetIds = new Set([...campaignSyncTargetIds].filter((id) => id !== campaignSyncSourceId));
+    if (!source || targetIds.size === 0 || campaignSyncFields.size === 0) {
+      notify({ tone: "error", title: "无法同步", description: "请选择源 Campaign、目标 Campaign 和同步内容。" });
+      return;
+    }
+
+    setCampaigns((current) =>
+      current.map((campaign) =>
+        targetIds.has(campaign.id) ? syncCampaignFields(source, campaign, campaignSyncFields) : campaign,
+      ),
+    );
+    notify({
+      tone: "success",
+      title: "Campaign 已同步",
+      description: `已将 ${campaignSyncFields.size} 项内容同步到 ${targetIds.size} 个 Campaign。`,
+    });
+    closeCampaignSync();
   }
 
   function removeCampaign(campaignId: string) {
@@ -672,6 +828,7 @@ export function CampaignHierarchyEditor({
   function closePresetManager() {
     setPresetDialog(null);
     setPresetEditor(null);
+    setSelectedManagedPresetIds(new Set());
   }
 
   function openPresetCreateEditor() {
@@ -697,10 +854,13 @@ export function CampaignHierarchyEditor({
 
   function applyPresetToCampaign(preset: CampaignPreset, campaignId = activeCampaignId ?? campaigns[0]?.id) {
     if (!campaignId) return;
+    const targetCampaign = campaigns.find((campaign) => campaign.id === campaignId);
+    const geoTargets =
+      getResources(targetCampaign?.adAccountId ?? "")?.geoTargets.data ?? FALLBACK_GEO_TARGET_OPTIONS;
     setCampaigns((current) =>
       current.map((campaign) =>
         campaign.id === campaignId
-          ? applyPresetPayloadToCampaign(campaign, preset.payload, nextPresetElementId)
+          ? applyPresetPayloadToCampaign(campaign, preset.payload, nextPresetElementId, geoTargets)
           : campaign,
       ),
     );
@@ -709,6 +869,81 @@ export function CampaignHierarchyEditor({
       tone: "success",
       title: "已套用预设",
       description: `已套用「${preset.name}」，账号、Campaign 名称、广告 URL 与视频链接已保留。`,
+    });
+  }
+
+  function toggleManagedPresetSelection(presetId: string, checked: boolean) {
+    setSelectedManagedPresetIds((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(presetId);
+      } else {
+        next.delete(presetId);
+      }
+      return next;
+    });
+  }
+
+  function toggleAllManagedPresetSelection(checked: boolean) {
+    setSelectedManagedPresetIds((current) => {
+      const next = new Set(current);
+      pagedPresets.forEach((preset) => {
+        if (checked) {
+          next.add(preset.id);
+        } else {
+          next.delete(preset.id);
+        }
+      });
+      return next;
+    });
+  }
+
+  function createCampaignsFromSelectedPresets() {
+    const selectedPresets = pagedPresets.filter((preset) => selectedManagedPresetIds.has(preset.id));
+    if (selectedPresets.length === 0) {
+      notify({ tone: "error", title: "请选择预设", description: "至少选择一条预设后再创建 Campaign。" });
+      return;
+    }
+
+    const createdCampaigns = selectedPresets.map((preset, presetIndex) => {
+      const nextIndex = campaigns.length + presetIndex + 1;
+      const campaignId = `cmp_${nextIndex}_${idCounterRef.current++}`;
+      const presetSite = preset.siteId ? sites.find((site) => site.id === preset.siteId) : undefined;
+      const site = presetSite ?? sites[0];
+      const account = site ? firstAccountForSite(site.id) : undefined;
+      const baseCampaign = {
+        ...buildDefaultCampaign(nextIndex, account),
+        id: campaignId,
+        siteId: site?.id ?? "",
+      };
+      const geoTargets =
+        getResources(account?.id ?? "")?.geoTargets.data ?? FALLBACK_GEO_TARGET_OPTIONS;
+      return applyPresetPayloadToCampaign(
+        baseCampaign,
+        preset.payload,
+        nextPresetElementId,
+        geoTargets,
+      );
+    });
+
+    setCampaigns((current) => [...current, ...createdCampaigns]);
+    setSelectedManagedPresetIds(new Set());
+    setPresetDialog(null);
+
+    if (createdCampaigns.length === 1) {
+      setActiveCampaignId(createdCampaigns[0].id);
+      setIsCampaignEditorOpen(true);
+      setEditorFocus(null);
+    } else {
+      setActiveCampaignId(null);
+      setIsCampaignEditorOpen(false);
+      setEditorFocus(null);
+    }
+
+    notify({
+      tone: "success",
+      title: "Campaign 已创建",
+      description: `已根据 ${createdCampaigns.length} 条预设创建 Campaign。`,
     });
   }
 
@@ -762,6 +997,11 @@ export function CampaignHierarchyEditor({
         return;
       }
 
+      setSelectedManagedPresetIds((current) => {
+        const next = new Set(current);
+        next.delete(presetId);
+        return next;
+      });
       await loadPresetPage(presetPage);
       notify({ tone: "success", title: "预设已删除" });
     } finally {
@@ -810,13 +1050,13 @@ export function CampaignHierarchyEditor({
     }
   }
 
-  async function updateSiteOperationMcc(siteId: string, operationMccId: string) {
+  async function updateSiteBinding(siteId: string, patch: { operationMccId?: string; site?: string }) {
     setSavingSiteIds((current) => new Set(current).add(siteId));
     try {
       const response = await fetch(`/api/sites/${siteId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ operationMccId }),
+        body: JSON.stringify(patch),
       });
       const json = (await response.json()) as ApiResult;
       if (!json.success) {
@@ -824,18 +1064,47 @@ export function CampaignHierarchyEditor({
         return;
       }
       await reloadSites();
-      setCampaigns((current) =>
-        current.map((campaign) => {
-          if (campaign.siteId !== siteId) {
-            return campaign;
-          }
-          const account = adAccounts.find((item) => item.operationMccId === operationMccId);
-          return { ...campaign, adAccountId: account?.id ?? "", conversionGoal: "" };
-        }),
-      );
+      if (patch.operationMccId) {
+        setCampaigns((current) =>
+          current.map((campaign) => {
+            if (campaign.siteId !== siteId) {
+              return campaign;
+            }
+            const account = adAccounts.find((item) => item.operationMccId === patch.operationMccId);
+            return { ...campaign, adAccountId: account?.id ?? "", conversionGoal: "" };
+          }),
+        );
+      }
       notify({ tone: "success", title: "站点绑定已更新" });
     } finally {
       setSavingSiteIds((current) => {
+        const next = new Set(current);
+        next.delete(siteId);
+        return next;
+      });
+    }
+  }
+
+  async function deleteSiteBinding(siteId: string) {
+    setDeletingSiteIds((current) => new Set(current).add(siteId));
+    try {
+      const response = await fetch(`/api/sites/${siteId}`, { method: "DELETE" });
+      const json = (await response.json()) as ApiResult;
+      if (!json.success) {
+        notify({ tone: "error", title: json.error?.code ?? "站点删除失败", description: json.error?.message ?? "请稍后重试。" });
+        return;
+      }
+      await reloadSites();
+      setCampaigns((current) =>
+        current.map((campaign) =>
+          campaign.siteId === siteId
+            ? { ...campaign, siteId: "", adAccountId: "", conversionGoal: "" }
+            : campaign,
+        ),
+      );
+      notify({ tone: "success", title: "站点绑定已删除" });
+    } finally {
+      setDeletingSiteIds((current) => {
         const next = new Set(current);
         next.delete(siteId);
         return next;
@@ -888,6 +1157,7 @@ export function CampaignHierarchyEditor({
 
     setIsSubmitting(true);
     setResult(null);
+    const submittedCount = campaigns.length;
     try {
       const firstAdFallback = createDefaultAd(1);
       const response = await fetch("/api/launch-batches", {
@@ -911,9 +1181,10 @@ export function CampaignHierarchyEditor({
       if (json.data && typeof json.data === "object" && "id" in json.data) {
         setLaunchBatches((current) => [json.data as LaunchBatch, ...current]);
       }
-      const successResult = { success: true as const, data: { message: `已提交 ${campaigns.length} 个广告系列，后台正在创建。` } };
-      notify({ tone: "success", title: "已进入后台创建", description: successMessageFromResult(successResult, `已提交 ${campaigns.length} 个广告系列，后台正在创建。`) });
+      const successResult = { success: true as const, data: { message: `已提交 ${submittedCount} 个广告系列，后台正在创建。` } };
+      notify({ tone: "success", title: "已进入后台创建", description: successMessageFromResult(successResult, `已提交 ${submittedCount} 个广告系列，后台正在创建。`) });
       setResult(successResult);
+      resetCampaignWorkspace();
     } catch (error) {
       const failureResult: ApiResult = { success: false, error: { code: "CLIENT_SUBMIT_FAILED", message: error instanceof Error ? error.message : "提交草稿失败。" } };
       console.error("Google Ads submit failed", error);
@@ -1293,6 +1564,16 @@ export function CampaignHierarchyEditor({
     );
   }
 
+  const campaignOverviewItems = campaigns.map((campaign, slotIndex) =>
+    buildCampaignOverviewMeta(
+      campaign,
+      slotIndex,
+      adAccounts,
+      getResources(campaign.adAccountId)?.geoTargets.data,
+      getResources(campaign.adAccountId)?.languageTargets.data,
+    ),
+  );
+
   return (
     <div className="ads-launch-stage space-y-5 py-5">
       <Tabs
@@ -1353,34 +1634,58 @@ export function CampaignHierarchyEditor({
         ) : null}
 
         <TabsContent className="mt-5" value="campaigns">
-          <div className="ads-campaign-grid animate-fade-up">
-            {campaigns.map((campaign, slotIndex) => (
-            <CampaignOverviewCard
-              key={campaign.id}
-              campaign={buildCampaignOverviewMeta(
-                campaign,
-                slotIndex,
-                adAccounts,
-                getResources(campaign.adAccountId)?.geoTargets.data,
-                getResources(campaign.adAccountId)?.languageTargets.data,
-              )}
-              canRemove={campaigns.length > 1}
-              canDuplicate
-              onDuplicate={() => duplicateCampaign(campaign.id)}
-              onEdit={() => openCampaignDetail(campaign.id)}
-              onEditGroup={(groupId) => openAdGroupEditor(campaign.id, groupId)}
-              onEditAd={(groupId, adId) => openAdEditor(campaign.id, groupId, adId)}
-              onPreview={() => setPreviewCampaignId(campaign.id)}
-              onRemove={() => removeCampaign(campaign.id)}
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <span className="text-sm font-medium text-[var(--ink)]">Campaign 列表</span>
+            <CampaignViewToggle mode={campaignViewMode} onChange={setCampaignViewMode} />
+          </div>
+          {campaignViewMode === "list" ? (
+            <CampaignOverviewTable
+              campaigns={campaignOverviewItems}
+              canRemove={() => campaigns.length > 1}
+              onDuplicate={duplicateCampaign}
+              onEdit={openCampaignDetail}
+              onPreview={setPreviewCampaignId}
+              onRemove={removeCampaign}
+              onSync={openCampaignSync}
             />
-          ))}
-          <CampaignOverviewAddTile onClick={addCampaign} />
-        </div>
+          ) : (
+            <div className="ads-campaign-grid animate-fade-up">
+              {campaigns.map((campaign, slotIndex) => (
+                <CampaignOverviewCard
+                  key={campaign.id}
+                  campaign={campaignOverviewItems[slotIndex]}
+                  canRemove={campaigns.length > 1}
+                  canDuplicate
+                  onDuplicate={() => duplicateCampaign(campaign.id)}
+                  onEdit={() => openCampaignDetail(campaign.id)}
+                  onEditGroup={(groupId) => openAdGroupEditor(campaign.id, groupId)}
+                  onEditAd={(groupId, adId) => openAdEditor(campaign.id, groupId, adId)}
+                  onPreview={() => setPreviewCampaignId(campaign.id)}
+                  onRemove={() => removeCampaign(campaign.id)}
+                  onSync={() => openCampaignSync(campaign.id)}
+                />
+              ))}
+              <CampaignOverviewAddTile onClick={addCampaign} />
+            </div>
+          )}
         </TabsContent>
         <TabsContent className="mt-5" value="tasks">
           {renderLaunchBatches()}
         </TabsContent>
       </Tabs>
+
+      <CampaignSyncDialog
+        open={Boolean(campaignSyncSourceId)}
+        selectedFields={campaignSyncFields}
+        selectedTargetIds={campaignSyncTargetIds}
+        sourceCampaign={campaigns.find((campaign) => campaign.id === campaignSyncSourceId) ?? null}
+        targetCampaigns={campaigns.filter((campaign) => campaign.id !== campaignSyncSourceId)}
+        onClose={closeCampaignSync}
+        onSetTargetIds={setCampaignSyncTargetIds}
+        onSync={applyCampaignSync}
+        onToggleField={toggleCampaignSyncField}
+        onToggleTarget={toggleCampaignSyncTarget}
+      />
 
       {/* Unified editor modal — content switches by level, no close/reopen */}
       {activeCampaign && (shouldShowCampaignEditor || editorFocus) ? (
@@ -1409,7 +1714,7 @@ export function CampaignHierarchyEditor({
             : activeCampaign.campaignName
           }
           onBack={editorFocus ? returnToCampaignEditor : undefined}
-          onClose={editorFocus ? closeFocusedEditor : closeCampaignEditor}
+          onClose={closeCampaignEditor}
         >
           <div className="grid gap-4 xl:grid-cols-[19rem_minmax(0,1fr)]">
             <EditorSidebar
@@ -1553,16 +1858,27 @@ export function CampaignHierarchyEditor({
         totalPresets={presetTotal}
         onClose={closePresetManager}
         onCreate={openPresetCreateEditor}
+        onCreateCampaignsFromSelected={createCampaignsFromSelectedPresets}
         onDelete={(presetId) => void deletePreset(presetId)}
         onEdit={openPresetEditEditor}
-        onPageChange={(page) => void loadPresetPage(page)}
+        onPageChange={(page) => {
+          setSelectedManagedPresetIds(new Set());
+          void loadPresetPage(page);
+        }}
         onPresetEditorChange={setPresetEditor}
         onReload={() => void loadPresetPage(presetPage)}
         onSave={() => void savePresetEditor()}
-        onSearchChange={setPresetSearch}
+        onToggleAllSelected={toggleAllManagedPresetSelection}
+        onTogglePresetSelected={toggleManagedPresetSelection}
+        onSearchChange={(search) => {
+          setSelectedManagedPresetIds(new Set());
+          setPresetSearch(search);
+        }}
+        selectedPresetIds={selectedManagedPresetIds}
       />
       <SiteBindingManager
         adAccounts={adAccounts}
+        deletingSiteIds={deletingSiteIds}
         isSaving={isSiteSaving}
         mccAccounts={mccAccounts}
         newOperationMccId={newSiteOperationMccId}
@@ -1572,9 +1888,10 @@ export function CampaignHierarchyEditor({
         sites={sites}
         onClose={() => setIsSiteBindingOpen(false)}
         onCreate={() => void createSiteBinding()}
+        onDeleteSite={(siteId) => void deleteSiteBinding(siteId)}
         onNewOperationMccChange={setNewSiteOperationMccId}
         onNewSiteChange={setNewSite}
-        onUpdateSite={(siteId, operationMccId) => void updateSiteOperationMcc(siteId, operationMccId)}
+        onUpdateSite={(siteId, patch) => void updateSiteBinding(siteId, patch)}
       />
       <PresetManager
         currentPage={presetPage}

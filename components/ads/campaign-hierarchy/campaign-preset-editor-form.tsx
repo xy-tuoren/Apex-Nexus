@@ -29,6 +29,7 @@ import {
 } from "@/components/ads/campaign-hierarchy/field-controls";
 import {
   formatConversionGoalLabel,
+  formatSiteLabel,
   formatStableDateTime,
   summarizeDevicesSelection,
   summarizeOsSelection,
@@ -152,7 +153,7 @@ export function CampaignPresetEditorForm({
               { value: "__none", label: "不指定站点" },
               ...sites.map((site) => ({
                 value: site.id,
-                label: `${site.name} · ${site.domain}`,
+                label: formatSiteLabel(site),
               })),
             ]}
             placeholder="选择站点"

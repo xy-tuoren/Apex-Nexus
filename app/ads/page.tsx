@@ -1,5 +1,6 @@
 import { AdminShell } from "@/components/layout/admin-shell";
 import { CampaignHierarchyEditor } from "@/components/ads/campaign-hierarchy";
+import { generateDefaultCampaignName } from "@/components/ads/campaign-hierarchy/form-utils";
 import { isAuthEnabled } from "@/lib/auth/config";
 import { getSessionUser } from "@/lib/auth/server";
 import {
@@ -38,6 +39,7 @@ export default async function AdsLaunchPage() {
         <CampaignHierarchyEditor
           initialAdAccounts={adAccounts}
           accountsSyncedAt={accountsSyncedAt}
+          initialCampaignName={generateDefaultCampaignName()}
           initialMccAccounts={mccAccounts}
           initialSites={sites}
           initialPresets={presets}

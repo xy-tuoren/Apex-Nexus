@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
@@ -64,6 +65,7 @@ function ToneBadge({
 }
 
 const PRESET_TABLE_COLUMNS = [
+  { key: "select", width: 44, label: "" },
   { key: "name", width: 80, label: "名称" },
   { key: "description", width: 120, label: "描述" },
   { key: "site", width: 132, label: "站点" },
@@ -80,6 +82,7 @@ const PRESET_TABLE_COLUMNS = [
   { key: "updatedAt", width: 100, label: "更新" },
   { key: "actions", width: 172, label: "操作" },
 ] as const;
+type PresetTableColumn = (typeof PRESET_TABLE_COLUMNS)[number];
 
 function PresetCellContent({ children }: { children: ReactNode }) {
   return (
@@ -157,24 +160,36 @@ type PresetTableProps = {
   rows: PresetTableRow[];
   presets: CampaignPreset[];
   deletingPresetIds?: Set<string>;
+  selectedPresetIds?: Set<string>;
   onEdit?: (preset: CampaignPreset) => void;
   onDelete?: (presetId: string) => void;
   onRowClick?: (preset: CampaignPreset) => void;
+  onToggleAllSelected?: (checked: boolean) => void;
+  onTogglePresetSelected?: (presetId: string, checked: boolean) => void;
 };
 
 export function PresetTable({
   rows,
   presets,
   deletingPresetIds = new Set<string>(),
+  selectedPresetIds = new Set<string>(),
   onEdit,
   onDelete,
   onRowClick,
+  onToggleAllSelected,
+  onTogglePresetSelected,
 }: PresetTableProps) {
   const hasActions = Boolean(onEdit || onDelete);
+  const hasSelection = Boolean(onTogglePresetSelected);
+  const allSelected = rows.length > 0 && rows.every((row) => selectedPresetIds.has(row.id));
+  const baseColumns: PresetTableColumn[] = [...PRESET_TABLE_COLUMNS];
   const displayColumns = hasActions
-    ? PRESET_TABLE_COLUMNS
-    : PRESET_TABLE_COLUMNS.filter((c) => c.key !== "actions");
-  const minWidth = displayColumns.reduce((total, c) => total + c.width, 0);
+    ? baseColumns
+    : baseColumns.filter((c) => c.key !== "actions");
+  const visibleColumns = hasSelection
+    ? displayColumns
+    : displayColumns.filter((c) => c.key !== "select");
+  const minWidth = visibleColumns.reduce<number>((total, column) => total + column.width, 0);
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-[var(--hairline)] bg-[var(--surface-card)]">
@@ -183,15 +198,25 @@ export function PresetTable({
         style={{ minWidth, width: minWidth }}
       >
         <colgroup>
-          {displayColumns.map((column) => (
+          {visibleColumns.map((column) => (
             <col key={column.key} style={{ width: column.width }} />
           ))}
         </colgroup>
         <TableHeader>
           <TableRow className="border-b border-[var(--hairline)] bg-[var(--canvas-soft)] hover:bg-[var(--canvas-soft)]">
-            {displayColumns.map((column) => (
+            {visibleColumns.map((column) => (
               <TableHead key={column.key} className={PRESET_TABLE_HEAD_DIVIDER_CLASS}>
-                {column.label}
+                {column.key === "select" ? (
+                  <div className="flex items-center justify-center">
+                    <Checkbox
+                      aria-label="选择当前页预设"
+                      checked={allSelected}
+                      onCheckedChange={(checked) => onToggleAllSelected?.(checked === true)}
+                    />
+                  </div>
+                ) : (
+                  column.label
+                )}
               </TableHead>
             ))}
           </TableRow>
@@ -202,13 +227,27 @@ export function PresetTable({
             const isDeleting = deletingPresetIds.has(row.id);
             const rowClass = onRowClick
               ? "border-b border-[var(--hairline)] transition-colors hover:bg-muted cursor-pointer"
-              : "border-b border-[var(--hairline)] transition-colors hover:bg-muted";
+              : selectedPresetIds.has(row.id)
+                ? "border-b border-[var(--hairline)] bg-[var(--canvas-soft)] transition-colors hover:bg-muted"
+                : "border-b border-[var(--hairline)] transition-colors hover:bg-muted";
             return (
               <TableRow
                 key={row.id}
                 className={rowClass}
                 onClick={preset && onRowClick ? () => onRowClick(preset) : undefined}
               >
+                {hasSelection ? (
+                  <TableCell className={PRESET_TABLE_CELL_CLASS}>
+                    <div className="flex items-center justify-center">
+                      <Checkbox
+                        aria-label={`选择预设 ${row.name}`}
+                        checked={selectedPresetIds.has(row.id)}
+                        onClick={(event) => event.stopPropagation()}
+                        onCheckedChange={(checked) => onTogglePresetSelected?.(row.id, checked === true)}
+                      />
+                    </div>
+                  </TableCell>
+                ) : null}
                 <TableCell className={`${PRESET_TABLE_CELL_CLASS} text-sm font-semibold text-[var(--ink)]`}>
                   <PresetCellContent>
                     <ClampedText title={row.name}>{row.name}</ClampedText>
@@ -282,7 +321,10 @@ export function PresetTable({
                             size="sm"
                             type="button"
                             variant="outline"
-                            onClick={() => onEdit(preset)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onEdit(preset);
+                            }}
                           >
                             <Pencil aria-hidden className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
                             编辑
@@ -296,7 +338,10 @@ export function PresetTable({
                             size="sm"
                             type="button"
                             variant="outline"
-                            onClick={() => void onDelete(preset.id)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void onDelete(preset.id);
+                            }}
                           >
                             {isDeleting ? (
                               <Spinner aria-hidden className="h-3.5 w-3.5 shrink-0" />

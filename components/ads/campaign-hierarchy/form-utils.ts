@@ -1,5 +1,5 @@
 import type { ComboboxOption } from "@/components/ui/combobox";
-import type { GoogleAdAccount } from "@/lib/types";
+import type { GoogleAdAccount, Site } from "@/lib/types";
 import type { CampaignPresetPayload } from "@/lib/types";
 import { POPULAR_COUNTRY_GEO_TARGETS } from "@/lib/google-ads/popular-geo-targets";
 import {
@@ -30,6 +30,10 @@ import type {
   LanguageTargetOption,
   ScheduleGridValue,
 } from "@/components/ads/campaign-hierarchy/types";
+
+export function formatSiteLabel(site: Pick<Site, "name" | "domain">) {
+  return site.name === site.domain ? site.domain : `${site.name} · ${site.domain}`;
+}
 
 export function buildInitialExpandState(adGroups: AdGroupForm[]): ExpandState {
   const adGroupsRecord: Record<string, boolean> = {};
@@ -897,13 +901,33 @@ export function createDefaultAdGroup(index = 1): AdGroupForm {
   };
 }
 
-export function buildDefaultCampaign(index: number, account?: GoogleAdAccount): CampaignForm {
+function getIsoWeekOfYear(date: Date) {
+  const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+  return Math.ceil(((utcDate.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7);
+}
+
+export function generateDefaultCampaignName(date = new Date()) {
+  const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  let random = "";
+  for (let index = 0; index < 4; index += 1) {
+    random += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  const week = getIsoWeekOfYear(date);
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${random}C${week}&${month}${day}`;
+}
+
+export function buildDefaultCampaign(index: number, account?: GoogleAdAccount, campaignName = generateDefaultCampaignName()): CampaignForm {
   return {
     id: `cmp_${index}`,
     siteId: "",
     adAccountId: account?.id ?? "",
     advertisingType: "DEMAND_GEN",
-    campaignName: "",
+    campaignName,
     campaignObjective: "CONVERSIONS",
     conversionGoal: "",
     biddingType: "TARGET_CPA",
@@ -957,15 +981,63 @@ export function buildPresetPayloadFromCampaign(campaign: CampaignForm): Campaign
   };
 }
 
+export function resolveGeoCountryCodes(
+  locations: string,
+  geoTargets: GeoTargetOption[] = FALLBACK_GEO_TARGET_OPTIONS,
+) {
+  return [
+    ...new Set(
+      splitLines(locations)
+        .map((location) =>
+          geoTargets
+            .find((target) => target.resourceName === location.trim())
+            ?.countryCode?.toUpperCase(),
+        )
+        .filter((code): code is string => Boolean(code)),
+    ),
+  ];
+}
+
+export function buildGeoLocationNameInfix(
+  locations: string,
+  geoTargets: GeoTargetOption[] = FALLBACK_GEO_TARGET_OPTIONS,
+) {
+  const codes = resolveGeoCountryCodes(locations, geoTargets);
+  return codes.length ? `_${codes.join("_")}_` : "";
+}
+
+function applyPresetCampaignName(
+  campaignName: string,
+  payload: CampaignPresetPayload,
+  geoTargets: GeoTargetOption[],
+) {
+  const suffix = payload.campaignNameSuffix?.trim() ?? "";
+  const geoInfix = buildGeoLocationNameInfix(payload.adGroups[0]?.locations ?? "", geoTargets);
+  const addition = `${geoInfix}${suffix}`;
+  if (!addition) {
+    return campaignName;
+  }
+  if (campaignName.endsWith(addition)) {
+    return campaignName;
+  }
+  if (suffix && campaignName.endsWith(suffix) && geoInfix) {
+    const base = campaignName.slice(0, -suffix.length);
+    if (base.endsWith(geoInfix)) {
+      return campaignName;
+    }
+    return `${base}${geoInfix}${suffix}`;
+  }
+  return `${campaignName}${addition}`;
+}
+
 export function applyPresetPayloadToCampaign(
   campaign: CampaignForm,
   payload: CampaignPresetPayload,
   nextId: () => string,
+  geoTargets: GeoTargetOption[] = FALLBACK_GEO_TARGET_OPTIONS,
 ): CampaignForm {
   const suffix = payload.campaignNameSuffix?.trim();
-  const nameWithSuffix = suffix && !campaign.campaignName.endsWith(suffix)
-    ? `${campaign.campaignName}${suffix}`
-    : campaign.campaignName;
+  const nameWithSuffix = applyPresetCampaignName(campaign.campaignName, payload, geoTargets);
   return {
     ...campaign,
     campaignName: nameWithSuffix,

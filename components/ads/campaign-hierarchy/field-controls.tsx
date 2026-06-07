@@ -10,7 +10,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { ChevronDown, Plus, Trash2, Video } from "lucide-react";
+import { ChevronDown, ClipboardPaste, Plus, Trash2, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { ImageUpload } from "@/components/ui/image-upload";
@@ -134,10 +134,12 @@ export function AssetInputList({
     const items = splitLines(value).slice(0, maxItems);
     return items.length ? items : [""];
   });
+  const [clipboardError, setClipboardError] = useState("");
 
   function commit(nextItems: string[]) {
     setDraftItems(nextItems);
     onChange(joinLines(nextItems.filter((item) => item.trim())));
+    setClipboardError("");
   }
 
   function updateItem(index: number, nextValue: string) {
@@ -158,21 +160,52 @@ export function AssetInputList({
     commit(nextItems.length ? nextItems : [""]);
   }
 
+  async function createFromClipboard() {
+    try {
+      const text = await navigator.clipboard.readText();
+      const nextItems = splitLines(text)
+        .map((item) => item.trim().slice(0, maxLength))
+        .filter(Boolean)
+        .slice(0, maxItems);
+      if (!nextItems.length) {
+        setClipboardError("剪贴板没有可用文本");
+        return;
+      }
+      commit(nextItems);
+    } catch {
+      setClipboardError("无法读取剪贴板");
+    }
+  }
+
   return (
     <div className="grid gap-2 rounded-xl border border-[var(--hairline)] bg-[var(--canvas-soft)] p-2.5">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs text-[var(--muted)]">最多可添加 {maxItems} 条</p>
-        <Button
-          className="h-7 px-2.5 text-xs"
-          disabled={draftItems.length >= maxItems}
-          size="sm"
-          type="button"
-          variant="outline"
-          onClick={addItem}
-        >
-          <Plus aria-hidden className="h-4 w-4" strokeWidth={1.75} />
-          添加
-        </Button>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-[var(--muted)]">
+          {clipboardError || `最多可添加 ${maxItems} 条`}
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            className="h-7 px-2.5 text-xs"
+            size="sm"
+            type="button"
+            variant="outline"
+            onClick={() => void createFromClipboard()}
+          >
+            <ClipboardPaste aria-hidden className="h-4 w-4" strokeWidth={1.75} />
+            从剪贴板创建
+          </Button>
+          <Button
+            className="h-7 px-2.5 text-xs"
+            disabled={draftItems.length >= maxItems}
+            size="sm"
+            type="button"
+            variant="outline"
+            onClick={addItem}
+          >
+            <Plus aria-hidden className="h-4 w-4" strokeWidth={1.75} />
+            添加
+          </Button>
+        </div>
       </div>
       <div className="grid gap-2">
         {draftItems.map((item, index) => (

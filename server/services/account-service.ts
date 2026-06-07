@@ -146,25 +146,54 @@ export async function createSite(input: SiteCreateInput) {
 }
 
 export async function updateSiteBinding(siteId: string, input: SiteUpdateInput) {
-  const [site, operationMcc] = await Promise.all([
-    findById("sites", siteId),
-    findById("google_mcc_accounts", input.operationMccId),
-  ]);
+  const site = await findById("sites", siteId);
   if (!site) {
     return null;
   }
-  if (!operationMcc || operationMcc.kind !== "OPERATION_MCC") {
-    throw new Error("请选择有效的操作 MCC。");
+
+  const patch: Partial<Site> = {};
+
+  if (input.operationMccId !== undefined) {
+    const operationMcc = await findById("google_mcc_accounts", input.operationMccId);
+    if (!operationMcc || operationMcc.kind !== "OPERATION_MCC") {
+      throw new Error("请选择有效的操作 MCC。");
+    }
+    patch.operationMccId = input.operationMccId;
   }
 
-  const updated = await updateById("sites", siteId, {
-    operationMccId: input.operationMccId,
-  });
+  if (input.site !== undefined) {
+    const domain = normalizeSiteDomain(input.site);
+    const existingSites = await listCollection("sites");
+    if (existingSites.some((item) => item.domain === domain && item.id !== siteId)) {
+      throw new Error("该站点已存在，请使用其他名称。");
+    }
+    const name = siteNameFromInput(input.site, domain);
+    patch.domain = domain;
+    patch.name = name;
+    patch.brandName = name;
+    patch.defaultFinalUrl = `https://${domain}`;
+  }
+
+  const updated = await updateById("sites", siteId, patch);
   await refreshSiteAccountBindings();
-  await audit("site.operation_mcc.update", siteId, {
-    operationMccId: input.operationMccId,
-  });
+  await audit("site.update", siteId, patch);
   return updated;
+}
+
+export async function deleteSite(siteId: string) {
+  const site = await findById("sites", siteId);
+  if (!site) {
+    return null;
+  }
+
+  const sites = await listCollection("sites");
+  await replaceCollection(
+    "sites",
+    sites.filter((item) => item.id !== siteId),
+  );
+  await refreshSiteAccountBindings();
+  await audit("site.delete", siteId, { domain: site.domain });
+  return site;
 }
 
 export async function refreshSiteAccountBindings() {

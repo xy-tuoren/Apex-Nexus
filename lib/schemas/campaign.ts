@@ -171,9 +171,14 @@ export const siteCreateSchema = z.object({
   operationMccId: z.string().min(1),
 });
 
-export const siteUpdateSchema = z.object({
-  operationMccId: z.string().min(1),
-});
+export const siteUpdateSchema = z
+  .object({
+    site: z.string().min(1).max(160).optional(),
+    operationMccId: z.string().min(1).optional(),
+  })
+  .refine((input) => input.site !== undefined || input.operationMccId !== undefined, {
+    message: "至少提供一项更新字段。",
+  });
 
 export const launchJobSchema = z.object({
   draftId: z.string().min(1),

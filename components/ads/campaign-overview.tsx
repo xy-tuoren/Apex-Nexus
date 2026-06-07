@@ -1,9 +1,17 @@
 "use client";
 
-import { ChevronRight, Copy, Eye, LayoutGrid, List, Plus, Settings2, Trash2 } from "lucide-react";
+import { ChevronRight, Copy, Eye, LayoutGrid, List, Plus, RefreshCw, Settings2, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export type CampaignOverviewAd = {
   id: string;
@@ -42,9 +50,15 @@ type OverviewItemProps = {
   onEditGroup?: (groupId: string) => void;
   onEditAd?: (groupId: string, adId: string) => void;
   onPreview: () => void;
+  onSync?: () => void;
   onDuplicate?: () => void;
   onRemove: () => void;
 };
+
+function biddingValueText(bidding: string) {
+  const value = bidding.match(/(?:目标\s+(?:CPA|CPC)\s+)(.+)$/)?.[1];
+  return value ?? bidding;
+}
 
 export function CampaignViewToggle({
   mode,
@@ -82,6 +96,7 @@ export function CampaignOverviewCard({
   onEditGroup,
   onEditAd,
   onPreview,
+  onSync,
   onDuplicate,
   onRemove,
 }: OverviewItemProps) {
@@ -106,8 +121,8 @@ export function CampaignOverviewCard({
         </p>
         <div className="mt-2.5 flex flex-wrap gap-1.5">
           <Badge className="normal-case text-[10px] tracking-normal">{campaign.adGroupCount} 组 · {campaign.adCount} 广告</Badge>
-          <Badge className="max-w-full truncate normal-case text-[10px] tracking-normal text-white" title={campaign.accountName}>
-            {campaign.accountId || "未选择账号"}
+          <Badge className="max-w-full truncate normal-case text-[10px] tracking-normal text-white" title={campaign.accountName || campaign.accountId}>
+            {campaign.accountName || campaign.accountId || "未选择账号"}
           </Badge>
         </div>
         <div className="mt-2.5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--canvas-soft)]">
@@ -169,6 +184,20 @@ export function CampaignOverviewCard({
         </div>
         <div className="flex items-center gap-1">
           <Button
+            aria-label="同步广告系列配置"
+            className="h-8 w-8 px-0"
+            size="sm"
+            title="同步广告系列配置"
+            type="button"
+            variant="ghost"
+            onClick={(event) => {
+              event.stopPropagation();
+              onSync?.();
+            }}
+          >
+            <RefreshCw aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </Button>
+          <Button
             aria-label="复制广告系列"
             className="h-8 w-8 px-0"
             disabled={!canDuplicate}
@@ -209,6 +238,7 @@ export function CampaignOverviewListRow({
   canDuplicate = true,
   onEdit,
   onPreview,
+  onSync,
   onDuplicate,
   onRemove,
 }: OverviewItemProps) {
@@ -238,6 +268,17 @@ export function CampaignOverviewListRow({
           <ChevronRight aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
       </Button>
       <Button
+        aria-label="同步广告系列配置"
+        className="h-8 w-8 shrink-0 px-0"
+        size="sm"
+        title="同步广告系列配置"
+        type="button"
+        variant="ghost"
+        onClick={onSync}
+      >
+        <RefreshCw aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+      </Button>
+      <Button
         aria-label="复制广告系列"
         className="h-8 w-8 shrink-0 px-0"
         disabled={!canDuplicate}
@@ -260,6 +301,164 @@ export function CampaignOverviewListRow({
       >
         <Trash2 aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
       </Button>
+    </div>
+  );
+}
+
+export function CampaignOverviewTable({
+  campaigns,
+  canRemove,
+  onEdit,
+  onPreview,
+  onSync,
+  onDuplicate,
+  onRemove,
+}: {
+  campaigns: CampaignOverviewMeta[];
+  canRemove: (campaignId: string) => boolean;
+  onEdit: (campaignId: string) => void;
+  onPreview: (campaignId: string) => void;
+  onSync: (campaignId: string) => void;
+  onDuplicate: (campaignId: string) => void;
+  onRemove: (campaignId: string) => void;
+}) {
+  const fixedColumnWidths = [64, 160, 72, 72, 64, 100, 188] as const;
+  const minTableWidth = fixedColumnWidths.reduce((total, width) => total + width, 0) + 280;
+
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-[var(--hairline)] bg-[var(--surface-card)] animate-fade-up">
+      <Table
+        className="table-fixed border-collapse [&_td]:border-[var(--hairline)] [&_th]:border-[var(--hairline)]"
+        style={{ minWidth: minTableWidth, width: "100%" }}
+      >
+        <colgroup>
+          <col style={{ width: fixedColumnWidths[0] }} />
+          <col />
+          <col style={{ width: fixedColumnWidths[1] }} />
+          <col style={{ width: fixedColumnWidths[2] }} />
+          <col style={{ width: fixedColumnWidths[3] }} />
+          <col style={{ width: fixedColumnWidths[4] }} />
+          <col style={{ width: fixedColumnWidths[5] }} />
+          <col style={{ width: fixedColumnWidths[6] }} />
+        </colgroup>
+        <TableHeader>
+          <TableRow className="border-b border-[var(--hairline)] bg-[var(--canvas-soft)] hover:bg-[var(--canvas-soft)]">
+            <TableHead className="border-r border-[var(--hairline)] px-2 py-2 text-center text-xs font-semibold text-[var(--muted)]">序号</TableHead>
+            <TableHead className="border-r border-[var(--hairline)] px-3 py-2 text-left text-xs font-semibold text-[var(--muted)]">Campaign</TableHead>
+            <TableHead className="border-r border-[var(--hairline)] px-2 py-2 text-left text-xs font-semibold text-[var(--muted)]">投放账号</TableHead>
+            <TableHead className="border-r border-[var(--hairline)] px-2 py-2 text-center text-xs font-semibold text-[var(--muted)]">目标</TableHead>
+            <TableHead className="border-r border-[var(--hairline)] px-2 py-2 text-center text-xs font-semibold text-[var(--muted)]">出价</TableHead>
+            <TableHead className="border-r border-[var(--hairline)] px-2 py-2 text-center text-xs font-semibold text-[var(--muted)]">预算</TableHead>
+            <TableHead className="border-r border-[var(--hairline)] px-2 py-2 text-center text-xs font-semibold text-[var(--muted)]">结构</TableHead>
+            <TableHead className="px-2 py-2 text-center text-xs font-semibold text-[var(--muted)]">操作</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {campaigns.map((campaign) => {
+            const indexLabel = String(campaign.index).padStart(2, "0");
+            return (
+              <TableRow key={campaign.id} className="border-b border-[var(--hairline)] transition-colors hover:bg-muted">
+                <TableCell className="border-r border-[var(--hairline)] px-2 py-2 text-center">
+                  <span className="module-index mx-auto">{indexLabel}</span>
+                </TableCell>
+                <TableCell className="border-r border-[var(--hairline)] px-3 py-2">
+                  <button className="block w-full min-w-0 text-left" type="button" onClick={() => onPreview(campaign.id)}>
+                    <span className="block truncate text-sm font-semibold leading-tight text-[var(--ink)]" title={campaign.name}>
+                      {campaign.name}
+                    </span>
+                    <span
+                      className="mt-0.5 block truncate text-xs leading-snug text-[var(--muted)]"
+                      title={campaign.highlights.join(" · ")}
+                    >
+                      {campaign.highlights.join(" · ") || "未配置投放信息"}
+                    </span>
+                  </button>
+                </TableCell>
+                <TableCell className="min-w-0 border-r border-[var(--hairline)] px-2 py-2">
+                  <span className="block truncate text-sm leading-tight text-[var(--ink)]" title={campaign.accountName ?? campaign.accountId}>
+                    {campaign.accountName ?? (campaign.accountId || "未选择账号")}
+                  </span>
+                  {campaign.accountId ? (
+                    <span className="mt-0.5 block truncate text-xs leading-tight text-[var(--muted)]" title={campaign.accountId}>
+                      {campaign.accountId}
+                    </span>
+                  ) : null}
+                </TableCell>
+                <TableCell className="border-r border-[var(--hairline)] px-2 py-2 text-center text-sm text-[var(--body)]">
+                  {campaign.objective}
+                </TableCell>
+                <TableCell className="border-r border-[var(--hairline)] px-2 py-2 text-center text-sm text-[var(--body)]">
+                  {biddingValueText(campaign.bidding)}
+                </TableCell>
+                <TableCell className="border-r border-[var(--hairline)] px-2 py-2 text-center text-sm tabular-nums text-[var(--body)]">
+                  {campaign.budget}
+                </TableCell>
+                <TableCell className="border-r border-[var(--hairline)] px-2 py-2 text-center text-sm text-[var(--body)]">
+                  {campaign.adGroupCount} 组 / {campaign.adCount} 广告
+                </TableCell>
+                <TableCell className="px-2 py-2">
+                  <div className="flex items-center justify-center gap-1">
+                    <Button
+                      aria-label="设置 Campaign"
+                      className="h-7 w-7 px-0"
+                      size="sm"
+                      title="设置 Campaign"
+                      type="button"
+                      onClick={() => onEdit(campaign.id)}
+                    >
+                      <Settings2 aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    </Button>
+                    <Button
+                      aria-label="预览 Campaign"
+                      className="h-7 w-7 px-0"
+                      size="sm"
+                      title="预览"
+                      type="button"
+                      variant="outline"
+                      onClick={() => onPreview(campaign.id)}
+                    >
+                      <Eye aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    </Button>
+                    <Button
+                      aria-label="同步广告系列配置"
+                      className="h-7 w-7 px-0"
+                      size="sm"
+                      title="同步广告系列配置"
+                      type="button"
+                      variant="ghost"
+                      onClick={() => onSync(campaign.id)}
+                    >
+                      <RefreshCw aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    </Button>
+                    <Button
+                      aria-label="复制广告系列"
+                      className="h-7 w-7 px-0"
+                      size="sm"
+                      title="复制广告系列"
+                      type="button"
+                      variant="ghost"
+                      onClick={() => onDuplicate(campaign.id)}
+                    >
+                      <Copy aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    </Button>
+                    <Button
+                      aria-label="删除广告系列"
+                      className="h-7 w-7 px-0"
+                      disabled={!canRemove(campaign.id)}
+                      size="sm"
+                      type="button"
+                      variant="ghost"
+                      onClick={() => onRemove(campaign.id)}
+                    >
+                      <Trash2 aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
     </div>
   );
 }

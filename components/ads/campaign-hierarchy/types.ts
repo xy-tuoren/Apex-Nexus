@@ -26,6 +26,7 @@ export type CampaignHierarchyEditorProps = {
   initialPresets?: CampaignPreset[];
   initialLaunchBatches?: LaunchBatch[];
   initialSites?: Site[];
+  initialCampaignName?: string;
 };
 
 export type SyncPayload = {

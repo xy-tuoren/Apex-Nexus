@@ -1,6 +1,7 @@
 "use client";
 
-import { Plus, Save, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -24,6 +25,7 @@ import type { GoogleAdAccount, GoogleMccAccount, Site } from "@/lib/types";
 
 type SiteBindingManagerProps = {
   adAccounts: GoogleAdAccount[];
+  deletingSiteIds?: Set<string>;
   isSaving?: boolean;
   mccAccounts: GoogleMccAccount[];
   newOperationMccId: string;
@@ -33,10 +35,44 @@ type SiteBindingManagerProps = {
   sites: Site[];
   onClose: () => void;
   onCreate: () => void;
+  onDeleteSite: (siteId: string) => void;
   onNewOperationMccChange: (operationMccId: string) => void;
   onNewSiteChange: (site: string) => void;
-  onUpdateSite: (siteId: string, operationMccId: string) => void;
+  onUpdateSite: (siteId: string, patch: { operationMccId?: string; site?: string }) => void;
 };
+
+function SiteNameInput({
+  disabled,
+  site,
+  onSave,
+}: {
+  disabled?: boolean;
+  site: Site;
+  onSave: (site: string) => void;
+}) {
+  const [value, setValue] = useState(site.domain);
+
+  useEffect(() => {
+    setValue(site.domain);
+  }, [site.domain]);
+
+  return (
+    <Input
+      className="h-9 text-sm"
+      disabled={disabled}
+      placeholder="example.com"
+      spellCheck={false}
+      value={value}
+      onBlur={() => {
+        const trimmed = value.trim();
+        if (trimmed && trimmed !== site.domain) {
+          onSave(trimmed);
+        }
+      }}
+      onChange={(event) => setValue(event.target.value)}
+    />
+  );
+}
 
 function formatCustomerId(customerId: string) {
   const normalized = customerId.replaceAll("-", "");
@@ -45,6 +81,7 @@ function formatCustomerId(customerId: string) {
 
 export function SiteBindingManager({
   adAccounts,
+  deletingSiteIds = new Set<string>(),
   isSaving = false,
   mccAccounts,
   newOperationMccId,
@@ -54,6 +91,7 @@ export function SiteBindingManager({
   sites,
   onClose,
   onCreate,
+  onDeleteSite,
   onNewOperationMccChange,
   onNewSiteChange,
   onUpdateSite,
@@ -115,7 +153,7 @@ export function SiteBindingManager({
               </div>
               <div className="flex items-end">
                 <Button
-                  className="w-full md:w-auto"
+                  className="h-10 w-full md:w-auto"
                   disabled={isSaving || !newSite.trim() || !newOperationMccId}
                   type="button"
                   onClick={onCreate}
@@ -151,30 +189,44 @@ export function SiteBindingManager({
                 ) : (
                   sites.map((site) => {
                     const isRowSaving = savingSiteIds.has(site.id);
+                    const isRowDeleting = deletingSiteIds.has(site.id);
+                    const isRowBusy = isRowSaving || isRowDeleting;
                     return (
                       <TableRow key={site.id}>
                         <TableCell>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-[var(--ink)]">{site.name}</p>
-                            <p className="truncate text-xs text-[var(--muted)]">{site.domain}</p>
-                          </div>
+                          <SiteNameInput
+                            disabled={isRowBusy}
+                            site={site}
+                            onSave={(nextSite) => onUpdateSite(site.id, { site: nextSite })}
+                          />
                         </TableCell>
                         <TableCell>
                           <SelectControl
+                            disabled={isRowBusy}
                             options={operationMccOptions}
                             value={site.operationMccId}
-                            onChange={(operationMccId) => onUpdateSite(site.id, operationMccId)}
+                            onChange={(operationMccId) => onUpdateSite(site.id, { operationMccId })}
                           />
                         </TableCell>
                         <TableCell className="text-center text-sm tabular-nums text-[var(--body)]">
                           {accountCounts.get(site.operationMccId) ?? 0}
                         </TableCell>
                         <TableCell className="text-center">
-                          {isRowSaving ? (
-                            <Spinner aria-hidden className="mx-auto h-4 w-4" />
-                          ) : (
-                            <Save aria-hidden className="mx-auto h-4 w-4 text-[var(--muted)]" strokeWidth={1.75} />
-                          )}
+                          <Button
+                            aria-label={`删除站点 ${site.name}`}
+                            className="mx-auto h-8 w-8 px-0"
+                            disabled={isRowBusy || sites.length === 1}
+                            size="sm"
+                            type="button"
+                            variant="ghost"
+                            onClick={() => onDeleteSite(site.id)}
+                          >
+                            {isRowDeleting ? (
+                              <Spinner aria-hidden className="h-4 w-4" />
+                            ) : (
+                              <Trash2 aria-hidden className="h-4 w-4 text-[var(--semantic-error)]" strokeWidth={1.75} />
+                            )}
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
