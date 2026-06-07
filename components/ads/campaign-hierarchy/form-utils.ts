@@ -913,6 +913,7 @@ export function buildDefaultCampaign(index: number, account?: GoogleAdAccount): 
     adSchedule: buildDefaultSchedule(),
     finalUrlSuffix: "gad_campaignid={campaignid}",
     ipExclusions: "",
+    campaignNameSuffix: "",
     adGroups: [createDefaultAdGroup(1)],
   };
 }
@@ -934,6 +935,7 @@ export function buildPresetPayloadFromCampaign(campaign: CampaignForm): Campaign
     ),
     finalUrlSuffix: campaign.finalUrlSuffix,
     ipExclusions: campaign.ipExclusions,
+    campaignNameSuffix: campaign.campaignNameSuffix,
     adGroups: campaign.adGroups.map((group) => ({
       locations: group.locations,
       language: group.language,
@@ -957,8 +959,13 @@ export function applyPresetPayloadToCampaign(
   payload: CampaignPresetPayload,
   nextId: () => string,
 ): CampaignForm {
+  const suffix = payload.campaignNameSuffix?.trim();
+  const nameWithSuffix = suffix && !campaign.campaignName.endsWith(suffix)
+    ? `${campaign.campaignName}${suffix}`
+    : campaign.campaignName;
   return {
     ...campaign,
+    campaignName: nameWithSuffix,
     advertisingType: payload.advertisingType,
     campaignObjective: payload.campaignObjective,
     conversionGoal: payload.conversionGoal,
@@ -974,6 +981,7 @@ export function applyPresetPayloadToCampaign(
     ),
     finalUrlSuffix: payload.finalUrlSuffix,
     ipExclusions: payload.ipExclusions,
+    campaignNameSuffix: suffix || "",
     adGroups: payload.adGroups.map((groupPreset, groupIndex) => {
       const currentGroup = campaign.adGroups[groupIndex];
       const groupId = currentGroup?.id ?? `adg_${nextId()}`;

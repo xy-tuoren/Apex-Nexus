@@ -154,6 +154,8 @@ export function CampaignEditorForm({
               />
               {errors.campaignName ? (
                 <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.campaignName}</p>
+              ) : campaign.campaignNameSuffix ? (
+                <p className="text-xs leading-relaxed text-[var(--muted)]">已套用名称后缀：{campaign.campaignNameSuffix}</p>
               ) : null}
             </div>
           </div>

@@ -114,6 +114,7 @@ export type CampaignForm = {
   adSchedule: ScheduleGridValue;
   finalUrlSuffix: string;
   ipExclusions: string;
+  campaignNameSuffix?: string;
   adGroups: AdGroupForm[];
 };
 

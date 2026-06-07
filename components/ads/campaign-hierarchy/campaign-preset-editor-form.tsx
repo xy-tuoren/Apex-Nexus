@@ -305,6 +305,13 @@ export function CampaignPresetEditorForm({
             onChange={(ipExclusions) => patchPayload({ ipExclusions })}
           />
         </Field>
+        <Field label="名称后缀" hint="套用预设时自动追加到广告系列名称末尾">
+          <Input
+            placeholder="例如：-000"
+            value={payload.campaignNameSuffix ?? ""}
+            onChange={(event) => patchPayload({ campaignNameSuffix: event.target.value })}
+          />
+        </Field>
       </section>
 
       <section className="space-y-4 rounded-2xl border border-[var(--hairline)] bg-[var(--surface-card)] p-3">

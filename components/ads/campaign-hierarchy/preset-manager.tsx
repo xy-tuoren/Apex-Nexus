@@ -12,96 +12,16 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { CampaignPresetEditorForm } from "@/components/ads/campaign-hierarchy/campaign-preset-editor-form";
-import { HierarchyEditModal } from "@/components/ads/campaign-hierarchy/hierarchy-edit-modal";
 import { PresetTable } from "@/components/ads/campaign-hierarchy/preset-table";
 import type { PresetEditorState, PresetTableRow } from "@/components/ads/campaign-hierarchy/preset-utils";
-import { formatStableDateTime, summarizeOsDevice } from "@/components/ads/campaign-hierarchy/form-utils";
 import type { AccountResources } from "@/hooks/useAccountResource";
-import type { CampaignPreset, CampaignPresetPayload } from "@/lib/types";
-
-type PresetApplyDialogProps = {
-  open: boolean;
-  presets: CampaignPreset[];
-  currentPage: number;
-  totalPresets: number;
-  onClose: () => void;
-  onApply: (preset: CampaignPreset) => void;
-  onPageChange: (page: number) => void;
-};
-
-export function PresetApplyDialog({ open, presets, currentPage, totalPresets, onClose, onApply, onPageChange }: PresetApplyDialogProps) {
-  if (!open) {
-    return null;
-  }
-
-  const totalPages = Math.max(1, Math.ceil(totalPresets / PAGE_SIZE));
-
-  return (
-    <HierarchyEditModal
-      eyebrow="投放预设"
-      maxWidthClassName="sm:max-w-4xl"
-      title="选择预设"
-      onClose={onClose}
-    >
-      <div className="grid gap-3">
-        {presets.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-[var(--hairline)] bg-[var(--canvas-soft)] px-4 py-6 text-sm text-[var(--muted)]">
-            暂无预设。
-          </p>
-        ) : (
-          presets.map((preset) => (
-            <div key={preset.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--hairline)] bg-[var(--surface-card)] px-4 py-3">
-              <div className="flex min-w-0 flex-1 items-center gap-3 truncate">
-                <span className="truncate text-sm font-semibold text-[var(--ink)]">{preset.name}</span>
-                {preset.description ? (
-                  <span className="truncate text-xs text-[var(--muted)]">{preset.description}</span>
-                ) : null}
-                <span className="shrink-0 text-xs text-[var(--muted)]">
-                  {preset.payload.campaignObjective} · {summarizeOsDevice(preset.payload.os, preset.payload.devices)} · {formatStableDateTime(preset.updatedAt)}
-                </span>
-              </div>
-              <Button size="sm" type="button" className="shrink-0" onClick={() => onApply(preset)}>
-                套用
-              </Button>
-            </div>
-          ))
-        )}
-      </div>
-      {totalPages > 1 ? (
-        <div className="mt-3 flex items-center justify-center gap-2">
-          <Button
-            aria-label="上一页"
-            disabled={currentPage <= 1}
-            size="icon-xs"
-            type="button"
-            variant="outline"
-            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-          >
-            <ChevronLeft aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
-          </Button>
-          <span className="text-xs tabular-nums text-[var(--muted)]">
-            {currentPage} / {totalPages}
-          </span>
-          <Button
-            aria-label="下一页"
-            disabled={currentPage >= totalPages}
-            size="icon-xs"
-            type="button"
-            variant="outline"
-            onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-          >
-            <ChevronRight aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
-          </Button>
-        </div>
-      ) : null}
-    </HierarchyEditModal>
-  );
-}
+import type { CampaignPresetPayload } from "@/lib/types";
 
 type PresetManagerProps = {
   open: boolean;
+  mode: "manage" | "apply";
   presets: CampaignPreset[];
-  presetEditor: PresetEditorState | null;
+  presetEditor?: PresetEditorState | null;
   presetTableRows: PresetTableRow[];
   resources: AccountResources;
   currentPage: number;
@@ -111,22 +31,24 @@ type PresetManagerProps = {
   isReloading?: boolean;
   isSaving?: boolean;
   onClose: () => void;
-  onReload: () => void;
-  onCreate: () => void;
-  onEdit: (preset: CampaignPreset) => void;
-  onDelete: (presetId: string) => void;
-  onSave: () => void;
+  onReload?: () => void;
+  onCreate?: () => void;
+  onEdit?: (preset: CampaignPreset) => void;
+  onDelete?: (presetId: string) => void;
+  onSave?: () => void;
+  onApply?: (preset: CampaignPreset) => void;
   onPageChange: (page: number) => void;
   onSearchChange: (search: string) => void;
-  onPresetEditorChange: (updater: (current: PresetEditorState | null) => PresetEditorState | null) => void;
+  onPresetEditorChange?: (updater: (current: PresetEditorState | null) => PresetEditorState | null) => void;
 };
 
 const PAGE_SIZE = 10;
 
 export function PresetManager({
   open,
+  mode,
   presets,
-  presetEditor,
+  presetEditor = null,
   presetTableRows,
   resources,
   currentPage,
@@ -141,10 +63,12 @@ export function PresetManager({
   onEdit,
   onDelete,
   onSave,
+  onApply,
   onPageChange,
   onSearchChange,
   onPresetEditorChange,
 }: PresetManagerProps) {
+  const isManage = mode === "manage";
   const totalPages = Math.max(1, Math.ceil(totalPresets / PAGE_SIZE));
 
   return (
@@ -159,28 +83,28 @@ export function PresetManager({
             <div>
               <p className="text-caption-uppercase text-[var(--muted)]">投放预设</p>
               <DrawerTitle className="mt-1 text-2xl font-semibold tracking-[-0.02em] text-[var(--ink)]">
-                {presetEditor ? (presetEditor.mode === "create" ? "添加预设" : "编辑预设") : "管理预设"}
+                {isManage && presetEditor ? (presetEditor.mode === "create" ? "添加预设" : "编辑预设") : isManage ? "管理预设" : "选择预设"}
               </DrawerTitle>
               <DrawerDescription className="sr-only">
-                管理广告投放预设
+                {isManage ? "管理广告投放预设" : "选择要套用的预设"}
               </DrawerDescription>
             </div>
-            <Button aria-label="关闭预设管理" size="icon-sm" type="button" variant="ghost" onClick={onClose}>
+            <Button aria-label="关闭" size="icon-sm" type="button" variant="ghost" onClick={onClose}>
               <X aria-hidden className="h-4 w-4" strokeWidth={1.75} />
             </Button>
           </div>
         </DrawerHeader>
-        {presetEditor ? (
+        {isManage && presetEditor ? (
           <div className="flex min-h-0 flex-1 flex-col">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--hairline)] bg-[var(--canvas-soft)] px-6 py-4">
-            <Button disabled={isSaving} size="sm" type="button" variant="outline" onClick={() => onPresetEditorChange(() => null)}>
+            <Button disabled={isSaving} size="sm" type="button" variant="outline" onClick={() => onPresetEditorChange?.(() => null)}>
               返回列表
             </Button>
             <div className="flex items-center gap-2">
-              <Button disabled={isSaving} size="sm" type="button" variant="outline" onClick={() => onPresetEditorChange(() => null)}>
+              <Button disabled={isSaving} size="sm" type="button" variant="outline" onClick={() => onPresetEditorChange?.(() => null)}>
                 取消
               </Button>
-              <Button disabled={isSaving} size="sm" type="button" onClick={() => void onSave()}>
+              <Button disabled={isSaving} size="sm" type="button" onClick={() => void onSave?.()}>
                 {isSaving ? (
                   <Spinner aria-hidden className="h-4 w-4" />
                 ) : (
@@ -205,13 +129,13 @@ export function PresetManager({
               name={presetEditor.name}
               payload={presetEditor.payload}
               onDescriptionChange={(description) =>
-                onPresetEditorChange((current) => (current ? { ...current, description } : current))
+                onPresetEditorChange?.((current) => (current ? { ...current, description } : current))
               }
               onNameChange={(name) =>
-                onPresetEditorChange((current) => (current ? { ...current, name } : current))
+                onPresetEditorChange?.((current) => (current ? { ...current, name } : current))
               }
               onPayloadChange={(payload: CampaignPresetPayload) =>
-                onPresetEditorChange((current) => (current ? { ...current, payload } : current))
+                onPresetEditorChange?.((current) => (current ? { ...current, payload } : current))
               }
             />
           </div>
@@ -230,14 +154,16 @@ export function PresetManager({
                   onChange={(e) => onSearchChange(e.target.value)}
                 />
               </div>
-              <Button disabled={isReloading} size="sm" type="button" variant="outline" onClick={() => void onReload()}>
+              <Button disabled={isReloading} size="sm" type="button" variant="outline" onClick={() => void onReload?.()}>
                 {isReloading ? <Spinner aria-hidden className="h-4 w-4" /> : null}
                 {isReloading ? "刷新中..." : "刷新列表"}
               </Button>
-              <Button size="sm" type="button" onClick={onCreate}>
-                <Plus aria-hidden className="h-4 w-4" strokeWidth={1.75} />
-                添加预设
-              </Button>
+              {isManage ? (
+                <Button size="sm" type="button" onClick={onCreate}>
+                  <Plus aria-hidden className="h-4 w-4" strokeWidth={1.75} />
+                  添加预设
+                </Button>
+              ) : null}
             </div>
           </div>
           <div className="relative min-h-0 flex-1 overflow-auto px-6 py-5">
@@ -256,7 +182,9 @@ export function PresetManager({
                 </div>
                 <div className="text-center">
                   <p className="text-sm font-medium text-[var(--ink)]">暂无预设</p>
-                  <p className="mt-1 text-xs text-[var(--muted)]">点击「添加预设」创建第一套可复用配置。</p>
+                  <p className="mt-1 text-xs text-[var(--muted)]">
+                    {isManage ? "点击「添加预设」创建第一套可复用配置。" : "请先在管理预设中创建预设。"}
+                  </p>
                 </div>
               </div>
             ) : (
@@ -265,8 +193,9 @@ export function PresetManager({
                   deletingPresetIds={deletingPresetIds}
                   rows={presetTableRows}
                   presets={presets}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
+                  onEdit={isManage ? onEdit : undefined}
+                  onDelete={isManage ? onDelete : undefined}
+                  onRowClick={!isManage ? (preset) => onApply?.(preset) : undefined}
                 />
                 {totalPages > 1 ? (
                   <div className="flex items-center justify-center gap-2 border-t border-[var(--hairline)] px-6 py-3">

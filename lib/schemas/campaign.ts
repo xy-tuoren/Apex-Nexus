@@ -144,6 +144,7 @@ export const campaignPresetPayloadSchema = z.object({
   adSchedule: adScheduleSchema,
   finalUrlSuffix: z.string().default(""),
   ipExclusions: z.string().default(""),
+  campaignNameSuffix: z.string().max(80).default(""),
   adGroups: z.array(campaignPresetAdGroupPayloadSchema).min(1),
 });
 

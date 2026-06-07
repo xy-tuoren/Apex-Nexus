@@ -167,6 +167,7 @@ export type CampaignPresetPayload = {
   adSchedule: GoogleAdSchedule;
   finalUrlSuffix: string;
   ipExclusions: string;
+  campaignNameSuffix?: string;
   adGroups: CampaignPresetAdGroupPayload[];
 };
 

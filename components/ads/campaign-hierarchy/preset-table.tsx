@@ -69,6 +69,7 @@ const PRESET_TABLE_COLUMNS = [
   { key: "objective", width: 80, label: "目标" },
   { key: "bidding", width: 56, label: "出价" },
   { key: "budget", width: 56, label: "预算" },
+  { key: "campaignNameSuffix", width: 80, label: "后缀" },
   { key: "schedule", width: 268, label: "投放时间" },
   { key: "device", width: 120, label: "设备" },
   { key: "location", width: 112, label: "位置" },
@@ -78,8 +79,6 @@ const PRESET_TABLE_COLUMNS = [
   { key: "updatedAt", width: 100, label: "更新" },
   { key: "actions", width: 172, label: "操作" },
 ] as const;
-
-const PRESET_TABLE_MIN_WIDTH = PRESET_TABLE_COLUMNS.reduce((total, column) => total + column.width, 0);
 
 function PresetCellContent({ children }: { children: ReactNode }) {
   return (
@@ -157,8 +156,9 @@ type PresetTableProps = {
   rows: PresetTableRow[];
   presets: CampaignPreset[];
   deletingPresetIds?: Set<string>;
-  onEdit: (preset: CampaignPreset) => void;
-  onDelete: (presetId: string) => void;
+  onEdit?: (preset: CampaignPreset) => void;
+  onDelete?: (presetId: string) => void;
+  onRowClick?: (preset: CampaignPreset) => void;
 };
 
 export function PresetTable({
@@ -167,21 +167,28 @@ export function PresetTable({
   deletingPresetIds = new Set<string>(),
   onEdit,
   onDelete,
+  onRowClick,
 }: PresetTableProps) {
+  const hasActions = Boolean(onEdit || onDelete);
+  const displayColumns = hasActions
+    ? PRESET_TABLE_COLUMNS
+    : PRESET_TABLE_COLUMNS.filter((c) => c.key !== "actions");
+  const minWidth = displayColumns.reduce((total, c) => total + c.width, 0);
+
   return (
     <div className="overflow-x-auto rounded-2xl border border-[var(--hairline)] bg-[var(--surface-card)]">
       <Table
         className="table-fixed border-collapse [&_td]:border-[var(--hairline)] [&_th]:border-[var(--hairline)]"
-        style={{ minWidth: PRESET_TABLE_MIN_WIDTH, width: PRESET_TABLE_MIN_WIDTH }}
+        style={{ minWidth, width: minWidth }}
       >
         <colgroup>
-          {PRESET_TABLE_COLUMNS.map((column) => (
+          {displayColumns.map((column) => (
             <col key={column.key} style={{ width: column.width }} />
           ))}
         </colgroup>
         <TableHeader>
           <TableRow className="border-b border-[var(--hairline)] bg-[var(--canvas-soft)] hover:bg-[var(--canvas-soft)]">
-            {PRESET_TABLE_COLUMNS.map((column) => (
+            {displayColumns.map((column) => (
               <TableHead key={column.key} className={PRESET_TABLE_HEAD_DIVIDER_CLASS}>
                 {column.label}
               </TableHead>
@@ -192,8 +199,15 @@ export function PresetTable({
           {rows.map((row) => {
             const preset = presets.find((item) => item.id === row.id);
             const isDeleting = deletingPresetIds.has(row.id);
+            const rowClass = onRowClick
+              ? "border-b border-[var(--hairline)] transition-colors hover:bg-muted cursor-pointer"
+              : "border-b border-[var(--hairline)] transition-colors hover:bg-muted";
             return (
-              <TableRow key={row.id} className="border-b border-[var(--hairline)] transition-colors hover:bg-[var(--canvas-soft)]/60">
+              <TableRow
+                key={row.id}
+                className={rowClass}
+                onClick={preset && onRowClick ? () => onRowClick(preset) : undefined}
+              >
                 <TableCell className={`${PRESET_TABLE_CELL_CLASS} text-sm font-semibold text-[var(--ink)]`}>
                   <PresetCellContent>
                     <ClampedText title={row.name}>{row.name}</ClampedText>
@@ -217,6 +231,11 @@ export function PresetTable({
                 <TableCell className={`${PRESET_TABLE_CELL_CLASS} text-sm tabular-nums text-[var(--ink)]`}>
                   <PresetCellContent>
                     <ClampedText title={row.budget}>{row.budget}</ClampedText>
+                  </PresetCellContent>
+                </TableCell>
+                <TableCell className={`${PRESET_TABLE_CELL_CLASS} text-xs text-[var(--muted)]`}>
+                  <PresetCellContent>
+                    <ClampedText title={row.campaignNameSuffix || undefined}>{row.campaignNameSuffix || "-"}</ClampedText>
                   </PresetCellContent>
                 </TableCell>
                 <TableCell className={PRESET_TABLE_CELL_CLASS}>
@@ -244,42 +263,48 @@ export function PresetTable({
                     <ClampedText title={row.updatedAt}>{row.updatedAt}</ClampedText>
                   </PresetCellContent>
                 </TableCell>
-                <TableCell className={`${PRESET_TABLE_CELL_CLASS} whitespace-nowrap`}>
-                  {preset ? (
-                    <PresetCellContent>
-                    <div className="inline-flex flex-nowrap items-center justify-center gap-2">
-                      <Button
-                        aria-label={`编辑预设 ${preset.name}`}
-                        className="h-7 gap-1.5 rounded-lg px-2.5 whitespace-nowrap"
-                        disabled={isDeleting}
-                        size="sm"
-                        type="button"
-                        variant="outline"
-                        onClick={() => onEdit(preset)}
-                      >
-                        <Pencil aria-hidden className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
-                        编辑
-                      </Button>
-                      <Button
-                        aria-label={`删除预设 ${preset.name}`}
-                        className="h-7 gap-1.5 rounded-lg px-2.5 whitespace-nowrap text-[var(--semantic-error)] hover:border-[var(--semantic-error)]/30 hover:bg-[var(--semantic-error)]/8 hover:text-[var(--semantic-error)]"
-                        disabled={isDeleting}
-                        size="sm"
-                        type="button"
-                        variant="outline"
-                        onClick={() => void onDelete(preset.id)}
-                      >
-                        {isDeleting ? (
-                          <Spinner aria-hidden className="h-3.5 w-3.5 shrink-0" />
-                        ) : (
-                          <Trash2 aria-hidden className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
-                        )}
-                        {isDeleting ? "删除中" : "删除"}
-                      </Button>
-                    </div>
-                    </PresetCellContent>
-                  ) : null}
-                </TableCell>
+                {hasActions ? (
+                  <TableCell className={`${PRESET_TABLE_CELL_CLASS} whitespace-nowrap`}>
+                    {preset ? (
+                      <PresetCellContent>
+                      <div className="inline-flex flex-nowrap items-center justify-center gap-2">
+                        {onEdit ? (
+                          <Button
+                            aria-label={`编辑预设 ${preset.name}`}
+                            className="h-7 gap-1.5 rounded-lg px-2.5 whitespace-nowrap"
+                            disabled={isDeleting}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                            onClick={() => onEdit(preset)}
+                          >
+                            <Pencil aria-hidden className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+                            编辑
+                          </Button>
+                        ) : null}
+                        {onDelete ? (
+                          <Button
+                            aria-label={`删除预设 ${preset.name}`}
+                            className="h-7 gap-1.5 rounded-lg px-2.5 whitespace-nowrap text-[var(--semantic-error)] hover:border-[var(--semantic-error)]/30 hover:bg-[var(--semantic-error)]/8 hover:text-[var(--semantic-error)]"
+                            disabled={isDeleting}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                            onClick={() => void onDelete(preset.id)}
+                          >
+                            {isDeleting ? (
+                              <Spinner aria-hidden className="h-3.5 w-3.5 shrink-0" />
+                            ) : (
+                              <Trash2 aria-hidden className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+                            )}
+                            {isDeleting ? "删除中" : "删除"}
+                          </Button>
+                        ) : null}
+                      </div>
+                      </PresetCellContent>
+                    ) : null}
+                  </TableCell>
+                ) : null}
               </TableRow>
             );
           })}

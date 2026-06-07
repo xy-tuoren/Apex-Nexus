@@ -42,6 +42,7 @@ export type PresetTableRow = {
   campaignObjectiveLabel: string;
   bidding: string;
   budget: string;
+  campaignNameSuffix?: string;
   scheduleTags: PresetScheduleTag[];
   deviceTags: PresetDeviceTag[];
   locationLabel: string;
@@ -159,6 +160,7 @@ export function buildPresetTableRows(
       campaignObjectiveLabel: resolvePresetCampaignObjectiveLabel(preset.payload.campaignObjective),
       bidding: formatPresetBiddingValue(preset.payload),
       budget: preset.payload.budgetDaily?.trim() || "-",
+      campaignNameSuffix: preset.payload.campaignNameSuffix?.trim() || undefined,
       deviceTags: buildDeviceTags(preset.payload.devices),
       scheduleTags: buildScheduleTags(preset.payload.adSchedule),
       locationLabel: firstGroup ? summarizeGeoLocation(firstGroup.locations, geoTargets) : "-",
