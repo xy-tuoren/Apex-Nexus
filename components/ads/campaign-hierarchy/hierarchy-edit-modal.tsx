@@ -44,7 +44,7 @@ export function HierarchyTrail({ items }: { items: HierarchyTrailItem[] }) {
               <button
                 type="button"
                 onClick={item.onClick}
-                className="truncate font-medium text-[var(--accent)] underline decoration-[var(--accent)]/30 underline-offset-2 transition-colors hover:text-[var(--accent-strong)]"
+                className="truncate font-medium text-black underline decoration-black/30 underline-offset-2 transition-colors hover:text-black/70 dark:text-white dark:decoration-white/30 dark:hover:text-white/70"
                 title={item.name}
               >
                 {item.name}

@@ -276,23 +276,6 @@ export function CampaignHierarchyEditor({
     return () => window.clearInterval(interval);
   }, [hasRunningBatches, reloadLaunchBatches]);
 
-  // Auto-pick first conversion goal when loaded
-  useEffect(() => {
-    for (const campaign of campaigns) {
-      const r = allResources[campaign.adAccountId];
-      if (r?.conversionGoals.status !== "success" || r.conversionGoals.data.length === 0) {
-        continue;
-      }
-
-      const hasSelectedGoal = r.conversionGoals.data.some(
-        (goal) => goal.id === campaign.conversionGoal,
-      );
-      if (!hasSelectedGoal) {
-        patchCampaign(campaign.id, { conversionGoal: r.conversionGoals.data[0]?.id ?? "" });
-      }
-    }
-  }, [allResources, campaigns]);
-
   function closeCampaignEditor() {
     setIsCampaignEditorOpen(false);
     setActiveCampaignId(null);

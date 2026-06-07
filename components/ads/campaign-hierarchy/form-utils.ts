@@ -902,7 +902,7 @@ export function buildDefaultCampaign(index: number, account?: GoogleAdAccount): 
     advertisingType: "DEMAND_GEN",
     campaignName: "",
     campaignObjective: "CONVERSIONS",
-    conversionGoal: "PURCHASE",
+    conversionGoal: "",
     biddingType: "TARGET_CPA",
     clickBiddingType: "MAX_CPC",
     targetCpa: "1.2",

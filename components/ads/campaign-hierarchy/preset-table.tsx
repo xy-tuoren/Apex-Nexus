@@ -21,6 +21,9 @@ import {
   type PresetScheduleTag,
   type PresetTableRow,
 } from "@/components/ads/campaign-hierarchy/preset-utils";
+
+const TEXT_LIST_CELL_CLASS =
+  "align-middle border-r border-[var(--hairline)] px-3 py-2.5 text-left last:border-r-0";
 import type { CampaignPreset } from "@/lib/types";
 
 const PRESET_TABLE_CELL_CLASS =
@@ -29,7 +32,6 @@ const PRESET_TABLE_HEAD_DIVIDER_CLASS = `${PRESET_TABLE_HEAD_CLASS} border-r bor
 const CLAMPED_TEXT_CLASS =
   "block max-w-full overflow-hidden whitespace-normal break-words [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] [overflow-wrap:anywhere]";
 
-const CONTENT_TAG_TONES = ["blue", "green", "amber", "violet", "rose", "neutral"] as const;
 const BADGE_TONE_CLASS: Record<string, string> = {
   neutral: "border-[var(--hairline)] bg-[var(--surface-strong)] text-[var(--body)]",
   blue: "border-sky-200 bg-sky-50 text-sky-700",
@@ -103,22 +105,17 @@ function ClampedText({
   );
 }
 
-function renderPresetNumberedTags(items: string[]) {
+function renderPresetTextList(items: string[]) {
   if (items.length === 0) {
     return <span className="text-xs text-[var(--muted)]">-</span>;
   }
 
   return (
-    <div className="flex w-full flex-col items-center justify-center gap-1">
+    <div className="flex w-full flex-col items-start gap-0.5 text-left">
       {items.map((item, index) => (
-        <ToneBadge
-          key={`${item}-${index}`}
-          title={item}
-          tone={CONTENT_TAG_TONES[index % CONTENT_TAG_TONES.length]}
-          className="h-auto justify-center whitespace-normal px-2.5 py-1 text-center text-[11px] leading-snug"
-        >
+        <span key={`${item}-${index}`} className={CLAMPED_TEXT_CLASS} title={item}>
           {index + 1}. {item}
-        </ToneBadge>
+        </span>
       ))}
     </div>
   );
@@ -233,14 +230,14 @@ export function PresetTable({
                     <ClampedText title={row.locationLabel}>{row.locationLabel}</ClampedText>
                   </PresetCellContent>
                 </TableCell>
-                <TableCell className={PRESET_TABLE_CELL_CLASS}>
-                  <PresetCellContent>{renderPresetNumberedTags(row.shortHeadlines)}</PresetCellContent>
+                <TableCell className={TEXT_LIST_CELL_CLASS}>
+                  {renderPresetTextList(row.shortHeadlines)}
                 </TableCell>
-                <TableCell className={PRESET_TABLE_CELL_CLASS}>
-                  <PresetCellContent>{renderPresetNumberedTags(row.longHeadlines)}</PresetCellContent>
+                <TableCell className={TEXT_LIST_CELL_CLASS}>
+                  {renderPresetTextList(row.longHeadlines)}
                 </TableCell>
-                <TableCell className={PRESET_TABLE_CELL_CLASS}>
-                  <PresetCellContent>{renderPresetNumberedTags(row.adDescriptions)}</PresetCellContent>
+                <TableCell className={TEXT_LIST_CELL_CLASS}>
+                  {renderPresetTextList(row.adDescriptions)}
                 </TableCell>
                 <TableCell className={`${PRESET_TABLE_CELL_CLASS} text-xs tabular-nums text-[var(--muted)]`}>
                   <PresetCellContent>
