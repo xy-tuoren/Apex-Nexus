@@ -41,7 +41,7 @@ import type {
   GeoTargetOption,
   LanguageTargetOption,
 } from "@/components/ads/campaign-hierarchy/types";
-import type { GoogleAdAccount } from "@/lib/types";
+import type { GoogleAdAccount, Site } from "@/lib/types";
 import type { ResourceStatus } from "@/hooks/useAccountResource";
 
 function inputErrorClass(error?: string) {
@@ -51,6 +51,7 @@ function inputErrorClass(error?: string) {
 interface CampaignEditorFormProps {
   campaign: CampaignForm;
   adAccounts: GoogleAdAccount[];
+  sites: Site[];
   syncState: "idle" | "loaded" | "loading" | "success" | "error";
   // Validation
   hideSidebar?: boolean;
@@ -79,6 +80,7 @@ interface CampaignEditorFormProps {
 export function CampaignEditorForm({
   campaign,
   adAccounts,
+  sites,
   syncState,
   hideSidebar,
   errors = {},
@@ -128,15 +130,34 @@ export function CampaignEditorForm({
           <div className={editorFormFieldRowClassName}>
             <div className="field">
               <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
+                站点<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
+              </label>
+              <SelectControl
+                options={sites.map((site) => ({
+                  value: site.id,
+                  label: `${site.name} · ${site.domain}`,
+                }))}
+                placeholder="请选择站点"
+                value={campaign.siteId}
+                onChange={(siteId) => {
+                  patchCampaign(campaign.id, { siteId, adAccountId: "", conversionGoal: "" });
+                }}
+              />
+              {errors.siteId ? (
+                <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.siteId}</p>
+              ) : null}
+            </div>
+            <div className="field">
+              <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
                 账户<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
               </label>
               <SelectControl
-                disabled={syncState === "loading" || adAccounts.length === 0}
+                disabled={syncState === "loading" || !campaign.siteId || adAccounts.length === 0}
                 options={adAccounts.map((account) => ({
                   value: account.id,
                   label: `${account.name} · ${account.customerId}`,
                 }))}
-                placeholder="请选择账号"
+                placeholder={campaign.siteId ? "请选择账号" : "请先选择站点"}
                 value={campaign.adAccountId}
                 onChange={(adAccountId) => {
                   patchCampaign(campaign.id, { adAccountId, conversionGoal: "" });
@@ -144,8 +165,12 @@ export function CampaignEditorForm({
               />
               {errors.adAccountId ? (
                 <p className="text-xs leading-relaxed text-[var(--semantic-error)]">{errors.adAccountId}</p>
+              ) : campaign.siteId && adAccounts.length === 0 ? (
+                <p className="text-xs leading-relaxed text-[var(--muted)]">当前站点绑定的操作 MCC 下没有可用投放账号。</p>
               ) : null}
             </div>
+          </div>
+          <div className={editorFormFieldRowClassName}>
             <div className="field">
               <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
                 广告系列名称<span className="ml-0.5 text-[var(--semantic-error)]">*</span>

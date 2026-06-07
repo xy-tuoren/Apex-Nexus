@@ -303,9 +303,9 @@ export function VideoLinkList({
 
                   <div className="min-w-0 flex-1 space-y-2">
                     <Textarea
-                      className="min-h-[3.25rem] resize-y py-2.5 text-sm leading-relaxed"
+                      className="min-h-[2.25rem] resize-y py-2.5 text-sm leading-relaxed"
                       placeholder="https://www.youtube.com/watch?v=..."
-                      rows={2}
+                      rows={1}
                       spellCheck={false}
                       value={item}
                       onChange={(event) => updateItem(index, event.target.value)}

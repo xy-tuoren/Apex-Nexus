@@ -4,6 +4,7 @@ import type {
   GoogleAdAccount,
   GoogleMccAccount,
   LaunchBatch,
+  Site,
 } from "@/lib/types";
 
 export type ApiResult = {
@@ -24,6 +25,7 @@ export type CampaignHierarchyEditorProps = {
   initialMccAccounts?: GoogleMccAccount[];
   initialPresets?: CampaignPreset[];
   initialLaunchBatches?: LaunchBatch[];
+  initialSites?: Site[];
 };
 
 export type SyncPayload = {
@@ -99,6 +101,7 @@ export type ClickBiddingType = "MAXIMIZE_CLICKS" | "MAX_CPC";
 
 export type CampaignForm = {
   id: string;
+  siteId: string;
   adAccountId: string;
   advertisingType: AdvertisingType;
   campaignName: string;

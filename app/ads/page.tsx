@@ -5,17 +5,23 @@ import { getSessionUser } from "@/lib/auth/server";
 import {
   listAllAdAccounts,
   listMccAccounts,
+  listSites,
 } from "@/server/services/account-service";
 import { listCampaignPresets } from "@/server/services/campaign-preset-service";
 import { listLaunchBatches } from "@/server/services/launch-service";
+import type { CampaignPreset, GoogleAdAccount, GoogleMccAccount, LaunchBatch, Site } from "@/lib/types";
 
 export default async function AdsLaunchPage() {
-  const [adAccounts, mccAccounts, presets, launchBatches] = await Promise.all([
+  const accountData = await Promise.all([
     listAllAdAccounts(),
     listMccAccounts(),
+    listSites(),
     listCampaignPresets().then((r) => r.items),
     listLaunchBatches(),
   ]);
+  const [adAccounts, mccAccounts, sites, presets, launchBatches] = JSON.parse(
+    JSON.stringify(accountData),
+  ) as [GoogleAdAccount[], GoogleMccAccount[], Site[], CampaignPreset[], LaunchBatch[]];
   const accountsSyncedAt =
     mccAccounts
       .map((account) => account.lastSyncedAt)
@@ -33,6 +39,7 @@ export default async function AdsLaunchPage() {
           initialAdAccounts={adAccounts}
           accountsSyncedAt={accountsSyncedAt}
           initialMccAccounts={mccAccounts}
+          initialSites={sites}
           initialPresets={presets}
           initialLaunchBatches={launchBatches}
         />

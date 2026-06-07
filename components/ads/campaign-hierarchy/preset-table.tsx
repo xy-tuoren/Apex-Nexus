@@ -66,6 +66,7 @@ function ToneBadge({
 const PRESET_TABLE_COLUMNS = [
   { key: "name", width: 80, label: "名称" },
   { key: "description", width: 120, label: "描述" },
+  { key: "site", width: 132, label: "站点" },
   { key: "objective", width: 80, label: "目标" },
   { key: "bidding", width: 56, label: "出价" },
   { key: "budget", width: 56, label: "预算" },
@@ -216,6 +217,11 @@ export function PresetTable({
                 <TableCell className={`${PRESET_TABLE_CELL_CLASS} text-xs text-[var(--muted)]`}>
                   <PresetCellContent>
                     <ClampedText title={row.description || undefined}>{row.description || "-"}</ClampedText>
+                  </PresetCellContent>
+                </TableCell>
+                <TableCell className={`${PRESET_TABLE_CELL_CLASS} text-xs text-[var(--muted)]`}>
+                  <PresetCellContent>
+                    <ClampedText title={row.siteLabel}>{row.siteLabel}</ClampedText>
                   </PresetCellContent>
                 </TableCell>
                 <TableCell className={PRESET_TABLE_CELL_CLASS}>

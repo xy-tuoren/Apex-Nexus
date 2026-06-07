@@ -670,6 +670,7 @@ export function buildLanguageTargetSelectOptions(
 // ── Validation ──────────────────────────────────────────────
 
 export type CampaignErrors = Partial<Record<
+  | "siteId"
   | "adAccountId"
   | "campaignName"
   | "conversionGoal"
@@ -685,6 +686,7 @@ export type CampaignErrors = Partial<Record<
 export function validateCampaign(campaign: CampaignForm): CampaignErrors {
   const errors: CampaignErrors = {};
 
+  if (!campaign.siteId.trim()) errors.siteId = "请选择站点";
   if (!campaign.adAccountId.trim()) errors.adAccountId = "请选择广告账户";
   if (!campaign.campaignName.trim()) errors.campaignName = "请输入广告系列名称";
 
@@ -753,7 +755,7 @@ export function validateAd(ad: AdForm): AdErrors {
 }
 
 export const CAMPAIGN_ERROR_LABELS: Record<string, string> = {
-  adAccountId: "账户", campaignName: "名称", conversionGoal: "转化目标",
+  siteId: "站点", adAccountId: "账户", campaignName: "名称", conversionGoal: "转化目标",
   budgetDaily: "预算", targetCpa: "目标CPA", targetCpc: "目标CPC",
   os: "操作系统", devices: "设备", finalUrlSuffix: "URL后缀",
 };
@@ -898,6 +900,7 @@ export function createDefaultAdGroup(index = 1): AdGroupForm {
 export function buildDefaultCampaign(index: number, account?: GoogleAdAccount): CampaignForm {
   return {
     id: `cmp_${index}`,
+    siteId: "",
     adAccountId: account?.id ?? "",
     advertisingType: "DEMAND_GEN",
     campaignName: "",
@@ -1048,6 +1051,7 @@ export function buildPayloadFromCampaign(campaign: CampaignForm, firstAdFallback
   const bidding = buildBiddingPayload(campaign);
 
   return {
+    siteId: campaign.siteId || undefined,
     adAccountId: campaign.adAccountId,
     advertisingType: campaign.advertisingType,
     name: campaign.campaignName,

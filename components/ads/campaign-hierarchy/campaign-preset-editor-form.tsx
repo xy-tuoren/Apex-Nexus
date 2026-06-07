@@ -37,6 +37,7 @@ import type {
   CampaignPresetAdGroupPayload,
   CampaignPresetAdPayload,
   CampaignPresetPayload,
+  Site,
 } from "@/lib/types";
 import type {
   BiddingType,
@@ -60,9 +61,12 @@ type CampaignPresetEditorFormProps = {
   loadConversionGoals: () => void;
   name: string;
   payload: CampaignPresetPayload;
+  siteId: string;
+  sites: Site[];
   onDescriptionChange: (value: string) => void;
   onNameChange: (value: string) => void;
   onPayloadChange: (payload: CampaignPresetPayload) => void;
+  onSiteChange: (siteId: string) => void;
 };
 
 const fieldRow = "grid gap-3 md:grid-cols-2";
@@ -109,9 +113,12 @@ export function CampaignPresetEditorForm({
   loadConversionGoals,
   name,
   payload,
+  siteId,
+  sites,
   onDescriptionChange,
   onNameChange,
   onPayloadChange,
+  onSiteChange,
 }: CampaignPresetEditorFormProps) {
   const group = payload.adGroups[0] ?? createPresetAdGroup();
   const ad = group.ads[0] ?? createPresetAd();
@@ -139,6 +146,20 @@ export function CampaignPresetEditorForm({
             <Input value={description} onChange={(event) => onDescriptionChange(event.target.value)} />
           </Field>
         </div>
+        <Field label="站点预设">
+          <SelectControl
+            options={[
+              { value: "__none", label: "不指定站点" },
+              ...sites.map((site) => ({
+                value: site.id,
+                label: `${site.name} · ${site.domain}`,
+              })),
+            ]}
+            placeholder="选择站点"
+            value={siteId || "__none"}
+            onChange={(value) => onSiteChange(value === "__none" ? "" : value)}
+          />
+        </Field>
       </section>
 
       <section className="space-y-4 rounded-2xl border border-[var(--hairline)] bg-[var(--surface-card)] p-3">

@@ -15,7 +15,7 @@ import { CampaignPresetEditorForm } from "@/components/ads/campaign-hierarchy/ca
 import { PresetTable } from "@/components/ads/campaign-hierarchy/preset-table";
 import type { PresetEditorState, PresetTableRow } from "@/components/ads/campaign-hierarchy/preset-utils";
 import type { AccountResources } from "@/hooks/useAccountResource";
-import type { CampaignPresetPayload } from "@/lib/types";
+import type { CampaignPreset, CampaignPresetPayload, Site } from "@/lib/types";
 
 type PresetManagerProps = {
   open: boolean;
@@ -24,6 +24,7 @@ type PresetManagerProps = {
   presetEditor?: PresetEditorState | null;
   presetTableRows: PresetTableRow[];
   resources: AccountResources;
+  sites: Site[];
   currentPage: number;
   totalPresets: number;
   search: string;
@@ -51,6 +52,7 @@ export function PresetManager({
   presetEditor = null,
   presetTableRows,
   resources,
+  sites,
   currentPage,
   totalPresets,
   search,
@@ -128,11 +130,16 @@ export function PresetManager({
               loadConversionGoals={() => resources.conversionGoals.reload()}
               name={presetEditor.name}
               payload={presetEditor.payload}
+              siteId={presetEditor.siteId}
+              sites={sites}
               onDescriptionChange={(description) =>
                 onPresetEditorChange?.((current) => (current ? { ...current, description } : current))
               }
               onNameChange={(name) =>
                 onPresetEditorChange?.((current) => (current ? { ...current, name } : current))
+              }
+              onSiteChange={(siteId) =>
+                onPresetEditorChange?.((current) => (current ? { ...current, siteId } : current))
               }
               onPayloadChange={(payload: CampaignPresetPayload) =>
                 onPresetEditorChange?.((current) => (current ? { ...current, payload } : current))

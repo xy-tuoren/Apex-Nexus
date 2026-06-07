@@ -175,6 +175,7 @@ export type CampaignPreset = {
   id: string;
   name: string;
   description?: string;
+  siteId?: string;
   scope: "GLOBAL";
   payload: CampaignPresetPayload;
   createdAt: string;

@@ -15,7 +15,7 @@ import {
   summarizeGeoLocation,
 } from "@/components/ads/campaign-hierarchy/form-utils";
 import type { GeoTargetOption } from "@/components/ads/campaign-hierarchy/types";
-import type { CampaignPreset, CampaignPresetPayload } from "@/lib/types";
+import type { CampaignPreset, CampaignPresetPayload, Site } from "@/lib/types";
 
 export type PresetEditorState = {
   description: string;
@@ -23,6 +23,7 @@ export type PresetEditorState = {
   mode: "create" | "edit";
   name: string;
   payload: CampaignPresetPayload;
+  siteId: string;
 };
 
 export type PresetScheduleTag = {
@@ -39,6 +40,7 @@ export type PresetTableRow = {
   id: string;
   name: string;
   description?: string;
+  siteLabel: string;
   campaignObjectiveLabel: string;
   bidding: string;
   budget: string;
@@ -148,15 +150,19 @@ function buildScheduleTags(schedule: CampaignPresetPayload["adSchedule"]): Prese
 export function buildPresetTableRows(
   presets: CampaignPreset[],
   geoTargets: GeoTargetOption[],
+  sites: Site[] = [],
 ): PresetTableRow[] {
+  const siteMap = new Map(sites.map((site) => [site.id, site]));
   return presets.map((preset) => {
     const firstGroup = preset.payload.adGroups[0];
     const firstAd = firstGroup?.ads[0];
+    const site = preset.siteId ? siteMap.get(preset.siteId) : null;
 
     return {
       id: preset.id,
       name: preset.name,
       description: preset.description,
+      siteLabel: site ? `${site.name} · ${site.domain}` : "-",
       campaignObjectiveLabel: resolvePresetCampaignObjectiveLabel(preset.payload.campaignObjective),
       bidding: formatPresetBiddingValue(preset.payload),
       budget: preset.payload.budgetDaily?.trim() || "-",

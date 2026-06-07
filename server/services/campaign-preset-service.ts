@@ -32,6 +32,7 @@ export async function createCampaignPreset(input: CampaignPresetCreateInput) {
     id: newId("preset"),
     name: input.name,
     description: input.description,
+    siteId: input.siteId,
     scope: "GLOBAL",
     payload: input.payload,
     createdAt: now,

@@ -62,6 +62,10 @@ export const adGroupDraftSchema = z.object({
 });
 
 const adScheduleSchema = z.record(z.string(), z.array(z.boolean()).length(24));
+const optionalIdSchema = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().min(1).optional(),
+);
 
 export const campaignDraftSchema = z.object({
   siteId: z.string().min(1).optional(),
@@ -151,13 +155,24 @@ export const campaignPresetPayloadSchema = z.object({
 export const campaignPresetCreateSchema = z.object({
   name: z.string().min(1).max(120),
   description: z.string().max(500).optional(),
+  siteId: optionalIdSchema,
   payload: campaignPresetPayloadSchema,
 });
 
 export const campaignPresetUpdateSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   description: z.string().max(500).optional(),
+  siteId: optionalIdSchema,
   payload: campaignPresetPayloadSchema.optional(),
+});
+
+export const siteCreateSchema = z.object({
+  site: z.string().min(1).max(160),
+  operationMccId: z.string().min(1),
+});
+
+export const siteUpdateSchema = z.object({
+  operationMccId: z.string().min(1),
 });
 
 export const launchJobSchema = z.object({
@@ -187,3 +202,5 @@ export type CampaignPresetCreateInput = z.infer<typeof campaignPresetCreateSchem
 export type CampaignPresetUpdateInput = z.infer<typeof campaignPresetUpdateSchema>;
 export type LaunchBatchCreateInput = z.infer<typeof launchBatchCreateSchema>;
 export type AssetInput = z.infer<typeof assetPayloadSchema>;
+export type SiteCreateInput = z.infer<typeof siteCreateSchema>;
+export type SiteUpdateInput = z.infer<typeof siteUpdateSchema>;

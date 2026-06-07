@@ -7,6 +7,7 @@ import {
   Layers3,
   Plus,
   RefreshCw,
+  Waypoints,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import {
 import { CampaignPreview } from "@/components/ads/campaign-hierarchy/campaign-preview";
 import { HierarchyEditModal } from "@/components/ads/campaign-hierarchy/hierarchy-edit-modal";
 import { PresetManager } from "@/components/ads/campaign-hierarchy/preset-manager";
+import { SiteBindingManager } from "@/components/ads/campaign-hierarchy/site-binding-manager";
 import {
   buildPresetTableRows,
   clonePresetPayload,
@@ -77,6 +79,7 @@ import type {
   GoogleAdAccount,
   GoogleMccAccount,
   LaunchBatch,
+  Site,
 } from "@/lib/types";
 import type { CampaignHierarchyEditorProps } from "@/components/ads/campaign-hierarchy/types";
 
@@ -89,10 +92,12 @@ export function CampaignHierarchyEditor({
   initialMccAccounts = [],
   initialPresets = [],
   initialLaunchBatches = [],
+  initialSites = [],
 }: CampaignHierarchyEditorProps) {
   const { notify } = useToast();
   const [adAccounts, setAdAccounts] = useState<GoogleAdAccount[]>(initialAdAccounts);
   const [mccAccounts, setMccAccounts] = useState<GoogleMccAccount[]>(initialMccAccounts);
+  const [sites, setSites] = useState<Site[]>(initialSites);
   const [syncState, setSyncState] = useState<"idle" | "loaded" | "loading" | "success" | "error">(() => {
     if (initialSyncError) return "error";
     if (initialAdAccounts.length > 0) return "loaded";
@@ -103,7 +108,15 @@ export function CampaignHierarchyEditor({
 
   const initialCampaignIdRef = useRef(`cmp_1_${Date.now()}`);
   const [campaigns, setCampaigns] = useState<CampaignForm[]>(() => {
-    const initial = { ...buildDefaultCampaign(1, initialAdAccounts[0]), id: initialCampaignIdRef.current };
+    const initialSite = initialSites[0];
+    const initialAccount = initialSite
+      ? initialAdAccounts.find((account) => account.operationMccId === initialSite.operationMccId)
+      : undefined;
+    const initial = {
+      ...buildDefaultCampaign(1, initialAccount),
+      id: initialCampaignIdRef.current,
+      siteId: initialSite?.id ?? "",
+    };
     return [initial];
   });
   const [result, setResult] = useState<ApiResult | null>(null);
@@ -122,6 +135,11 @@ export function CampaignHierarchyEditor({
   const [isLaunchBatchReloading, setIsLaunchBatchReloading] = useState(false);
   const [presetDialog, setPresetDialog] = useState<null | "apply" | "manage">(null);
   const [presetEditor, setPresetEditor] = useState<PresetEditorState | null>(null);
+  const [isSiteBindingOpen, setIsSiteBindingOpen] = useState(false);
+  const [newSite, setNewSite] = useState("");
+  const [newSiteOperationMccId, setNewSiteOperationMccId] = useState("");
+  const [isSiteSaving, setIsSiteSaving] = useState(false);
+  const [savingSiteIds, setSavingSiteIds] = useState<Set<string>>(() => new Set());
   const idCounterRef = useRef(2);
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
   const [isCampaignEditorOpen, setIsCampaignEditorOpen] = useState(false);
@@ -354,6 +372,28 @@ export function CampaignHierarchyEditor({
     });
   }
 
+  function accountsForSite(siteId: string) {
+    const site = sites.find((item) => item.id === siteId);
+    if (!site) {
+      return [];
+    }
+    return adAccounts.filter((account) => account.operationMccId === site.operationMccId);
+  }
+
+  function firstAccountForSite(siteId: string) {
+    return accountsForSite(siteId)[0];
+  }
+
+  function buildCampaignWithDefaults(index: number, id: string): CampaignForm {
+    const site = sites[0];
+    const account = site ? firstAccountForSite(site.id) : undefined;
+    return {
+      ...buildDefaultCampaign(index, account),
+      id,
+      siteId: site?.id ?? "",
+    };
+  }
+
   function updateCampaignAdGroup(campaignId: string, groupId: string, patch: Partial<AdGroupForm>) {
     setCampaigns((current) =>
       current.map((c) =>
@@ -414,8 +454,11 @@ export function CampaignHierarchyEditor({
   function openCampaignDetail(campaignId: string) {
     const campaign = campaigns.find((c) => c.id === campaignId);
     if (!campaign) return;
-    if (!campaign.adAccountId && adAccounts[0]) {
-      patchCampaign(campaignId, { adAccountId: adAccounts[0].id });
+    if (campaign.siteId && !campaign.adAccountId) {
+      const account = firstAccountForSite(campaign.siteId);
+      if (account) {
+        patchCampaign(campaignId, { adAccountId: account.id });
+      }
     }
     setActiveCampaignId(campaignId);
     setIsCampaignEditorOpen(true);
@@ -425,8 +468,11 @@ export function CampaignHierarchyEditor({
   function openAdGroupEditor(campaignId: string, groupId: string) {
     const campaign = campaigns.find((c) => c.id === campaignId);
     if (!campaign) return;
-    if (!campaign.adAccountId && adAccounts[0]) {
-      patchCampaign(campaignId, { adAccountId: adAccounts[0].id });
+    if (campaign.siteId && !campaign.adAccountId) {
+      const account = firstAccountForSite(campaign.siteId);
+      if (account) {
+        patchCampaign(campaignId, { adAccountId: account.id });
+      }
     }
     setActiveCampaignId(campaignId);
     setIsCampaignEditorOpen(false);
@@ -436,8 +482,11 @@ export function CampaignHierarchyEditor({
   function openAdEditor(campaignId: string, groupId: string, adId: string) {
     const campaign = campaigns.find((c) => c.id === campaignId);
     if (!campaign) return;
-    if (!campaign.adAccountId && adAccounts[0]) {
-      patchCampaign(campaignId, { adAccountId: adAccounts[0].id });
+    if (campaign.siteId && !campaign.adAccountId) {
+      const account = firstAccountForSite(campaign.siteId);
+      if (account) {
+        patchCampaign(campaignId, { adAccountId: account.id });
+      }
     }
     setActiveCampaignId(campaignId);
     setIsCampaignEditorOpen(false);
@@ -447,7 +496,7 @@ export function CampaignHierarchyEditor({
   function addCampaign() {
     const nextIndex = campaigns.length + 1;
     const id = `cmp_${nextIndex}_${idCounterRef.current++}`;
-    const nextCampaign = { ...buildDefaultCampaign(nextIndex, adAccounts[0]), id };
+    const nextCampaign = buildCampaignWithDefaults(nextIndex, id);
     setCampaigns((current) => [...current, nextCampaign]);
     setActiveCampaignId(id);
     setIsCampaignEditorOpen(true);
@@ -610,6 +659,16 @@ export function CampaignHierarchyEditor({
     setPresetDialog("manage");
   }
 
+  function openSiteBindingManager() {
+    setNewSiteOperationMccId((current) => {
+      if (current) {
+        return current;
+      }
+      return mccAccounts.find((account) => account.kind === "OPERATION_MCC")?.id ?? "";
+    });
+    setIsSiteBindingOpen(true);
+  }
+
   function closePresetManager() {
     setPresetDialog(null);
     setPresetEditor(null);
@@ -621,6 +680,7 @@ export function CampaignHierarchyEditor({
       name: "新预设",
       description: "",
       payload: defaultPresetPayload(),
+      siteId: sites[0]?.id ?? "",
     });
   }
 
@@ -631,6 +691,7 @@ export function CampaignHierarchyEditor({
       name: preset.name,
       description: preset.description ?? "",
       payload: clonePresetPayload(preset.payload),
+      siteId: preset.siteId ?? "",
     });
   }, []);
 
@@ -668,6 +729,7 @@ export function CampaignHierarchyEditor({
           body: JSON.stringify({
             name: presetEditor.name.trim(),
             description: presetEditor.description.trim(),
+            siteId: presetEditor.siteId,
             payload: presetEditor.payload,
           }),
         },
@@ -711,9 +773,79 @@ export function CampaignHierarchyEditor({
     }
   }, [notify, loadPresetPage, presetPage]);
 
+  async function reloadSites() {
+    const response = await fetch("/api/sites");
+    const json = (await response.json()) as ApiResult;
+    if (json.success && Array.isArray(json.data)) {
+      setSites(json.data as Site[]);
+    }
+  }
+
+  async function createSiteBinding() {
+    if (!newSite.trim() || !newSiteOperationMccId) {
+      notify({ tone: "error", title: "无法新增绑定", description: "请输入站点并选择操作 MCC。" });
+      return;
+    }
+
+    setIsSiteSaving(true);
+    try {
+      const response = await fetch("/api/sites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          site: newSite.trim(),
+          operationMccId: newSiteOperationMccId,
+        }),
+      });
+      const json = (await response.json()) as ApiResult;
+      if (!json.success) {
+        notify({ tone: "error", title: json.error?.code ?? "站点绑定失败", description: json.error?.message ?? "请稍后重试。" });
+        return;
+      }
+      await reloadSites();
+      setNewSite("");
+      notify({ tone: "success", title: "站点绑定已新增" });
+    } finally {
+      setIsSiteSaving(false);
+    }
+  }
+
+  async function updateSiteOperationMcc(siteId: string, operationMccId: string) {
+    setSavingSiteIds((current) => new Set(current).add(siteId));
+    try {
+      const response = await fetch(`/api/sites/${siteId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ operationMccId }),
+      });
+      const json = (await response.json()) as ApiResult;
+      if (!json.success) {
+        notify({ tone: "error", title: json.error?.code ?? "站点绑定失败", description: json.error?.message ?? "请稍后重试。" });
+        return;
+      }
+      await reloadSites();
+      setCampaigns((current) =>
+        current.map((campaign) => {
+          if (campaign.siteId !== siteId) {
+            return campaign;
+          }
+          const account = adAccounts.find((item) => item.operationMccId === operationMccId);
+          return { ...campaign, adAccountId: account?.id ?? "", conversionGoal: "" };
+        }),
+      );
+      notify({ tone: "success", title: "站点绑定已更新" });
+    } finally {
+      setSavingSiteIds((current) => {
+        const next = new Set(current);
+        next.delete(siteId);
+        return next;
+      });
+    }
+  }
+
   const pagedPresetTableRows = useMemo(
-    () => buildPresetTableRows(pagedPresets, resources0.geoTargets.data),
-    [pagedPresets, resources0.geoTargets.data],
+    () => buildPresetTableRows(pagedPresets, resources0.geoTargets.data, sites),
+    [pagedPresets, resources0.geoTargets.data, sites],
   );
 
   // Sync
@@ -724,15 +856,20 @@ export function CampaignHierarchyEditor({
       const response = await fetch("/api/accounts/sync", { method: "POST" });
       const json = (await response.json()) as ApiResult;
       if (!json.success || !json.data) throw new Error(json.error?.message ?? "同步 Google Ads 账号失败。");
-      const data = json.data as { mccAccounts: GoogleMccAccount[]; adAccounts: GoogleAdAccount[]; syncedAt: string };
+      const data = json.data as { mccAccounts: GoogleMccAccount[]; adAccounts: GoogleAdAccount[]; sites?: Site[]; syncedAt: string };
       setMccAccounts(data.mccAccounts);
       setAdAccounts(data.adAccounts);
+      setSites(data.sites ?? sites);
       setSyncedAt(data.syncedAt);
       setCampaigns((current) =>
         current.map((c) => {
-          const account = data.adAccounts.find((a) => a.id === c.adAccountId) ?? data.adAccounts[0];
-          if (!account) return c;
-          return { ...c, adAccountId: account.id };
+          const nextSites = data.sites ?? sites;
+          const site = nextSites.find((item) => item.id === c.siteId);
+          const account = site
+            ? data.adAccounts.find((item) => item.id === c.adAccountId && item.operationMccId === site.operationMccId) ??
+              data.adAccounts.find((item) => item.operationMccId === site.operationMccId)
+            : undefined;
+          return { ...c, adAccountId: account?.id ?? "" };
         }),
       );
       setSyncState("success");
@@ -740,7 +877,7 @@ export function CampaignHierarchyEditor({
       setSyncState("error");
       setSyncError(error instanceof Error ? error.message : "同步 Google Ads 账号失败。");
     }
-  }, []);
+  }, [sites]);
 
   // Submit
   async function submitDrafts() {
@@ -1183,6 +1320,10 @@ export function CampaignHierarchyEditor({
               {syncState === "loading" ? <Spinner aria-hidden className="h-4 w-4" /> : null}
               {syncState === "loading" ? "同步中..." : "重新同步"}
             </Button>
+            <Button size="sm" type="button" variant="outline" onClick={openSiteBindingManager}>
+              <Waypoints aria-hidden className="h-4 w-4" strokeWidth={1.75} />
+              站点绑定
+            </Button>
             <Button size="sm" type="button" variant="outline" onClick={openPresetManager}>
               管理预设
             </Button>
@@ -1305,7 +1446,8 @@ export function CampaignHierarchyEditor({
                   </div>
                   <CampaignEditorForm
                     campaign={activeCampaign}
-                    adAccounts={adAccounts}
+                    adAccounts={accountsForSite(activeCampaign.siteId)}
+                    sites={sites}
                     syncState={syncState}
                     errors={campaignErrors[activeCampaign.id]}
                     groupErrors={activeCampaignGroupErrors}
@@ -1407,6 +1549,7 @@ export function CampaignHierarchyEditor({
         presets={pagedPresets}
         resources={resources0}
         search={presetSearch}
+        sites={sites}
         totalPresets={presetTotal}
         onClose={closePresetManager}
         onCreate={openPresetCreateEditor}
@@ -1418,6 +1561,21 @@ export function CampaignHierarchyEditor({
         onSave={() => void savePresetEditor()}
         onSearchChange={setPresetSearch}
       />
+      <SiteBindingManager
+        adAccounts={adAccounts}
+        isSaving={isSiteSaving}
+        mccAccounts={mccAccounts}
+        newOperationMccId={newSiteOperationMccId}
+        newSite={newSite}
+        open={isSiteBindingOpen}
+        savingSiteIds={savingSiteIds}
+        sites={sites}
+        onClose={() => setIsSiteBindingOpen(false)}
+        onCreate={() => void createSiteBinding()}
+        onNewOperationMccChange={setNewSiteOperationMccId}
+        onNewSiteChange={setNewSite}
+        onUpdateSite={(siteId, operationMccId) => void updateSiteOperationMcc(siteId, operationMccId)}
+      />
       <PresetManager
         currentPage={presetPage}
         isReloading={isPresetReloading}
@@ -1427,6 +1585,7 @@ export function CampaignHierarchyEditor({
         presets={pagedPresets}
         resources={resources0}
         search={presetSearch}
+        sites={sites}
         totalPresets={presetTotal}
         onApply={(preset) => applyPresetToCampaign(preset)}
         onClose={() => setPresetDialog(null)}
