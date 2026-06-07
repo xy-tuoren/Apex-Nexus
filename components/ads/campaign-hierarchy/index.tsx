@@ -107,7 +107,16 @@ export function CampaignHierarchyEditor({
   });
   const [result, setResult] = useState<ApiResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [presets, setPresets] = useState<CampaignPreset[]>(initialPresets);
+  const PRESET_PAGE_SIZE = 10;
+  const [applyPresets, setApplyPresets] = useState<CampaignPreset[]>(initialPresets);
+  const [applyPresetPage, setApplyPresetPage] = useState(1);
+  const [applyPresetTotal, setApplyPresetTotal] = useState(initialPresets.length);
+  const [pagedPresets, setPagedPresets] = useState<CampaignPreset[]>([]);
+  const [presetPage, setPresetPage] = useState(1);
+  const [presetTotal, setPresetTotal] = useState(0);
+  const [presetSearch, setPresetSearch] = useState("");
+  const presetSearchRef = useRef(presetSearch);
+  presetSearchRef.current = presetSearch;
   const [launchBatches, setLaunchBatches] = useState<LaunchBatch[]>(initialLaunchBatches);
   const [isPresetReloading, setIsPresetReloading] = useState(false);
   const [isPresetSaving, setIsPresetSaving] = useState(false);
@@ -232,20 +241,38 @@ export function CampaignHierarchyEditor({
     [launchBatches],
   );
 
-  const reloadPresets = useCallback(async (showLoading = true) => {
-    if (showLoading) {
-      setIsPresetReloading(true);
-    }
+  const loadApplyPresetPage = useCallback(async (page: number) => {
+    setIsPresetReloading(true);
     try {
-      const response = await fetch("/api/campaign-presets");
+      const response = await fetch(`/api/campaign-presets?page=${page}&pageSize=${PRESET_PAGE_SIZE}`);
       const json = (await response.json()) as ApiResult;
-      if (json.success && Array.isArray(json.data)) {
-        setPresets(json.data as CampaignPreset[]);
+      if (json.success && json.data) {
+        const data = json.data as { items: CampaignPreset[]; total: number };
+        setApplyPresets(data.items ?? []);
+        setApplyPresetTotal(data.total ?? 0);
+        setApplyPresetPage(page);
       }
     } finally {
-      if (showLoading) {
-        setIsPresetReloading(false);
+      setIsPresetReloading(false);
+    }
+  }, []);
+
+  const loadPresetPage = useCallback(async (page: number) => {
+    const term = presetSearchRef.current;
+    setIsPresetReloading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), pageSize: String(PRESET_PAGE_SIZE) });
+      if (term.trim()) params.set("search", term.trim());
+      const response = await fetch(`/api/campaign-presets?${params.toString()}`);
+      const json = (await response.json()) as ApiResult;
+      if (json.success && json.data) {
+        const data = json.data as { items: CampaignPreset[]; total: number };
+        setPagedPresets(data.items ?? []);
+        setPresetTotal(data.total ?? 0);
+        setPresetPage(page);
       }
+    } finally {
+      setIsPresetReloading(false);
     }
   }, []);
 
@@ -275,6 +302,26 @@ export function CampaignHierarchyEditor({
     }, 2000);
     return () => window.clearInterval(interval);
   }, [hasRunningBatches, reloadLaunchBatches]);
+
+  // Load page 1 when preset dialog opens
+  useEffect(() => {
+    if (presetDialog === "manage") {
+      loadPresetPage(1);
+    } else if (presetDialog === "apply") {
+      loadApplyPresetPage(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetDialog]);
+
+  // Debounce search — reload page 1 on search change
+  useEffect(() => {
+    if (presetDialog !== "manage") return;
+    const timer = setTimeout(() => {
+      loadPresetPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetSearch]);
 
   function closeCampaignEditor() {
     setIsCampaignEditorOpen(false);
@@ -652,7 +699,7 @@ export function CampaignHierarchyEditor({
         return;
       }
 
-      await reloadPresets(false);
+      await Promise.all([loadApplyPresetPage(1), loadPresetPage(1)]);
       notify({
         tone: "success",
         title: isEditing ? "预设已更新" : "预设已创建",
@@ -674,7 +721,7 @@ export function CampaignHierarchyEditor({
         return;
       }
 
-      await reloadPresets(false);
+      await Promise.all([loadApplyPresetPage(applyPresetPage), loadPresetPage(presetPage)]);
       notify({ tone: "success", title: "预设已删除" });
     } finally {
       setDeletingPresetIds((current) => {
@@ -683,11 +730,11 @@ export function CampaignHierarchyEditor({
         return next;
       });
     }
-  }, [notify, reloadPresets]);
+  }, [notify, loadApplyPresetPage, loadPresetPage, presetPage, applyPresetPage]);
 
-  const presetTableRows = useMemo(
-    () => buildPresetTableRows(presets, resources0.geoTargets.data),
-    [presets, resources0.geoTargets.data],
+  const pagedPresetTableRows = useMemo(
+    () => buildPresetTableRows(pagedPresets, resources0.geoTargets.data),
+    [pagedPresets, resources0.geoTargets.data],
   );
 
   // Sync
@@ -1224,7 +1271,7 @@ export function CampaignHierarchyEditor({
           onClose={closeCampaignEditor}
         >
           <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
-            <Button disabled={presets.length === 0} size="sm" type="button" variant="outline" onClick={() => setPresetDialog("apply")}>
+            <Button disabled={applyPresetTotal === 0} size="default" type="button" onClick={() => setPresetDialog("apply")}>
               <Layers3 aria-hidden className="h-4 w-4" strokeWidth={1.75} />
               套用预设
             </Button>
@@ -1346,27 +1393,35 @@ export function CampaignHierarchyEditor({
       ) : null}
 
       <PresetManager
+        currentPage={presetPage}
         deletingPresetIds={deletingPresetIds}
         isReloading={isPresetReloading}
         isSaving={isPresetSaving}
         open={presetDialog === "manage"}
         presetEditor={presetEditor}
-        presetTableRows={presetTableRows}
-        presets={presets}
+        presetTableRows={pagedPresetTableRows}
+        presets={pagedPresets}
         resources={resources0}
+        search={presetSearch}
+        totalPresets={presetTotal}
         onClose={closePresetManager}
         onCreate={openPresetCreateEditor}
         onDelete={(presetId) => void deletePreset(presetId)}
         onEdit={openPresetEditEditor}
+        onPageChange={(page) => void loadPresetPage(page)}
         onPresetEditorChange={setPresetEditor}
-        onReload={() => void reloadPresets()}
+        onReload={() => void loadPresetPage(presetPage)}
         onSave={() => void savePresetEditor()}
+        onSearchChange={setPresetSearch}
       />
       <PresetApplyDialog
         open={presetDialog === "apply"}
-        presets={presets}
+        presets={applyPresets}
+        currentPage={applyPresetPage}
+        totalPresets={applyPresetTotal}
         onApply={applyPresetToCampaign}
         onClose={() => setPresetDialog(null)}
+        onPageChange={(page) => void loadApplyPresetPage(page)}
       />
     </div>
   );

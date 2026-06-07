@@ -5,9 +5,13 @@ import {
   listCampaignPresets,
 } from "@/server/services/campaign-preset-service";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    return ok(await listCampaignPresets(), ["POST /api/campaign-presets"]);
+    const url = new URL(request.url);
+    const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1", 10) || 1);
+    const pageSize = Math.min(10000, Math.max(1, parseInt(url.searchParams.get("pageSize") ?? "10", 10) || 10));
+    const search = url.searchParams.get("search") ?? "";
+    return ok(await listCampaignPresets(page, pageSize, search), ["POST /api/campaign-presets"]);
   } catch (error) {
     return fail(parseError(error), 500);
   }

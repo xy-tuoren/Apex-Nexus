@@ -13,7 +13,7 @@ export default async function AdsLaunchPage() {
   const [adAccounts, mccAccounts, presets, launchBatches] = await Promise.all([
     listAllAdAccounts(),
     listMccAccounts(),
-    listCampaignPresets(),
+    listCampaignPresets().then((r) => r.items),
     listLaunchBatches(),
   ]);
   const accountsSyncedAt =

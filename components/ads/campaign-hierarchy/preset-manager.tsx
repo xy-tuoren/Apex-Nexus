@@ -1,7 +1,8 @@
 "use client";
 
-import { Layers3, Plus, Save, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Layers3, Plus, Save, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Drawer,
@@ -21,14 +22,19 @@ import type { CampaignPreset, CampaignPresetPayload } from "@/lib/types";
 type PresetApplyDialogProps = {
   open: boolean;
   presets: CampaignPreset[];
+  currentPage: number;
+  totalPresets: number;
   onClose: () => void;
   onApply: (preset: CampaignPreset) => void;
+  onPageChange: (page: number) => void;
 };
 
-export function PresetApplyDialog({ open, presets, onClose, onApply }: PresetApplyDialogProps) {
+export function PresetApplyDialog({ open, presets, currentPage, totalPresets, onClose, onApply, onPageChange }: PresetApplyDialogProps) {
   if (!open) {
     return null;
   }
+
+  const totalPages = Math.max(1, Math.ceil(totalPresets / PAGE_SIZE));
 
   return (
     <HierarchyEditModal
@@ -44,25 +50,50 @@ export function PresetApplyDialog({ open, presets, onClose, onApply }: PresetApp
           </p>
         ) : (
           presets.map((preset) => (
-            <div key={preset.id} className="rounded-2xl border border-[var(--hairline)] bg-[var(--surface-card)] p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-base font-semibold text-[var(--ink)]">{preset.name}</p>
-                  {preset.description ? (
-                    <p className="mt-1 text-sm text-[var(--muted)]">{preset.description}</p>
-                  ) : null}
-                  <p className="mt-2 text-xs text-[var(--muted)]">
-                    {preset.payload.campaignObjective} · {summarizeOsDevice(preset.payload.os, preset.payload.devices)} · 更新于 {formatStableDateTime(preset.updatedAt)}
-                  </p>
-                </div>
-                <Button size="sm" type="button" onClick={() => onApply(preset)}>
-                  套用
-                </Button>
+            <div key={preset.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--hairline)] bg-[var(--surface-card)] px-4 py-3">
+              <div className="flex min-w-0 flex-1 items-center gap-3 truncate">
+                <span className="truncate text-sm font-semibold text-[var(--ink)]">{preset.name}</span>
+                {preset.description ? (
+                  <span className="truncate text-xs text-[var(--muted)]">{preset.description}</span>
+                ) : null}
+                <span className="shrink-0 text-xs text-[var(--muted)]">
+                  {preset.payload.campaignObjective} · {summarizeOsDevice(preset.payload.os, preset.payload.devices)} · {formatStableDateTime(preset.updatedAt)}
+                </span>
               </div>
+              <Button size="sm" type="button" className="shrink-0" onClick={() => onApply(preset)}>
+                套用
+              </Button>
             </div>
           ))
         )}
       </div>
+      {totalPages > 1 ? (
+        <div className="mt-3 flex items-center justify-center gap-2">
+          <Button
+            aria-label="上一页"
+            disabled={currentPage <= 1}
+            size="icon-xs"
+            type="button"
+            variant="outline"
+            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+          >
+            <ChevronLeft aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </Button>
+          <span className="text-xs tabular-nums text-[var(--muted)]">
+            {currentPage} / {totalPages}
+          </span>
+          <Button
+            aria-label="下一页"
+            disabled={currentPage >= totalPages}
+            size="icon-xs"
+            type="button"
+            variant="outline"
+            onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+          >
+            <ChevronRight aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </Button>
+        </div>
+      ) : null}
     </HierarchyEditModal>
   );
 }
@@ -73,6 +104,9 @@ type PresetManagerProps = {
   presetEditor: PresetEditorState | null;
   presetTableRows: PresetTableRow[];
   resources: AccountResources;
+  currentPage: number;
+  totalPresets: number;
+  search: string;
   deletingPresetIds?: Set<string>;
   isReloading?: boolean;
   isSaving?: boolean;
@@ -82,8 +116,12 @@ type PresetManagerProps = {
   onEdit: (preset: CampaignPreset) => void;
   onDelete: (presetId: string) => void;
   onSave: () => void;
+  onPageChange: (page: number) => void;
+  onSearchChange: (search: string) => void;
   onPresetEditorChange: (updater: (current: PresetEditorState | null) => PresetEditorState | null) => void;
 };
+
+const PAGE_SIZE = 10;
 
 export function PresetManager({
   open,
@@ -91,6 +129,9 @@ export function PresetManager({
   presetEditor,
   presetTableRows,
   resources,
+  currentPage,
+  totalPresets,
+  search,
   deletingPresetIds,
   isReloading = false,
   isSaving = false,
@@ -100,8 +141,12 @@ export function PresetManager({
   onEdit,
   onDelete,
   onSave,
+  onPageChange,
+  onSearchChange,
   onPresetEditorChange,
 }: PresetManagerProps) {
+  const totalPages = Math.max(1, Math.ceil(totalPresets / PAGE_SIZE));
+
   return (
     <Drawer
       open={open}
@@ -174,8 +219,17 @@ export function PresetManager({
         ) : (
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--hairline)] bg-[var(--canvas-soft)] px-6 py-4">
-            <span className="text-sm font-medium text-[var(--ink)]">{presets.length} 套预设</span>
+            <span className="text-sm font-medium text-[var(--ink)]">{totalPresets} 套预设</span>
             <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--muted)]" strokeWidth={1.75} />
+                <Input
+                  className="h-8 w-40 rounded-lg pl-8 text-xs"
+                  placeholder="搜索预设名称…"
+                  value={search}
+                  onChange={(e) => onSearchChange(e.target.value)}
+                />
+              </div>
               <Button disabled={isReloading} size="sm" type="button" variant="outline" onClick={() => void onReload()}>
                 {isReloading ? <Spinner aria-hidden className="h-4 w-4" /> : null}
                 {isReloading ? "刷新中..." : "刷新列表"}
@@ -206,13 +260,42 @@ export function PresetManager({
                 </div>
               </div>
             ) : (
-              <PresetTable
-                deletingPresetIds={deletingPresetIds}
-                rows={presetTableRows}
-                presets={presets}
-                onEdit={onEdit}
-                onDelete={onDelete}
-              />
+              <>
+                <PresetTable
+                  deletingPresetIds={deletingPresetIds}
+                  rows={presetTableRows}
+                  presets={presets}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                />
+                {totalPages > 1 ? (
+                  <div className="flex items-center justify-center gap-2 border-t border-[var(--hairline)] px-6 py-3">
+                    <Button
+                      aria-label="上一页"
+                      disabled={currentPage <= 1}
+                      size="icon-xs"
+                      type="button"
+                      variant="outline"
+                      onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+                    >
+                      <ChevronLeft aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    </Button>
+                    <span className="text-xs tabular-nums text-[var(--muted)]">
+                      {currentPage} / {totalPages}
+                    </span>
+                    <Button
+                      aria-label="下一页"
+                      disabled={currentPage >= totalPages}
+                      size="icon-xs"
+                      type="button"
+                      variant="outline"
+                      onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+                    >
+                      <ChevronRight aria-hidden className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    </Button>
+                  </div>
+                ) : null}
+              </>
             )}
           </div>
         </div>

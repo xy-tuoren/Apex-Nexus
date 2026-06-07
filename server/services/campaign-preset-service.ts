@@ -14,9 +14,16 @@ import {
   updateById,
 } from "@/server/repositories/data-store";
 
-export async function listCampaignPresets() {
+export async function listCampaignPresets(page = 1, pageSize = 10, search = "") {
   const presets = await listCollection("campaign_presets");
-  return presets.toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const sorted = presets.toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const filtered = search.trim()
+    ? sorted.filter((p) => p.name.toLowerCase().includes(search.trim().toLowerCase()))
+    : sorted;
+  const total = filtered.length;
+  const start = (page - 1) * pageSize;
+  const items = filtered.slice(start, start + pageSize);
+  return { items, total, page, pageSize };
 }
 
 export async function createCampaignPreset(input: CampaignPresetCreateInput) {
