@@ -8,6 +8,10 @@ import type {
 } from "@/components/ads/campaign-hierarchy/types";
 
 export const inputGridClassName = "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4";
+export const editorFormCardClassName = "rounded-3xl border border-[var(--hairline)] bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)] sm:p-5";
+export const editorFormStackClassName = "grid gap-4";
+export const editorFormSectionStackClassName = "grid gap-5";
+export const editorFormFieldRowClassName = "flex flex-wrap gap-4 [&>.field]:flex-1 [&>.field]:min-w-[220px]";
 
 export const OS_OPTIONS = [
   { value: "all", label: "全部" },

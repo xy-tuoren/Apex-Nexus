@@ -10,6 +10,10 @@ import {
   BIDDING_TYPE_OPTIONS,
   CLICK_BIDDING_TYPE_OPTIONS,
   DEVICE_COMBOBOX_OPTIONS,
+  editorFormCardClassName,
+  editorFormFieldRowClassName,
+  editorFormSectionStackClassName,
+  editorFormStackClassName,
   OBJECTIVE_OPTIONS,
   OS_COMBOBOX_OPTIONS,
 } from "@/components/ads/campaign-hierarchy/constants";
@@ -44,13 +48,12 @@ function inputErrorClass(error?: string) {
   return error ? "border-[var(--semantic-error)] focus-visible:border-[var(--semantic-error)] focus-visible:ring-[var(--semantic-error)]/10" : "";
 }
 
-const fluidFieldRow = "flex flex-wrap gap-3 [&>.field]:flex-1 [&>.field]:min-w-[220px]";
-
 interface CampaignEditorFormProps {
   campaign: CampaignForm;
   adAccounts: GoogleAdAccount[];
   syncState: "idle" | "loaded" | "loading" | "success" | "error";
   // Validation
+  hideSidebar?: boolean;
   errors?: CampaignErrors;
   groupErrors?: Record<string, AdGroupErrors>;
   adErrors?: Record<string, AdErrors>;
@@ -77,6 +80,7 @@ export function CampaignEditorForm({
   campaign,
   adAccounts,
   syncState,
+  hideSidebar,
   errors = {},
   groupErrors = {},
   adErrors = {},
@@ -97,29 +101,31 @@ export function CampaignEditorForm({
   openAdEditor,
 }: CampaignEditorFormProps) {
   return (
-    <div className="grid gap-4 xl:grid-cols-[19rem_minmax(0,1fr)]">
-      <div className="xl:sticky xl:top-0 xl:self-start">
-        <EditorSidebar
-          activeGroupId={null}
-          adErrors={adErrors}
-          campaign={campaign}
-          geoTargets={geoTargets}
-          groupErrors={groupErrors}
-          languageTargets={languageTargets}
-          onAddAd={(groupId) => openAdGroupEditor(campaign.id, groupId)}
-          onAddGroup={() => addAdGroup(campaign.id)}
-          onDuplicateAd={(groupId, adId) => duplicateAd(campaign.id, groupId, adId)}
-          onDuplicateGroup={(groupId) => duplicateAdGroup(campaign.id, groupId)}
-          onRemoveAd={(groupId, adId) => removeAd(campaign.id, groupId, adId)}
-          onRemoveGroup={(groupId) => removeAdGroup(campaign.id, groupId)}
-          onOpenAd={(groupId, adId) => openAdEditor(campaign.id, groupId, adId)}
-          onOpenGroup={(groupId) => openAdGroupEditor(campaign.id, groupId)}
-        />
-      </div>
+    <div className={hideSidebar ? "" : "grid gap-4 xl:grid-cols-[19rem_minmax(0,1fr)]"}>
+      {!hideSidebar ? (
+        <div className="xl:sticky xl:top-0 xl:self-start">
+          <EditorSidebar
+            activeGroupId={null}
+            adErrors={adErrors}
+            campaign={campaign}
+            geoTargets={geoTargets}
+            groupErrors={groupErrors}
+            languageTargets={languageTargets}
+            onAddAd={(groupId) => openAdGroupEditor(campaign.id, groupId)}
+            onAddGroup={() => addAdGroup(campaign.id)}
+            onDuplicateAd={(groupId, adId) => duplicateAd(campaign.id, groupId, adId)}
+            onDuplicateGroup={(groupId) => duplicateAdGroup(campaign.id, groupId)}
+            onRemoveAd={(groupId, adId) => removeAd(campaign.id, groupId, adId)}
+            onRemoveGroup={(groupId) => removeAdGroup(campaign.id, groupId)}
+            onOpenAd={(groupId, adId) => openAdEditor(campaign.id, groupId, adId)}
+            onOpenGroup={(groupId) => openAdGroupEditor(campaign.id, groupId)}
+          />
+        </div>
+      ) : null}
 
-      <div className="space-y-5 rounded-3xl border border-[var(--hairline)] bg-[var(--surface-card)] p-3 shadow-[var(--shadow-soft)] sm:p-5">
-        <div className="space-y-4">
-          <div className={fluidFieldRow}>
+      <div className={hideSidebar ? editorFormSectionStackClassName : `${editorFormSectionStackClassName} ${editorFormCardClassName}`}>
+        <div className={editorFormStackClassName}>
+          <div className={editorFormFieldRowClassName}>
             <div className="field">
               <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
                 账户<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
@@ -161,7 +167,7 @@ export function CampaignEditorForm({
           </div>
         </div>
 
-        <div className="mt-4 space-y-4">
+        <div className={editorFormStackClassName}>
           <div className="field">
             <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
               广告系列目标<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
@@ -235,7 +241,7 @@ export function CampaignEditorForm({
           ) : null}
         </div>
 
-        <div className="mt-4 space-y-4">
+        <div className={editorFormStackClassName}>
           {campaign.campaignObjective === "CONVERSIONS" ? (
             <div className="field">
               <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
@@ -286,7 +292,7 @@ export function CampaignEditorForm({
               </RadioGroup>
             </div>
           ) : null}
-          <div className={fluidFieldRow}>
+          <div className={editorFormFieldRowClassName}>
             <div className="field">
               <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
                 预算<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
@@ -347,7 +353,7 @@ export function CampaignEditorForm({
           </div>
         </div>
 
-        <div className={`mt-4 ${fluidFieldRow}`}>
+        <div className={editorFormFieldRowClassName}>
           <div className="field">
             <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
               操作系统<span className="ml-0.5 text-[var(--semantic-error)]">*</span>

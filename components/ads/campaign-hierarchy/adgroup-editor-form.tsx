@@ -2,10 +2,14 @@
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { EditorSidebar } from "@/components/ads/campaign-hierarchy/editor-sidebar";
 import { TargetFields } from "@/components/ads/campaign-hierarchy/target-fields";
-import { GENDER_OPTIONS, AGE_OPTIONS } from "@/components/ads/campaign-hierarchy/constants";
+import {
+  AGE_OPTIONS,
+  GENDER_OPTIONS,
+  editorFormCardClassName,
+  editorFormStackClassName,
+} from "@/components/ads/campaign-hierarchy/constants";
 import {
   type AdErrors,
   type AdGroupErrors,
@@ -25,6 +29,7 @@ function inputErrorClass(error?: string) {
 interface AdGroupEditorFormProps {
   campaign: CampaignForm;
   group: AdGroupForm;
+  hideSidebar?: boolean;
   errors?: AdGroupErrors;
   groupErrors?: Record<string, AdGroupErrors>;
   adErrors?: Record<string, AdErrors>;
@@ -49,6 +54,7 @@ interface AdGroupEditorFormProps {
 export function AdGroupEditorForm({
   campaign,
   group,
+  hideSidebar,
   errors = {},
   groupErrors = {},
   adErrors = {},
@@ -69,14 +75,15 @@ export function AdGroupEditorForm({
   onOpenCampaign,
 }: AdGroupEditorFormProps) {
   return (
-    <div className="grid gap-4 xl:grid-cols-[19rem_minmax(0,1fr)]">
-      <div className="xl:sticky xl:top-0 xl:self-start">
-        <EditorSidebar
-          activeGroupId={group.id}
-          adErrors={adErrors}
-          campaign={campaign}
-          geoTargets={geoTargets}
-          groupErrors={groupErrors}
+    <div className={hideSidebar ? "" : "grid gap-4 xl:grid-cols-[19rem_minmax(0,1fr)]"}>
+      {!hideSidebar ? (
+        <div className="xl:sticky xl:top-0 xl:self-start">
+          <EditorSidebar
+            activeGroupId={group.id}
+            adErrors={adErrors}
+            campaign={campaign}
+            geoTargets={geoTargets}
+            groupErrors={groupErrors}
           languageTargets={languageTargets}
           onAddAd={(groupId) => addAd(campaign.id, groupId)}
           onDuplicateAd={(groupId, adId) => duplicateAd(campaign.id, groupId, adId)}
@@ -88,9 +95,10 @@ export function AdGroupEditorForm({
           onOpenGroup={(groupId) => openAdGroupEditor(campaign.id, groupId)}
         />
       </div>
+      ) : null}
 
-      <div className="space-y-5 rounded-3xl border border-[var(--hairline)] bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)] sm:p-5">
-        <div className="grid gap-3">
+      <div className={hideSidebar ? editorFormStackClassName : `${editorFormStackClassName} ${editorFormCardClassName}`}>
+        <div className={editorFormStackClassName}>
           <div className="field">
             <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
               广告组名称<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
@@ -124,7 +132,7 @@ export function AdGroupEditorForm({
             }
           />
           <div className="grid gap-2">
-            <Label>受众群体</Label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">受众群体</label>
             <div className="rounded-xl border border-[var(--hairline)] bg-[var(--canvas-soft)] p-3">
               <p className="mb-2 text-sm font-medium text-[var(--body-strong)]">
                 具有以下受众特征的用户

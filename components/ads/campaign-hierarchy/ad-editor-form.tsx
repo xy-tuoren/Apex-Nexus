@@ -4,7 +4,11 @@ import { EditorSidebar } from "@/components/ads/campaign-hierarchy/editor-sideba
 import { Input } from "@/components/ui/input";
 import { SelectControl } from "@/components/ads/campaign-hierarchy/field-controls";
 import { AssetInputList, LogoUploadList, VideoLinkList } from "@/components/ads/campaign-hierarchy/field-controls";
-import { CTA_OPTIONS } from "@/components/ads/campaign-hierarchy/constants";
+import {
+  CTA_OPTIONS,
+  editorFormCardClassName,
+  editorFormStackClassName,
+} from "@/components/ads/campaign-hierarchy/constants";
 import { type AdErrors, type AdGroupErrors } from "@/components/ads/campaign-hierarchy/form-utils";
 import type {
   AdForm,
@@ -22,6 +26,7 @@ interface AdEditorFormProps {
   campaign: CampaignForm;
   group: AdGroupForm;
   ad: AdForm;
+  hideSidebar?: boolean;
   errors?: AdErrors;
   groupErrors?: Record<string, AdGroupErrors>;
   adErrors?: Record<string, AdErrors>;
@@ -48,6 +53,7 @@ export function AdEditorForm({
   campaign,
   group,
   ad,
+  hideSidebar,
   errors = {},
   groupErrors = {},
   adErrors = {},
@@ -64,11 +70,12 @@ export function AdEditorForm({
   onOpenCampaign,
 }: AdEditorFormProps) {
   return (
-    <div className="grid gap-4 xl:grid-cols-[19rem_minmax(0,1fr)]">
-      <div className="xl:sticky xl:top-0 xl:self-start">
-        <EditorSidebar
-          activeAdId={ad.id}
-          activeGroupId={group.id}
+    <div className={hideSidebar ? "" : "grid gap-4 xl:grid-cols-[19rem_minmax(0,1fr)]"}>
+      {!hideSidebar ? (
+        <div className="xl:sticky xl:top-0 xl:self-start">
+          <EditorSidebar
+            activeAdId={ad.id}
+            activeGroupId={group.id}
           adErrors={adErrors}
           campaign={campaign}
           geoTargets={geoTargets}
@@ -84,8 +91,9 @@ export function AdEditorForm({
           onOpenGroup={(groupId) => openAdGroupEditor(campaign.id, groupId)}
         />
       </div>
+      ) : null}
 
-      <div className="grid gap-3 rounded-3xl border border-[var(--hairline)] bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)] sm:p-5">
+      <div className={hideSidebar ? editorFormStackClassName : `${editorFormStackClassName} ${editorFormCardClassName}`}>
         <div className="field">
           <label className="mb-1.5 block text-sm font-medium text-[var(--body)]">
             广告名称<span className="ml-0.5 text-[var(--semantic-error)]">*</span>

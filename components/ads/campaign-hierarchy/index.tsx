@@ -63,6 +63,7 @@ import {
 import { CampaignEditorForm } from "@/components/ads/campaign-hierarchy/campaign-editor-form";
 import { AdGroupEditorForm } from "@/components/ads/campaign-hierarchy/adgroup-editor-form";
 import { AdEditorForm } from "@/components/ads/campaign-hierarchy/ad-editor-form";
+import { EditorSidebar } from "@/components/ads/campaign-hierarchy/editor-sidebar";
 import { useAccountResources } from "@/hooks/useAccountResource";
 import type {
   AdForm,
@@ -311,9 +312,7 @@ export function CampaignHierarchyEditor({
 
   function closeFocusedEditor() {
     setEditorFocus(null);
-    if (!isCampaignEditorOpen) {
-      setActiveCampaignId(null);
-    }
+    setIsCampaignEditorOpen(true);
   }
 
   function returnToCampaignEditor() {
@@ -1175,8 +1174,8 @@ export function CampaignHierarchyEditor({
               <span className="text-xs text-[var(--muted)]">{campaigns.length} Campaigns · {totalAdGroups} AdGroups · {totalAds} Ads</span>
             </div>
             <TabsList className="w-fit">
-              <TabsTrigger value="campaigns">Campaign 列表</TabsTrigger>
-              <TabsTrigger value="tasks">创建任务</TabsTrigger>
+              <TabsTrigger value="campaigns">创建任务</TabsTrigger>
+              <TabsTrigger value="tasks">任务列表</TabsTrigger>
             </TabsList>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
@@ -1242,117 +1241,141 @@ export function CampaignHierarchyEditor({
         </TabsContent>
       </Tabs>
 
-      {/* Modals */}
-      {activeCampaign && shouldShowCampaignEditor ? (
+      {/* Unified editor modal — content switches by level, no close/reopen */}
+      {activeCampaign && (shouldShowCampaignEditor || editorFocus) ? (
         <HierarchyEditModal
-          eyebrow="编辑广告系列"
-          hierarchyTrail={[{ label: "广告系列", name: activeCampaign.campaignName }]}
-          title={activeCampaign.campaignName}
-          onClose={closeCampaignEditor}
+          eyebrow={
+            editorFocus?.level === "adgroup" ? "编辑广告组"
+            : editorFocus?.level === "ad" ? "编辑广告"
+            : "编辑广告系列"
+          }
+          hierarchyTrail={
+            editorFocus?.level === "ad" ? [
+              { label: "广告系列", name: activeCampaign.campaignName, onClick: returnToCampaignEditor },
+              { label: "广告组", name: activeEditorGroup?.name ?? "", onClick: () => setEditorFocus({ level: "adgroup", campaignId: activeCampaign.id, groupId: activeEditorGroup?.id ?? "" }) },
+              { label: "广告", name: activeEditorAd?.name ?? "" },
+            ]
+            : editorFocus?.level === "adgroup" ? [
+              { label: "广告系列", name: activeCampaign.campaignName, onClick: returnToCampaignEditor },
+              { label: "广告组", name: activeEditorGroup?.name ?? "" },
+            ]
+            : [{ label: "广告系列", name: activeCampaign.campaignName }]
+          }
+          maxWidthClassName="sm:max-w-6xl"
+          title={
+            editorFocus?.level === "ad" ? activeEditorAd?.name ?? ""
+            : editorFocus?.level === "adgroup" ? activeEditorGroup?.name ?? ""
+            : activeCampaign.campaignName
+          }
+          onBack={editorFocus ? returnToCampaignEditor : undefined}
+          onClose={editorFocus ? closeFocusedEditor : closeCampaignEditor}
         >
-          <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
-            <Button size="default" type="button" onClick={() => setPresetDialog("apply")}>
-              <Layers3 aria-hidden className="h-4 w-4" strokeWidth={1.75} />
-              套用预设
-            </Button>
+          <div className="grid gap-4 xl:grid-cols-[19rem_minmax(0,1fr)]">
+            <EditorSidebar
+              activeAdId={editorFocus?.level === "ad" ? editorFocus.adId : undefined}
+              activeGroupId={
+                editorFocus?.level === "adgroup" ? editorFocus.groupId
+                : editorFocus?.level === "ad" ? editorFocus.groupId
+                : undefined
+              }
+              adErrors={activeCampaignAdErrors}
+              campaign={activeCampaign}
+              groupErrors={activeCampaignGroupErrors}
+              onAddAd={(groupId) => {
+                if (editorFocus?.level === "adgroup") addAd(activeCampaign.id, editorFocus.groupId);
+                else addAd(activeCampaign.id, groupId);
+              }}
+              onAddGroup={() => addAdGroup(activeCampaign.id)}
+              onDuplicateAd={(groupId, adId) => duplicateAd(activeCampaign.id, groupId, adId)}
+              onDuplicateGroup={(groupId) => duplicateAdGroup(activeCampaign.id, groupId)}
+              onOpenAd={(groupId, adId) => openAdEditor(activeCampaign.id, groupId, adId)}
+              onOpenCampaign={returnToCampaignEditor}
+              onOpenGroup={(groupId) => openAdGroupEditor(activeCampaign.id, groupId)}
+              onRemoveAd={(groupId, adId) => removeAd(activeCampaign.id, groupId, adId)}
+              onRemoveGroup={(groupId) => removeAdGroup(activeCampaign.id, groupId)}
+            />
+            <div>
+              {!editorFocus ? (
+                <>
+                  <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
+                    <Button size="default" type="button" onClick={() => setPresetDialog("apply")}>
+                      <Layers3 aria-hidden className="h-4 w-4" strokeWidth={1.75} />
+                      套用预设
+                    </Button>
+                  </div>
+                  <CampaignEditorForm
+                    campaign={activeCampaign}
+                    adAccounts={adAccounts}
+                    syncState={syncState}
+                    errors={campaignErrors[activeCampaign.id]}
+                    groupErrors={activeCampaignGroupErrors}
+                    adErrors={activeCampaignAdErrors}
+                    conversionGoals={getResources(activeCampaign.adAccountId)?.conversionGoals.data ?? []}
+                    conversionGoalState={getResources(activeCampaign.adAccountId)?.conversionGoals.status ?? "idle"}
+                    conversionGoalError={getResources(activeCampaign.adAccountId)?.conversionGoals.error ?? null}
+                    conversionGoalSyncedAt={getResources(activeCampaign.adAccountId)?.conversionGoals.syncedAt ?? null}
+                    geoTargets={getResources(activeCampaign.adAccountId)?.geoTargets.data ?? FALLBACK_GEO_TARGET_OPTIONS}
+                    languageTargets={getResources(activeCampaign.adAccountId)?.languageTargets.data ?? FALLBACK_LANGUAGE_OPTIONS}
+                    hideSidebar
+                    patchCampaign={patchCampaign}
+                    loadConversionGoals={() => getResources(activeCampaign.adAccountId)?.conversionGoals.reload()}
+                    addAdGroup={addAdGroup}
+                    duplicateAdGroup={duplicateAdGroup}
+                    duplicateAd={duplicateAd}
+                    removeAdGroup={removeAdGroup}
+                    removeAd={removeAd}
+                    openAdGroupEditor={openAdGroupEditor}
+                    openAdEditor={openAdEditor}
+                  />
+                </>
+              ) : editorFocus.level === "adgroup" ? (
+                <AdGroupEditorForm
+                  campaign={activeCampaign}
+                  group={activeEditorGroup!}
+                  errors={adGroupErrors[`${activeCampaign.id}:${activeEditorGroup!.id}`]}
+                  groupErrors={activeCampaignGroupErrors}
+                  adErrors={activeCampaignAdErrors}
+                  hideSidebar
+                  geoTargets={getResources(activeCampaign.adAccountId)?.geoTargets.data ?? FALLBACK_GEO_TARGET_OPTIONS}
+                  geoTargetState={getResources(activeCampaign.adAccountId)?.geoTargets.status ?? "idle"}
+                  languageTargets={getResources(activeCampaign.adAccountId)?.languageTargets.data ?? FALLBACK_LANGUAGE_OPTIONS}
+                  languageTargetState={getResources(activeCampaign.adAccountId)?.languageTargets.status ?? "idle"}
+                  updateCampaignAdGroup={updateCampaignAdGroup}
+                  toggleAdGroupGender={toggleAdGroupGender}
+                  toggleAdGroupAgeRange={toggleAdGroupAgeRange}
+                  addAd={addAd}
+                  duplicateAdGroup={duplicateAdGroup}
+                  duplicateAd={duplicateAd}
+                  removeAdGroup={removeAdGroup}
+                  removeAd={removeAd}
+                  openAdGroupEditor={openAdGroupEditor}
+                  openAdEditor={openAdEditor}
+                  onOpenCampaign={returnToCampaignEditor}
+                />
+              ) : editorFocus.level === "ad" ? (
+                <AdEditorForm
+                  campaign={activeCampaign}
+                  group={activeEditorGroup!}
+                  ad={activeEditorAd!}
+                  errors={adErrors[`${activeCampaign.id}:${activeEditorGroup!.id}:${activeEditorAd!.id}`]}
+                  groupErrors={activeCampaignGroupErrors}
+                  adErrors={activeCampaignAdErrors}
+                  hideSidebar
+                  geoTargets={getResources(activeCampaign.adAccountId)?.geoTargets.data ?? FALLBACK_GEO_TARGET_OPTIONS}
+                  languageTargets={getResources(activeCampaign.adAccountId)?.languageTargets.data ?? FALLBACK_LANGUAGE_OPTIONS}
+                  updateCampaignAd={updateCampaignAd}
+                  addAd={addAd}
+                  duplicateAdGroup={duplicateAdGroup}
+                  duplicateAd={duplicateAd}
+                  removeAdGroup={removeAdGroup}
+                  removeAd={removeAd}
+                  openAdGroupEditor={openAdGroupEditor}
+                  openAdEditor={openAdEditor}
+                  onOpenCampaign={returnToCampaignEditor}
+                />
+          ) : null}
+            </div>
           </div>
-          <CampaignEditorForm
-            campaign={activeCampaign}
-            adAccounts={adAccounts}
-            syncState={syncState}
-            errors={campaignErrors[activeCampaign.id]}
-            groupErrors={activeCampaignGroupErrors}
-            adErrors={activeCampaignAdErrors}
-            conversionGoals={getResources(activeCampaign.adAccountId)?.conversionGoals.data ?? []}
-            conversionGoalState={getResources(activeCampaign.adAccountId)?.conversionGoals.status ?? "idle"}
-            conversionGoalError={getResources(activeCampaign.adAccountId)?.conversionGoals.error ?? null}
-            conversionGoalSyncedAt={getResources(activeCampaign.adAccountId)?.conversionGoals.syncedAt ?? null}
-            geoTargets={getResources(activeCampaign.adAccountId)?.geoTargets.data ?? FALLBACK_GEO_TARGET_OPTIONS}
-            languageTargets={getResources(activeCampaign.adAccountId)?.languageTargets.data ?? FALLBACK_LANGUAGE_OPTIONS}
-            patchCampaign={patchCampaign}
-            loadConversionGoals={() => getResources(activeCampaign.adAccountId)?.conversionGoals.reload()}
-            addAdGroup={addAdGroup}
-            duplicateAdGroup={duplicateAdGroup}
-            duplicateAd={duplicateAd}
-            removeAdGroup={removeAdGroup}
-            removeAd={removeAd}
-            openAdGroupEditor={openAdGroupEditor}
-            openAdEditor={openAdEditor}
-          />
-        </HierarchyEditModal>
-      ) : null}
-
-      {activeCampaign && activeEditorGroup && editorFocus?.level === "adgroup" ? (
-        <HierarchyEditModal
-          eyebrow="编辑广告组"
-          hierarchyTrail={[
-            { label: "广告系列", name: activeCampaign.campaignName, onClick: returnToCampaignEditor },
-            { label: "广告组", name: activeEditorGroup.name },
-          ]}
-          maxWidthClassName="sm:max-w-6xl"
-          title={activeEditorGroup.name}
-          zIndexClassName="z-[60]"
-          onBack={returnToCampaignEditor}
-          onClose={closeFocusedEditor}
-        >
-          <AdGroupEditorForm
-            campaign={activeCampaign}
-            group={activeEditorGroup}
-            errors={adGroupErrors[`${activeCampaign.id}:${activeEditorGroup.id}`]}
-            groupErrors={activeCampaignGroupErrors}
-            adErrors={activeCampaignAdErrors}
-            geoTargets={getResources(activeCampaign.adAccountId)?.geoTargets.data ?? FALLBACK_GEO_TARGET_OPTIONS}
-            geoTargetState={getResources(activeCampaign.adAccountId)?.geoTargets.status ?? "idle"}
-            languageTargets={getResources(activeCampaign.adAccountId)?.languageTargets.data ?? FALLBACK_LANGUAGE_OPTIONS}
-            languageTargetState={getResources(activeCampaign.adAccountId)?.languageTargets.status ?? "idle"}
-            updateCampaignAdGroup={updateCampaignAdGroup}
-            toggleAdGroupGender={toggleAdGroupGender}
-            toggleAdGroupAgeRange={toggleAdGroupAgeRange}
-            addAd={addAd}
-            duplicateAdGroup={duplicateAdGroup}
-            duplicateAd={duplicateAd}
-            removeAdGroup={removeAdGroup}
-            removeAd={removeAd}
-            openAdGroupEditor={openAdGroupEditor}
-            openAdEditor={openAdEditor}
-            onOpenCampaign={returnToCampaignEditor}
-          />
-        </HierarchyEditModal>
-      ) : null}
-
-      {activeCampaign && activeEditorGroup && activeEditorAd && editorFocus?.level === "ad" ? (
-        <HierarchyEditModal
-          eyebrow="编辑广告"
-          hierarchyTrail={[
-            { label: "广告系列", name: activeCampaign.campaignName, onClick: returnToCampaignEditor },
-            { label: "广告组", name: activeEditorGroup.name, onClick: () => setEditorFocus({ level: "adgroup", campaignId: activeCampaign.id, groupId: activeEditorGroup.id }) },
-            { label: "广告", name: activeEditorAd.name },
-          ]}
-          maxWidthClassName="sm:max-w-6xl"
-          title={activeEditorAd.name}
-          zIndexClassName="z-[70]"
-          onBack={() => setEditorFocus({ level: "adgroup", campaignId: activeCampaign.id, groupId: activeEditorGroup.id })}
-          onClose={closeFocusedEditor}
-        >
-          <AdEditorForm
-            campaign={activeCampaign}
-            group={activeEditorGroup}
-            ad={activeEditorAd}
-            errors={adErrors[`${activeCampaign.id}:${activeEditorGroup.id}:${activeEditorAd.id}`]}
-            groupErrors={activeCampaignGroupErrors}
-            adErrors={activeCampaignAdErrors}
-            geoTargets={getResources(activeCampaign.adAccountId)?.geoTargets.data ?? FALLBACK_GEO_TARGET_OPTIONS}
-            languageTargets={getResources(activeCampaign.adAccountId)?.languageTargets.data ?? FALLBACK_LANGUAGE_OPTIONS}
-            updateCampaignAd={updateCampaignAd}
-            addAd={addAd}
-            duplicateAdGroup={duplicateAdGroup}
-            duplicateAd={duplicateAd}
-            removeAdGroup={removeAdGroup}
-            removeAd={removeAd}
-            openAdGroupEditor={openAdGroupEditor}
-            openAdEditor={openAdEditor}
-            onOpenCampaign={returnToCampaignEditor}
-          />
         </HierarchyEditModal>
       ) : null}
 
