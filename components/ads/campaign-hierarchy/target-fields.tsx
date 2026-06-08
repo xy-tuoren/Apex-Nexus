@@ -26,6 +26,7 @@ type TargetFieldsProps = {
   locationError?: string;
   languageError?: string;
   mode?: TargetFieldMode;
+  portalled?: boolean;
 };
 
 function errorClass(error?: string) {
@@ -40,12 +41,14 @@ function GeoTargetCombobox({
   value,
   onChange,
   error,
+  portalled,
 }: {
   disabled?: boolean;
   geoTargets: GeoTargetOption[];
   value: string;
   onChange: (value: string) => void;
   error?: string;
+  portalled?: boolean;
 }) {
   return (
     <Combobox
@@ -57,6 +60,7 @@ function GeoTargetCombobox({
       searchable
       searchPlaceholder="搜索国家/地区或代称"
       value={value}
+      portalled={portalled}
       onChange={onChange}
     />
   );
@@ -68,12 +72,14 @@ function LanguageTargetCombobox({
   value,
   onChange,
   error,
+  portalled,
 }: {
   disabled?: boolean;
   languageTargets: LanguageTargetOption[];
   value: string;
   onChange: (value: string) => void;
   error?: string;
+  portalled?: boolean;
 }) {
   return (
     <Combobox
@@ -85,6 +91,7 @@ function LanguageTargetCombobox({
       searchable
       searchPlaceholder="搜索语言或代称"
       value={value}
+      portalled={portalled}
       onChange={onChange}
     />
   );
@@ -102,12 +109,14 @@ export function TargetFields({
   locationError,
   languageError,
   mode = "plain",
+  portalled = true,
 }: TargetFieldsProps) {
   const locationControl = (
     <GeoTargetCombobox
       disabled={geoTargetState === "loading"}
       error={locationError}
       geoTargets={geoTargets}
+      portalled={portalled}
       value={locationValue}
       onChange={onLocationChange}
     />
@@ -117,6 +126,7 @@ export function TargetFields({
       disabled={languageTargetState === "loading"}
       error={languageError}
       languageTargets={languageTargets}
+      portalled={portalled}
       value={languageValue}
       onChange={onLanguageChange}
     />

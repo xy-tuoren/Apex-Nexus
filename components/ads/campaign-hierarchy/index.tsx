@@ -7,6 +7,7 @@ import {
   Layers3,
   Plus,
   RefreshCw,
+  Trash2,
   Waypoints,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -117,14 +118,9 @@ export function CampaignHierarchyEditor({
 
   const initialCampaignIdRef = useRef("cmp_1_initial");
   const [campaigns, setCampaigns] = useState<CampaignForm[]>(() => {
-    const initialSite = initialSites[0];
-    const initialAccount = initialSite
-      ? initialAdAccounts.find((account) => account.operationMccId === initialSite.operationMccId)
-      : undefined;
     const initial = {
-      ...buildDefaultCampaign(1, initialAccount, initialCampaignName),
+      ...buildDefaultCampaign(1, undefined, initialCampaignName),
       id: initialCampaignIdRef.current,
-      siteId: initialSite?.id ?? "",
     };
     return [initial];
   });
@@ -397,12 +393,9 @@ export function CampaignHierarchyEditor({
   }
 
   function buildCampaignWithDefaults(index: number, id: string): CampaignForm {
-    const site = sites[0];
-    const account = site ? firstAccountForSite(site.id) : undefined;
     return {
-      ...buildDefaultCampaign(index, account),
+      ...buildDefaultCampaign(index),
       id,
-      siteId: site?.id ?? "",
     };
   }
 
@@ -706,9 +699,18 @@ export function CampaignHierarchyEditor({
   }
 
   function removeCampaign(campaignId: string) {
-    if (campaigns.length === 1) return;
     setCampaigns((current) => current.filter((c) => c.id !== campaignId));
     if (activeCampaignId === campaignId) closeCampaignEditor();
+  }
+
+  function clearAllCampaigns() {
+    setCampaigns([]);
+    setCampaignErrors({});
+    setAdGroupErrors({});
+    setAdErrors({});
+    closeCampaignEditor();
+    setPreviewCampaignId(null);
+    closeCampaignSync();
   }
 
   function addAdGroup(campaignId: string) {
@@ -1612,6 +1614,16 @@ export function CampaignHierarchyEditor({
               <Plus aria-hidden className="h-4 w-4" strokeWidth={1.75} />
               新增 Campaign
             </Button>
+            <Button
+              disabled={campaigns.length === 0}
+              size="sm"
+              type="button"
+              variant="destructive"
+              onClick={clearAllCampaigns}
+            >
+              <Trash2 aria-hidden className="h-4 w-4" strokeWidth={1.75} />
+              清空全部
+            </Button>
             <Button disabled={isSubmitting || !campaigns.some((c) => c.adAccountId)} size="sm" type="button" onClick={() => void submitDrafts()}>
               {isSubmitting ? <Spinner aria-hidden className="h-4 w-4" /> : null}
               {isSubmitting ? "提交中..." : "提交后台创建"}
@@ -1639,22 +1651,26 @@ export function CampaignHierarchyEditor({
             <CampaignViewToggle mode={campaignViewMode} onChange={setCampaignViewMode} />
           </div>
           {campaignViewMode === "list" ? (
-            <CampaignOverviewTable
-              campaigns={campaignOverviewItems}
-              canRemove={() => campaigns.length > 1}
-              onDuplicate={duplicateCampaign}
-              onEdit={openCampaignDetail}
-              onPreview={setPreviewCampaignId}
-              onRemove={removeCampaign}
-              onSync={openCampaignSync}
-            />
+            campaigns.length === 0 ? (
+              <CampaignOverviewAddTile onClick={addCampaign} />
+            ) : (
+              <CampaignOverviewTable
+                campaigns={campaignOverviewItems}
+                canRemove={() => true}
+                onDuplicate={duplicateCampaign}
+                onEdit={openCampaignDetail}
+                onPreview={setPreviewCampaignId}
+                onRemove={removeCampaign}
+                onSync={openCampaignSync}
+              />
+            )
           ) : (
             <div className="ads-campaign-grid animate-fade-up">
               {campaigns.map((campaign, slotIndex) => (
                 <CampaignOverviewCard
                   key={campaign.id}
                   campaign={campaignOverviewItems[slotIndex]}
-                  canRemove={campaigns.length > 1}
+                  canRemove
                   canDuplicate
                   onDuplicate={() => duplicateCampaign(campaign.id)}
                   onEdit={() => openCampaignDetail(campaign.id)}

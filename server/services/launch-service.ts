@@ -270,6 +270,58 @@ async function updateLaunchBatchItems(
   });
 }
 
+async function runWithResourceLocks<T>(
+  items: T[],
+  getLockKeys: (item: T) => Promise<string[]>,
+  run: (item: T) => Promise<unknown>,
+) {
+  const tails = new Map<string, Promise<void>>();
+
+  await Promise.allSettled(
+    items.map(async (item) => {
+      const lockKeys = (await getLockKeys(item)).toSorted();
+      let previous = Promise.resolve();
+
+      for (const lockKey of lockKeys) {
+        previous = Promise.allSettled([previous, tails.get(lockKey) ?? Promise.resolve()]).then(
+          () => undefined,
+        );
+      }
+
+      const current = previous.then(() => run(item)).then(() => undefined);
+
+      for (const lockKey of lockKeys) {
+        tails.set(lockKey, current);
+      }
+
+      await current;
+    }),
+  );
+}
+
+async function launchBatchItemSharedResourceKeys(item: LaunchBatch["items"][number]) {
+  const [draft, adAccount] = await Promise.all([
+    findById("campaign_drafts", item.draftId),
+    findById("google_ad_accounts", item.adAccountId),
+  ]);
+
+  if (!draft || !adAccount) {
+    return [];
+  }
+
+  const customerId = adAccount.customerId.replaceAll("-", "");
+  const keys: string[] = [];
+
+  if (
+    draft.campaignObjective === "CONVERSIONS" &&
+    draft.conversionGoal
+  ) {
+    keys.push(`customer:${customerId}:conversion-goal:${draft.conversionGoal}`);
+  }
+
+  return keys;
+}
+
 export async function createLaunchBatch(input: LaunchBatchCreateInput) {
   const items: LaunchBatch["items"] = [];
   const now = timestamp();
@@ -326,7 +378,11 @@ export async function runLaunchBatch(batchId: string) {
     updatedAt: runningAt,
   });
 
-  await Promise.allSettled(batch.items.map((item) => runLaunchJob(item.jobId)));
+  await runWithResourceLocks(
+    batch.items,
+    launchBatchItemSharedResourceKeys,
+    (item) => runLaunchJob(item.jobId),
+  );
 
   const jobs = await listCollection("launch_jobs");
   const jobsById = new Map(jobs.map((job) => [job.id, job]));

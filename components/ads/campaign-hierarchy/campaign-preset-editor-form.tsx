@@ -347,6 +347,7 @@ export function CampaignPresetEditorForm({
             languageValue={group.language}
             locationValue={group.locations}
             mode="field"
+            portalled={false}
             onLanguageChange={(language) => updateGroup({ language })}
             onLocationChange={(locations) => updateGroup({ locations })}
           />
