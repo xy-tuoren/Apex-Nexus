@@ -4,6 +4,7 @@ import { EditorSidebar } from "@/components/ads/campaign-hierarchy/editor-sideba
 import { Input } from "@/components/ui/input";
 import { SelectControl } from "@/components/ads/campaign-hierarchy/field-controls";
 import { AssetInputList, LogoUploadList, VideoLinkList } from "@/components/ads/campaign-hierarchy/field-controls";
+import { DEMAND_GEN_AD_LIMITS } from "@/lib/google-ads/demand-gen-limits";
 import {
   CTA_OPTIONS,
   editorFormCardClassName,
@@ -164,6 +165,7 @@ export function AdEditorForm({
           </label>
           <VideoLinkList
             key={`${ad.id}:videoLinks`}
+            maxItems={DEMAND_GEN_AD_LIMITS.youtubeVideos}
             value={ad.videoLinks}
             onChange={(videoLinks) =>
               updateCampaignAd(campaign.id, group.id, ad.id, { videoLinks })
@@ -178,6 +180,7 @@ export function AdEditorForm({
             徽标<span className="ml-0.5 text-[var(--semantic-error)]">*</span>
           </label>
           <LogoUploadList
+            maxItems={DEMAND_GEN_AD_LIMITS.logos}
             value={ad.logos}
             onChange={(logos) => updateCampaignAd(campaign.id, group.id, ad.id, { logos })}
           />
@@ -192,6 +195,7 @@ export function AdEditorForm({
           <AssetInputList
             key={`${ad.id}:shortHeadlines`}
             maxLength={40}
+            maxItems={DEMAND_GEN_AD_LIMITS.headlines}
             placeholder="输入短标题"
             value={ad.shortHeadlines}
             onChange={(shortHeadlines) =>
@@ -209,6 +213,7 @@ export function AdEditorForm({
           <AssetInputList
             key={`${ad.id}:longHeadlines`}
             maxLength={90}
+            maxItems={DEMAND_GEN_AD_LIMITS.longHeadlines}
             placeholder="输入长标题"
             value={ad.longHeadlines}
             onChange={(longHeadlines) =>
@@ -226,6 +231,7 @@ export function AdEditorForm({
           <AssetInputList
             key={`${ad.id}:descriptions`}
             maxLength={90}
+            maxItems={DEMAND_GEN_AD_LIMITS.descriptions}
             placeholder="输入描述"
             value={ad.descriptions}
             onChange={(descriptions) =>

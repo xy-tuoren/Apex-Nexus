@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { DEMAND_GEN_AD_LIMITS } from "@/lib/google-ads/demand-gen-limits";
 import { TargetFields } from "@/components/ads/campaign-hierarchy/target-fields";
 import {
   AGE_OPTIONS,
@@ -425,6 +426,7 @@ export function CampaignPresetEditorForm({
         </div>
         <Field label="徽标">
           <LogoUploadList
+            maxItems={DEMAND_GEN_AD_LIMITS.logos}
             value={ad.logos}
             onChange={(logos) => updateAd({ logos })}
           />
@@ -433,6 +435,7 @@ export function CampaignPresetEditorForm({
           <AssetInputList
             key="preset:shortHeadlines"
             maxLength={40}
+            maxItems={DEMAND_GEN_AD_LIMITS.headlines}
             placeholder="输入短标题"
             value={ad.shortHeadlines}
             onChange={(shortHeadlines) => updateAd({ shortHeadlines })}
@@ -442,6 +445,7 @@ export function CampaignPresetEditorForm({
           <AssetInputList
             key="preset:longHeadlines"
             maxLength={90}
+            maxItems={DEMAND_GEN_AD_LIMITS.longHeadlines}
             placeholder="输入长标题"
             value={ad.longHeadlines}
             onChange={(longHeadlines) => updateAd({ longHeadlines })}
@@ -451,6 +455,7 @@ export function CampaignPresetEditorForm({
           <AssetInputList
             key="preset:descriptions"
             maxLength={90}
+            maxItems={DEMAND_GEN_AD_LIMITS.descriptions}
             placeholder="输入描述"
             value={ad.descriptions}
             onChange={(descriptions) => updateAd({ descriptions })}

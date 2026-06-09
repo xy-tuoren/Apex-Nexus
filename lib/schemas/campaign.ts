@@ -1,4 +1,13 @@
 import { z } from "zod";
+import { DEMAND_GEN_AD_LIMITS } from "@/lib/google-ads/demand-gen-limits";
+
+function textListSize(value: string) {
+  return value.split(/\n|,/).map((item) => item.trim()).filter(Boolean).length;
+}
+
+function multilineSize(value: string) {
+  return value.split("\n").map((item) => item.trim()).filter(Boolean).length;
+}
 
 export const advertisingTypeSchema = z.enum(["DEMAND_GEN"]);
 
@@ -22,12 +31,12 @@ export const assetPayloadSchema = z.object({
 export const assetValidationSchema = z.object({
   advertisingType: advertisingTypeSchema,
   assets: z.object({
-    headlines: z.array(z.string().min(1).max(40)).default([]),
-    longHeadlines: z.array(z.string().min(1).max(90)).default([]),
-    descriptions: z.array(z.string().min(1).max(90)).default([]),
+    headlines: z.array(z.string().min(1).max(40)).max(DEMAND_GEN_AD_LIMITS.headlines).default([]),
+    longHeadlines: z.array(z.string().min(1).max(90)).max(DEMAND_GEN_AD_LIMITS.longHeadlines).default([]),
+    descriptions: z.array(z.string().min(1).max(90)).max(DEMAND_GEN_AD_LIMITS.descriptions).default([]),
     businessName: z.string().min(1).max(25),
-    logos: z.array(z.string()).default([]),
-    youtubeVideos: z.array(z.string()).default([]),
+    logos: z.array(z.string()).max(DEMAND_GEN_AD_LIMITS.logos).default([]),
+    youtubeVideos: z.array(z.string()).max(DEMAND_GEN_AD_LIMITS.youtubeVideos).default([]),
   }),
 });
 
@@ -35,11 +44,11 @@ export const adCreativeDraftSchema = z.object({
   id: z.string().min(1).optional(),
   name: z.string().min(1).max(120),
   finalUrl: z.string().url(),
-  youtubeVideos: z.array(z.string().min(1)).default([]),
-  logos: z.array(z.string().min(1)).default([]),
-  headlines: z.array(z.string().min(1).max(40)).default([]),
-  longHeadlines: z.array(z.string().min(1).max(90)).default([]),
-  descriptions: z.array(z.string().min(1).max(90)).default([]),
+  youtubeVideos: z.array(z.string().min(1)).max(DEMAND_GEN_AD_LIMITS.youtubeVideos).default([]),
+  logos: z.array(z.string().min(1)).max(DEMAND_GEN_AD_LIMITS.logos).default([]),
+  headlines: z.array(z.string().min(1).max(40)).max(DEMAND_GEN_AD_LIMITS.headlines).default([]),
+  longHeadlines: z.array(z.string().min(1).max(90)).max(DEMAND_GEN_AD_LIMITS.longHeadlines).default([]),
+  descriptions: z.array(z.string().min(1).max(90)).max(DEMAND_GEN_AD_LIMITS.descriptions).default([]),
   callToAction: z.string().min(1).max(40),
   businessName: z.string().min(1).max(25),
 });
@@ -117,10 +126,22 @@ export const campaignDraftSchema = z.object({
 });
 
 export const campaignPresetAdPayloadSchema = z.object({
-  logos: z.string().default(""),
-  shortHeadlines: z.string().default(""),
-  longHeadlines: z.string().default(""),
-  descriptions: z.string().default(""),
+  logos: z.string().default("").refine(
+    (value) => multilineSize(value) <= DEMAND_GEN_AD_LIMITS.logos,
+    `徽标最多 ${DEMAND_GEN_AD_LIMITS.logos} 个。`,
+  ),
+  shortHeadlines: z.string().default("").refine(
+    (value) => textListSize(value) <= DEMAND_GEN_AD_LIMITS.headlines,
+    `短标题最多 ${DEMAND_GEN_AD_LIMITS.headlines} 条。`,
+  ),
+  longHeadlines: z.string().default("").refine(
+    (value) => textListSize(value) <= DEMAND_GEN_AD_LIMITS.longHeadlines,
+    `长标题最多 ${DEMAND_GEN_AD_LIMITS.longHeadlines} 条。`,
+  ),
+  descriptions: z.string().default("").refine(
+    (value) => textListSize(value) <= DEMAND_GEN_AD_LIMITS.descriptions,
+    `广告内容描述最多 ${DEMAND_GEN_AD_LIMITS.descriptions} 条。`,
+  ),
   callToAction: z.string().min(1).max(40),
   businessName: z.string().max(25).default(""),
 });

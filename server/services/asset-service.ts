@@ -1,5 +1,6 @@
 import type { ApiError, CreativeAsset } from "@/lib/types";
 import type { AssetInput } from "@/lib/schemas/campaign";
+import { DEMAND_GEN_AD_LIMITS } from "@/lib/google-ads/demand-gen-limits";
 import {
   audit,
   insertOne,
@@ -46,6 +47,41 @@ export function validateAssetBundle(
       errors.push({
         code: "DEMAND_GEN_LOGO_REQUIRED",
         message: "Demand Gen 视频响应式广告至少需要 1 个 Logo。",
+      });
+    }
+    if (assets.headlines.length > DEMAND_GEN_AD_LIMITS.headlines) {
+      errors.push({
+        code: "DEMAND_GEN_TOO_MANY_HEADLINES",
+        message: `Demand Gen 短标题最多 ${DEMAND_GEN_AD_LIMITS.headlines} 条。`,
+        details: { count: assets.headlines.length, max: DEMAND_GEN_AD_LIMITS.headlines },
+      });
+    }
+    if (assets.longHeadlines.length > DEMAND_GEN_AD_LIMITS.longHeadlines) {
+      errors.push({
+        code: "DEMAND_GEN_TOO_MANY_LONG_HEADLINES",
+        message: `Demand Gen 长标题最多 ${DEMAND_GEN_AD_LIMITS.longHeadlines} 条。`,
+        details: { count: assets.longHeadlines.length, max: DEMAND_GEN_AD_LIMITS.longHeadlines },
+      });
+    }
+    if (assets.descriptions.length > DEMAND_GEN_AD_LIMITS.descriptions) {
+      errors.push({
+        code: "DEMAND_GEN_TOO_MANY_DESCRIPTIONS",
+        message: `Demand Gen 广告内容描述最多 ${DEMAND_GEN_AD_LIMITS.descriptions} 条。`,
+        details: { count: assets.descriptions.length, max: DEMAND_GEN_AD_LIMITS.descriptions },
+      });
+    }
+    if (assets.youtubeVideos.length > DEMAND_GEN_AD_LIMITS.youtubeVideos) {
+      errors.push({
+        code: "DEMAND_GEN_TOO_MANY_VIDEOS",
+        message: `Demand Gen 视频素材最多 ${DEMAND_GEN_AD_LIMITS.youtubeVideos} 条。`,
+        details: { count: assets.youtubeVideos.length, max: DEMAND_GEN_AD_LIMITS.youtubeVideos },
+      });
+    }
+    if (assets.logos.length > DEMAND_GEN_AD_LIMITS.logos) {
+      errors.push({
+        code: "DEMAND_GEN_TOO_MANY_LOGOS",
+        message: `Demand Gen Logo 最多 ${DEMAND_GEN_AD_LIMITS.logos} 个。`,
+        details: { count: assets.logos.length, max: DEMAND_GEN_AD_LIMITS.logos },
       });
     }
   }

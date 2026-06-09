@@ -1,6 +1,7 @@
 import type { ComboboxOption } from "@/components/ui/combobox";
 import type { GoogleAdAccount, Site } from "@/lib/types";
 import type { CampaignPresetPayload } from "@/lib/types";
+import { DEMAND_GEN_AD_LIMITS } from "@/lib/google-ads/demand-gen-limits";
 import { POPULAR_COUNTRY_GEO_TARGETS } from "@/lib/google-ads/popular-geo-targets";
 import {
   CONVERSION_CATEGORY_LABELS,
@@ -747,14 +748,40 @@ export type AdErrors = Partial<Record<
 
 export function validateAd(ad: AdForm): AdErrors {
   const errors: AdErrors = {};
+  const shortHeadlines = splitLines(ad.shortHeadlines);
+  const longHeadlines = splitLines(ad.longHeadlines);
+  const descriptions = splitLines(ad.descriptions);
+  const videoLinks = normalizeVideoInputs(ad.videoLinks);
+  const logos = splitMultiline(ad.logos);
+
   if (!ad.name.trim()) errors.name = "请输入广告名称";
   if (!ad.finalUrl.trim()) errors.finalUrl = "请输入最终到达网址";
   if (!ad.businessName.trim()) errors.businessName = "请输入商家名称";
-  if (!splitLines(ad.shortHeadlines).length) errors.shortHeadlines = "请输入短标题";
-  if (!splitLines(ad.longHeadlines).length) errors.longHeadlines = "请输入长标题";
-  if (!splitLines(ad.descriptions).length) errors.descriptions = "请输入广告内容描述";
-  if (!normalizeVideoInputs(ad.videoLinks).length) errors.videoLinks = "请添加至少一个视频链接";
-  if (!splitMultiline(ad.logos).length) errors.logos = "请添加至少一个徽标";
+  if (!shortHeadlines.length) {
+    errors.shortHeadlines = "请输入短标题";
+  } else if (shortHeadlines.length > DEMAND_GEN_AD_LIMITS.headlines) {
+    errors.shortHeadlines = `短标题最多 ${DEMAND_GEN_AD_LIMITS.headlines} 条`;
+  }
+  if (!longHeadlines.length) {
+    errors.longHeadlines = "请输入长标题";
+  } else if (longHeadlines.length > DEMAND_GEN_AD_LIMITS.longHeadlines) {
+    errors.longHeadlines = `长标题最多 ${DEMAND_GEN_AD_LIMITS.longHeadlines} 条`;
+  }
+  if (!descriptions.length) {
+    errors.descriptions = "请输入广告内容描述";
+  } else if (descriptions.length > DEMAND_GEN_AD_LIMITS.descriptions) {
+    errors.descriptions = `广告内容描述最多 ${DEMAND_GEN_AD_LIMITS.descriptions} 条`;
+  }
+  if (!videoLinks.length) {
+    errors.videoLinks = "请添加至少一个视频链接";
+  } else if (videoLinks.length > DEMAND_GEN_AD_LIMITS.youtubeVideos) {
+    errors.videoLinks = `视频素材最多 ${DEMAND_GEN_AD_LIMITS.youtubeVideos} 条`;
+  }
+  if (!logos.length) {
+    errors.logos = "请添加至少一个徽标";
+  } else if (logos.length > DEMAND_GEN_AD_LIMITS.logos) {
+    errors.logos = `徽标最多 ${DEMAND_GEN_AD_LIMITS.logos} 个`;
+  }
   return errors;
 }
 
