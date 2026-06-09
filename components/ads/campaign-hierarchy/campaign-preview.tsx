@@ -65,6 +65,10 @@ function textCount(value: string) {
   return splitLines(value).length;
 }
 
+function descriptionItems(value: string) {
+  return splitMultiline(value);
+}
+
 type CampaignPreviewProps = {
   campaign: CampaignForm;
   account?: GoogleAdAccount;
@@ -84,7 +88,7 @@ export function CampaignPreview({
   const videoCount = allAds.reduce((total, ad) => total + textCount(ad.videoLinks), 0);
   const shortHeadlineCount = allAds.reduce((total, ad) => total + textCount(ad.shortHeadlines), 0);
   const longHeadlineCount = allAds.reduce((total, ad) => total + textCount(ad.longHeadlines), 0);
-  const descriptionCount = allAds.reduce((total, ad) => total + textCount(ad.descriptions), 0);
+  const descriptionCount = allAds.reduce((total, ad) => total + descriptionItems(ad.descriptions).length, 0);
   const logoCount = allAds.reduce((total, ad) => total + splitMultiline(ad.logos).length, 0);
 
   return (
@@ -183,8 +187,8 @@ export function CampaignPreview({
                     <p className="mt-1 truncate text-xs leading-relaxed text-[var(--body)]" title={splitLines(ad.longHeadlines).join(" / ")}>
                       长标题：{splitLines(ad.longHeadlines).slice(0, 3).join(" / ") || "未填"}
                     </p>
-                    <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--body)]" title={splitLines(ad.descriptions).join(" / ")}>
-                      内容：{splitLines(ad.descriptions).slice(0, 4).join(" / ") || "未填"}
+                    <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--body)]" title={descriptionItems(ad.descriptions).join(" / ")}>
+                      内容：{descriptionItems(ad.descriptions).slice(0, 4).join(" / ") || "未填"}
                     </p>
                   </div>
                   <div className="grid min-w-0 grid-cols-2 gap-2 text-xs">

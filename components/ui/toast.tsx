@@ -4,7 +4,7 @@ import * as React from "react";
 import { toast as sonnerToast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 
-type ToastTone = "success" | "error";
+type ToastTone = "success" | "warning" | "error";
 
 type ToastItem = {
   id: string;
@@ -28,6 +28,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
     if (toast.tone === "success") {
       sonnerToast.success(toast.title, options);
+      return;
+    }
+
+    if (toast.tone === "warning") {
+      sonnerToast.warning(toast.title, options);
       return;
     }
 

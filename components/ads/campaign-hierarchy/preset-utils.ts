@@ -13,6 +13,7 @@ import {
   labelForOptionValue,
   rangesFromHours,
   splitLines,
+  splitMultiline,
   summarizeGeoLocation,
 } from "@/components/ads/campaign-hierarchy/form-utils";
 import type { GeoTargetOption } from "@/components/ads/campaign-hierarchy/types";
@@ -173,7 +174,7 @@ export function buildPresetTableRows(
       locationLabel: firstGroup ? summarizeGeoLocation(firstGroup.locations, geoTargets) : "-",
       shortHeadlines: firstAd ? splitLines(firstAd.shortHeadlines) : [],
       longHeadlines: firstAd ? splitLines(firstAd.longHeadlines) : [],
-      adDescriptions: firstAd ? splitLines(firstAd.descriptions) : [],
+      adDescriptions: firstAd ? splitMultiline(firstAd.descriptions) : [],
       updatedAt: formatStableDateTimeToMinute(preset.updatedAt),
     };
   });

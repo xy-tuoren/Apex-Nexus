@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { SelectControl } from "@/components/ads/campaign-hierarchy/field-controls";
 import { AssetInputList, LogoUploadList, VideoLinkList } from "@/components/ads/campaign-hierarchy/field-controls";
 import { DEMAND_GEN_AD_LIMITS } from "@/lib/google-ads/demand-gen-limits";
+import { splitMultiline } from "@/components/ads/campaign-hierarchy/form-utils";
 import {
   CTA_OPTIONS,
   editorFormCardClassName,
@@ -233,6 +234,7 @@ export function AdEditorForm({
             maxLength={90}
             maxItems={DEMAND_GEN_AD_LIMITS.descriptions}
             placeholder="输入描述"
+            splitItems={splitMultiline}
             value={ad.descriptions}
             onChange={(descriptions) =>
               updateCampaignAd(campaign.id, group.id, ad.id, { descriptions })

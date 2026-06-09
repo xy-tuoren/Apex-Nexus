@@ -750,7 +750,7 @@ export function validateAd(ad: AdForm): AdErrors {
   const errors: AdErrors = {};
   const shortHeadlines = splitLines(ad.shortHeadlines);
   const longHeadlines = splitLines(ad.longHeadlines);
-  const descriptions = splitLines(ad.descriptions);
+  const descriptions = splitMultiline(ad.descriptions);
   const videoLinks = normalizeVideoInputs(ad.videoLinks);
   const logos = splitMultiline(ad.logos);
 
@@ -769,8 +769,6 @@ export function validateAd(ad: AdForm): AdErrors {
   }
   if (!descriptions.length) {
     errors.descriptions = "请输入广告内容描述";
-  } else if (descriptions.length > DEMAND_GEN_AD_LIMITS.descriptions) {
-    errors.descriptions = `广告内容描述最多 ${DEMAND_GEN_AD_LIMITS.descriptions} 条`;
   }
   if (!videoLinks.length) {
     errors.videoLinks = "请添加至少一个视频链接";
@@ -1137,7 +1135,7 @@ export function buildPayloadFromCampaign(campaign: CampaignForm, firstAdFallback
       logos: splitMultiline(ad.logos),
       headlines: splitLines(ad.shortHeadlines),
       longHeadlines: splitLines(ad.longHeadlines),
-      descriptions: splitLines(ad.descriptions),
+      descriptions: splitMultiline(ad.descriptions).slice(0, DEMAND_GEN_AD_LIMITS.descriptions),
       callToAction: ad.callToAction,
       businessName: ad.businessName,
     })),

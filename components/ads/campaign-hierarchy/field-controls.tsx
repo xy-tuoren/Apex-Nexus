@@ -123,15 +123,17 @@ export function AssetInputList({
   maxItems = 5,
   maxLength,
   placeholder,
+  splitItems = splitLines,
 }: {
   value: string;
   onChange: (value: string) => void;
   maxItems?: number;
   maxLength: number;
   placeholder: string;
+  splitItems?: (value: string) => string[];
 }) {
   const [draftItems, setDraftItems] = useState<string[]>(() => {
-    const items = splitLines(value).slice(0, maxItems);
+    const items = splitItems(value).slice(0, maxItems);
     return items.length ? items : [""];
   });
   const [clipboardError, setClipboardError] = useState("");
@@ -163,15 +165,18 @@ export function AssetInputList({
   async function createFromClipboard() {
     try {
       const text = await navigator.clipboard.readText();
-      const nextItems = splitLines(text)
+      const rawItems = splitItems(text)
         .map((item) => item.trim().slice(0, maxLength))
-        .filter(Boolean)
-        .slice(0, maxItems);
+        .filter(Boolean);
+      const nextItems = rawItems.slice(0, maxItems);
       if (!nextItems.length) {
         setClipboardError("剪贴板没有可用文本");
         return;
       }
       commit(nextItems);
+      if (rawItems.length > maxItems) {
+        setClipboardError(`已读取 ${rawItems.length} 条，仅保留前 ${maxItems} 条`);
+      }
     } catch {
       setClipboardError("无法读取剪贴板");
     }

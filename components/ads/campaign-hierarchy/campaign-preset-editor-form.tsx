@@ -32,6 +32,7 @@ import {
   formatConversionGoalLabel,
   formatSiteLabel,
   formatStableDateTime,
+  splitMultiline,
   summarizeDevicesSelection,
   summarizeOsSelection,
 } from "@/components/ads/campaign-hierarchy/form-utils";
@@ -457,6 +458,7 @@ export function CampaignPresetEditorForm({
             maxLength={90}
             maxItems={DEMAND_GEN_AD_LIMITS.descriptions}
             placeholder="输入描述"
+            splitItems={splitMultiline}
             value={ad.descriptions}
             onChange={(descriptions) => updateAd({ descriptions })}
           />

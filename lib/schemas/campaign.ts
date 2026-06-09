@@ -139,7 +139,7 @@ export const campaignPresetAdPayloadSchema = z.object({
     `长标题最多 ${DEMAND_GEN_AD_LIMITS.longHeadlines} 条。`,
   ),
   descriptions: z.string().default("").refine(
-    (value) => textListSize(value) <= DEMAND_GEN_AD_LIMITS.descriptions,
+    (value) => multilineSize(value) <= DEMAND_GEN_AD_LIMITS.descriptions,
     `广告内容描述最多 ${DEMAND_GEN_AD_LIMITS.descriptions} 条。`,
   ),
   callToAction: z.string().min(1).max(40),

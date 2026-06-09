@@ -76,6 +76,7 @@ import { AdGroupEditorForm } from "@/components/ads/campaign-hierarchy/adgroup-e
 import { AdEditorForm } from "@/components/ads/campaign-hierarchy/ad-editor-form";
 import { EditorSidebar } from "@/components/ads/campaign-hierarchy/editor-sidebar";
 import { useAccountResources } from "@/hooks/useAccountResource";
+import { DEMAND_GEN_AD_LIMITS } from "@/lib/google-ads/demand-gen-limits";
 import type {
   AdForm,
   AdGroupForm,
@@ -93,13 +94,13 @@ import type {
 import type { CampaignHierarchyEditorProps } from "@/components/ads/campaign-hierarchy/types";
 
 const MAX_RESOURCE_ACCOUNTS = 4;
+const INITIAL_CAMPAIGN_ID = "cmp_1_initial";
 
 export function CampaignHierarchyEditor({
   initialAdAccounts,
   accountSyncError: initialSyncError = null,
   accountsSyncedAt: initialSyncedAt = null,
   initialMccAccounts = [],
-  initialPresets = [],
   initialLaunchBatches = [],
   initialSites = [],
   initialCampaignName,
@@ -116,11 +117,10 @@ export function CampaignHierarchyEditor({
   const [syncError, setSyncError] = useState<string | null>(initialSyncError);
   const [syncedAt, setSyncedAt] = useState<string | null>(initialSyncedAt);
 
-  const initialCampaignIdRef = useRef("cmp_1_initial");
   const [campaigns, setCampaigns] = useState<CampaignForm[]>(() => {
     const initial = {
       ...buildDefaultCampaign(1, undefined, initialCampaignName),
-      id: initialCampaignIdRef.current,
+      id: INITIAL_CAMPAIGN_ID,
     };
     return [initial];
   });
@@ -132,7 +132,6 @@ export function CampaignHierarchyEditor({
   const [presetTotal, setPresetTotal] = useState(0);
   const [presetSearch, setPresetSearch] = useState("");
   const presetSearchRef = useRef(presetSearch);
-  presetSearchRef.current = presetSearch;
   const [launchBatches, setLaunchBatches] = useState<LaunchBatch[]>(initialLaunchBatches);
   const [isPresetReloading, setIsPresetReloading] = useState(false);
   const [isPresetSaving, setIsPresetSaving] = useState(false);
@@ -162,6 +161,10 @@ export function CampaignHierarchyEditor({
   const [campaignErrors, setCampaignErrors] = useState<Record<string, CampaignErrors>>({});
   const [adGroupErrors, setAdGroupErrors] = useState<Record<string, AdGroupErrors>>({});
   const [adErrors, setAdErrors] = useState<Record<string, AdErrors>>({});
+
+  useEffect(() => {
+    presetSearchRef.current = presetSearch;
+  }, [presetSearch]);
 
   function validateAllDrafts(): boolean {
     const campErrors: Record<string, CampaignErrors> = {};
@@ -232,6 +235,25 @@ export function CampaignHierarchyEditor({
     }
 
     return valid;
+  }
+
+  function descriptionLimitWarnings() {
+    const warnings: string[] = [];
+
+    for (const campaign of campaigns) {
+      for (const group of campaign.adGroups) {
+        for (const ad of group.ads) {
+          const count = splitMultiline(ad.descriptions).length;
+          if (count > DEMAND_GEN_AD_LIMITS.descriptions) {
+            warnings.push(
+              `${campaign.campaignName} / ${group.name} / ${ad.name}：${count} 条描述，仅提交前 ${DEMAND_GEN_AD_LIMITS.descriptions} 条`,
+            );
+          }
+        }
+      }
+    }
+
+    return warnings;
   }
 
   // Unique account IDs present in campaigns — max 4
@@ -315,15 +337,6 @@ export function CampaignHierarchyEditor({
     }, 2000);
     return () => window.clearInterval(interval);
   }, [hasRunningBatches, reloadLaunchBatches]);
-
-  // Load page 1 when preset dialog opens
-  useEffect(() => {
-    if (presetDialog === "manage" || presetDialog === "apply") {
-      setPresetSearch("");
-      loadPresetPage(1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [presetDialog]);
 
   // Debounce search — reload page 1 on search change
   useEffect(() => {
@@ -813,8 +826,15 @@ export function CampaignHierarchyEditor({
     return String(idCounterRef.current++);
   }
 
+  function openPresetDialog(kind: "apply" | "manage") {
+    presetSearchRef.current = "";
+    setPresetSearch("");
+    setPresetDialog(kind);
+    void loadPresetPage(1);
+  }
+
   function openPresetManager() {
-    setPresetDialog("manage");
+    openPresetDialog("manage");
   }
 
   function openSiteBindingManager() {
@@ -1157,6 +1177,15 @@ export function CampaignHierarchyEditor({
       return;
     }
 
+    const descriptionWarnings = descriptionLimitWarnings();
+    if (descriptionWarnings.length) {
+      notify({
+        tone: "warning",
+        title: "广告描述已自动截断",
+        description: descriptionWarnings.slice(0, 4).join("\n"),
+      });
+    }
+
     setIsSubmitting(true);
     setResult(null);
     const submittedCount = campaigns.length;
@@ -1356,7 +1385,7 @@ export function CampaignHierarchyEditor({
             `落地页 ${ad.finalUrl}`,
             `商家名 ${ad.businessName}`,
             `标题 ${splitLines(ad.shortHeadlines).slice(0, 3).join(" / ")}`,
-            `描述 ${splitLines(ad.descriptions).slice(0, 2).join(" / ")}`,
+            `描述 ${splitMultiline(ad.descriptions).slice(0, 2).join(" / ")}`,
           ].join(" · "),
         });
       });
@@ -1549,7 +1578,13 @@ export function CampaignHierarchyEditor({
                             const operation = campaign ? operationLabelForCampaign(campaign, googleError.operationIndex) : null;
                             return (
                               <p key={`${item.id}-err-${index}`} className="mt-1">
-                                {[googleError.code, operation?.label, googleError.trigger, googleError.message].filter(Boolean).join(" · ")}
+                                {[
+                                  googleError.code,
+                                  operation?.label,
+                                  googleError.path,
+                                  googleError.trigger,
+                                  googleError.message,
+                                ].filter(Boolean).join(" · ")}
                               </p>
                             );
                           })}
@@ -1760,7 +1795,7 @@ export function CampaignHierarchyEditor({
               {!editorFocus ? (
                 <>
                   <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
-                    <Button size="default" type="button" onClick={() => setPresetDialog("apply")}>
+                    <Button size="default" type="button" onClick={() => openPresetDialog("apply")}>
                       <Layers3 aria-hidden className="h-4 w-4" strokeWidth={1.75} />
                       套用预设
                     </Button>
